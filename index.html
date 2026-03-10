@@ -842,6 +842,20 @@ function App() {
   const IncSortTh = makeSortTh(incSortKey, incSortDir, toggleIncSort);
   const AssSortTh = makeSortTh(assSortKey, assSortDir, toggleAssSort);
 
+  const loadData=useCallback(async()=>{
+    setLoading(true);
+    try {
+      const [d,i,a]=await Promise.all([
+        sheetsAPI.getSheet(CFG.SHEET_DOCUMENTI),
+        sheetsAPI.getSheet(CFG.SHEET_INCASSI),
+        sheetsAPI.getSheet(CFG.SHEET_ASSEGNI),
+      ]);
+      setDocs(d); setIncs(i); setAssegni(a);
+      notify("Dati sincronizzati ✓","success");
+    } catch(e) { notify("Errore: "+e.message,"error"); }
+    finally { setLoading(false); }
+  },[]);
+
   if(!authed) return (
     <div style={{minHeight:"100vh",background:"#070c18",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:20,padding:"48px 40px",width:360,textAlign:"center"}}>
@@ -878,22 +892,7 @@ function App() {
   );
 
   // ── APP ──
-
   const notify=(msg,type="info")=>setToast({msg,type});
-
-  const loadData=useCallback(async()=>{
-    setLoading(true);
-    try {
-      const [d,i,a]=await Promise.all([
-        sheetsAPI.getSheet(CFG.SHEET_DOCUMENTI),
-        sheetsAPI.getSheet(CFG.SHEET_INCASSI),
-        sheetsAPI.getSheet(CFG.SHEET_ASSEGNI),
-      ]);
-      setDocs(d); setIncs(i); setAssegni(a);
-      notify("Dati sincronizzati ✓","success");
-    } catch(e) { notify("Errore: "+e.message,"error"); }
-    finally { setLoading(false); }
-  },[]);
 
   const handleSignIn=async()=>{
     setLoading(true);
