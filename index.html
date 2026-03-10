@@ -1110,13 +1110,33 @@ function App() {
   const loadData=useCallback(async()=>{
     setLoading(true);
     try {
-      const [d,i,a]=await Promise.all([
+      const [d,i,a,rc]=await Promise.all([
         sheetsAPI.getSheet(CFG.SHEET_DOCUMENTI),
         sheetsAPI.getSheet(CFG.SHEET_INCASSI),
         sheetsAPI.getSheet(CFG.SHEET_ASSEGNI),
         sheetsAPI.getSheet(CFG.SHEET_RICONCILIAZIONI),
       ]);
       setDocs(d); setIncs(i); setAssegni(a);
+      // Raggruppa riconciliazioni per ID (ogni ID può avere più fatture)
+      const ricoMap = {};
+      (rc||[]).forEach(r => {
+        const id = r["ID INCASSO"] || r["ID"] || "";
+        if(!ricoMap[id]) ricoMap[id] = {
+          id,
+          data: r["DATA"] || r["Data Ricezione"] || "",
+          accredito: r["ACCREDITO"] || r["IMPORTO"] || 0,
+          descrizione: r["DESCRIZIONE"] || r["NOTE"] || "",
+          fatture: [],
+          tipo: r["TIPO"] || "",
+        };
+        const numDoc = r["NUMERO DOCUMENTO"] || r["FATTURE"] || "";
+        if(numDoc && !ricoMap[id].fatture.includes(numDoc))
+          ricoMap[id].fatture.push(numDoc);
+        // Accumula importo se non presente nell'header
+        if(!ricoMap[id].accredito && r["IMPORTO"])
+          ricoMap[id].accredito = (parseFloat(ricoMap[id].accredito)||0) + (parseFloat(r["IMPORTO"])||0);
+      });
+      setRiconciliazioni(Object.values(ricoMap));
       notify("Dati sincronizzati ✓","success");
     } catch(e) { notify("Errore: "+e.message,"error"); }
     finally { setLoading(false); }
@@ -1221,6 +1241,13 @@ function App() {
       } catch(e){ notify("Errore salvataggio: "+e.message,"error"); return; }
     }
     setIncs(p=>[...p,{"ID Incasso":id,Metodo:method,"Data Ricezione":date,"Importo Totale":amount,Note:notes}]);
+    // Aggiungi allo storico riconciliazioni
+    setRiconciliazioni(p=>[...p,{
+      id, data:date, accredito:amount,
+      descrizione:notes,
+      fatture:[...pred.full,...pred.partial].map(f=>f[COL.numeroDocumento]),
+      tipo:"Pagamento",
+    }]);
 
     // Aggiorna documenti in memoria + Sheets
     setDocs(p=>{
@@ -1327,14 +1354,15 @@ function App() {
       }
       // Marca accredito come riconciliato
       setBankRows(p=>p.map(r=>r.idx===selAccredito.idx?{...r,riconciliato:true}:r));
-      // Aggiungi a storico locale
+      // Aggiungi a storico locale con struttura normalizzata
       const now = new Date().toLocaleDateString("it-IT");
       setRiconciliazioni(p=>[...p, {
-        "ID INCASSO": `RIC-${Date.now()}`,
-        "DATA": now,
-        "ACCREDITO": selAccredito.avere,
-        "DESCRIZIONE": selAccredito.descAdd||selAccredito.desc,
-        "FATTURE": Object.keys(recoSel).join(", "),
+        id: `RIC-${Date.now()}`,
+        data: now,
+        accredito: selAccredito.avere,
+        descrizione: selAccredito.descAdd||selAccredito.desc,
+        fatture: Object.keys(recoSel),
+        tipo: "Banca",
       }]);
       setSelAccredito(null);
       setRecoSel({});
@@ -1874,9 +1902,19 @@ function App() {
         {tab==="storico"&&(
           <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
             <div style={{padding:"14px 18px",borderBottom:"1px solid #1e293b",
-              display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <span style={{color:"#94a3b8",fontSize:11,fontWeight:700}}>◈ STORICO RICONCILIAZIONI BANCARIE</span>
-              <span style={{color:"#475569",fontSize:11}}>{riconciliazioni.length} operazioni</span>
+              display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+              <span style={{color:"#94a3b8",fontSize:11,fontWeight:700}}>◈ STORICO RICONCILIAZIONI</span>
+              <div style={{display:"flex",gap:16,fontSize:11}}>
+                <span style={{color:"#60a5fa"}}>
+                  Bancarie: <strong>{riconciliazioni.filter(r=>r.tipo==="Banca"||(r.id||"").startsWith("RIC-")).length}</strong>
+                </span>
+                <span style={{color:"#4ade80"}}>
+                  Pagamenti: <strong>{riconciliazioni.filter(r=>r.tipo==="Pagamento"||(r.id||"").startsWith("INC-")).length}</strong>
+                </span>
+                <span style={{color:"#475569"}}>
+                  Totale incassato: <strong style={{color:"#38bdf8"}}>{eur(riconciliazioni.reduce((s,r)=>s+(parseNum(r.accredito||r["ACCREDITO"]||0)),0))}</strong>
+                </span>
+              </div>
             </div>
             {riconciliazioni.length===0?(
               <div style={{padding:60,textAlign:"center",color:"#334155",fontSize:12}}>
@@ -1894,31 +1932,46 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {[...riconciliazioni].reverse().map((r,i)=>(
-                      <tr key={i} style={{borderBottom:"1px solid #0f172a"}}
-                        className="row-hover">
-                        <td style={{padding:"10px 14px",color:"#475569",fontSize:10,
-                          fontFamily:"'IBM Plex Mono',monospace"}}>{r["ID INCASSO"]||r["ID"]||"—"}</td>
-                        <td style={{padding:"10px 14px",color:"#94a3b8"}}>{r["DATA"]||r["Data Ricezione"]||"—"}</td>
+                    {[...riconciliazioni].reverse().map((r,i)=>{
+                      const fatture = Array.isArray(r.fatture)
+                        ? r.fatture
+                        : (r["FATTURE"]||r["NUMERO DOCUMENTO"]||"").split(",").map(x=>x.trim()).filter(Boolean);
+                      const accredito = r.accredito || r["ACCREDITO"] || r["IMPORTO"] || 0;
+                      const data = r.data || r["DATA"] || r["Data Ricezione"] || "—";
+                      const desc = r.descrizione || r["DESCRIZIONE"] || r["NOTE"] || "—";
+                      const id = r.id || r["ID INCASSO"] || r["ID"] || "—";
+                      const tipo = r.tipo || (id.startsWith("RIC-")?"Banca":"Pagamento");
+                      return (
+                      <tr key={i} style={{borderBottom:"1px solid #0f172a"}} className="row-hover">
+                        <td style={{padding:"10px 14px"}}>
+                          <div style={{color:"#475569",fontSize:9,fontFamily:"'IBM Plex Mono',monospace",marginBottom:2}}>{id}</div>
+                          <span style={{background:tipo==="Banca"?"#0f1f35":"#0a2a1a",
+                            border:`1px solid ${tipo==="Banca"?"#1e3a5f":"#22c55e33"}`,
+                            borderRadius:4,padding:"1px 6px",
+                            color:tipo==="Banca"?"#60a5fa":"#4ade80",fontSize:9}}>
+                            {tipo}
+                          </span>
+                        </td>
+                        <td style={{padding:"10px 14px",color:"#94a3b8",fontSize:12}}>{data}</td>
                         <td style={{padding:"10px 14px",color:"#4ade80",fontWeight:700,
-                          fontFamily:"'IBM Plex Mono',monospace"}}>
-                          {r["ACCREDITO"]?eur(r["ACCREDITO"]):r["IMPORTO"]?eur(r["IMPORTO"]):"—"}
+                          fontFamily:"'IBM Plex Mono',monospace",fontSize:13}}>
+                          {accredito?eur(accredito):"—"}
                         </td>
-                        <td style={{padding:"10px 14px",color:"#64748b",fontSize:11,maxWidth:300,
+                        <td style={{padding:"10px 14px",color:"#64748b",fontSize:11,maxWidth:260,
                           overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                          {r["DESCRIZIONE"]||r["NOTE"]||"—"}
+                          {desc}
                         </td>
-                        <td style={{padding:"10px 14px"}}>{
-                          (r["FATTURE"]||r["NUMERO DOCUMENTO"]||"—").split(",").map((f,j)=>(
+                        <td style={{padding:"10px 14px"}}>
+                          {fatture.length>0 ? fatture.map((f,j)=>(
                             <span key={j} style={{display:"inline-block",background:"#0f1f35",
                               border:"1px solid #1e3a5f",borderRadius:4,padding:"1px 6px",
                               color:"#60a5fa",fontSize:10,marginRight:4,marginBottom:2}}>
-                              {f.trim()}
+                              {f}
                             </span>
-                          ))
-                        }</td>
+                          )) : <span style={{color:"#334155"}}>—</span>}
+                        </td>
                       </tr>
-                    ))}
+                    );})}
                   </tbody>
                 </table>
               </div>
