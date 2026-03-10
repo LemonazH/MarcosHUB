@@ -843,22 +843,30 @@ function App() {
   const AssSortTh = makeSortTh(assSortKey, assSortDir, toggleAssSort);
 
   const loadData=useCallback(async()=>{
+    console.log("loadData chiamato — user:", sheetsAPI.user, "pass:", sheetsAPI.pass);
     setLoading(true);
     try {
+      console.log("Chiamo Worker...");
       const [d,i,a]=await Promise.all([
         sheetsAPI.getSheet(CFG.SHEET_DOCUMENTI),
         sheetsAPI.getSheet(CFG.SHEET_INCASSI),
         sheetsAPI.getSheet(CFG.SHEET_ASSEGNI),
       ]);
+      console.log("Dati ricevuti — docs:", d.length, "incs:", i.length, "ass:", a.length);
       setDocs(d); setIncs(i); setAssegni(a);
       notify("Dati sincronizzati ✓","success");
-    } catch(e) { notify("Errore: "+e.message,"error"); }
+    } catch(e) { 
+      console.error("Errore loadData:", e);
+      notify("Errore: "+e.message,"error"); 
+    }
     finally { setLoading(false); }
   },[]);
 
   // Auto-carica dati quando l'utente effettua il login
   useEffect(()=>{
+    console.log("useEffect authed:", authed, "sheetsAPI.user:", sheetsAPI.user);
     if(authed && sheetsAPI.user){
+      console.log("Avvio loadData da useEffect");
       setDemo(false);
       setAuth(true);
       loadData();
