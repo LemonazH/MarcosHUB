@@ -477,7 +477,7 @@ function CashChart({assegni}) {
 }
 
 
-function PayModal({docs,onSave,onClose}) {
+function PayModal({docs,onSave,onClose,user,onLogout}) {
   const [step,setStep]=useState(1); // 1=dati base, 2=fatture+riconciliazione
   const [method,setMethod]=useState("Bonifico");
   const [amount,setAmount]=useState("");
@@ -597,8 +597,8 @@ function PayModal({docs,onSave,onClose}) {
           <div>
             <h2 style={{color:"#f1f5f9",fontSize:16,fontWeight:700,marginBottom:3}}>⟁ Registra Incasso</h2>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
-          <span style={{color:"#475569",fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}>👤 {authed}</span>
-          <button onClick={handleLogout} style={{background:"transparent",border:"1px solid #1e293b",
+          <span style={{color:"#475569",fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}>👤 {user}</span>
+          <button onClick={onLogout} style={{background:"transparent",border:"1px solid #1e293b",
             borderRadius:6,padding:"4px 10px",color:"#64748b",fontSize:11,cursor:"pointer"}}>
             Esci
           </button>
@@ -989,7 +989,8 @@ function App() {
   const [docs,setDocs]=useState(MOCK_DOCS);
   const [incs,setIncs]=useState(MOCK_INCS);
   const [assegni,setAssegni]=useState([]);
-  const [bankRows,setBankRows]=useState([]); // righe accrediti dal file banca
+  const [bankRows,setBankRows]=useState([]);
+  const [riconciliazioni,setRiconciliazioni]=useState([]); // righe accrediti dal file banca
   const [selAccredito,setSelAccredito]=useState(null); // accredito selezionato
   const [recoSearch,setRecoSearch]=useState(""); // ricerca fatture nel pannello
   const [recoSel,setRecoSel]=useState({}); // {numDoc: importoAllocato}
@@ -1035,6 +1036,7 @@ function App() {
         sheetsAPI.getSheet(CFG.SHEET_DOCUMENTI),
         sheetsAPI.getSheet(CFG.SHEET_INCASSI),
         sheetsAPI.getSheet(CFG.SHEET_ASSEGNI),
+        sheetsAPI.getSheet(CFG.SHEET_RICONCILIAZIONI),
       ]);
       setDocs(d); setIncs(i); setAssegni(a);
       notify("Dati sincronizzati ✓","success");
@@ -1226,6 +1228,15 @@ function App() {
       }
       // Marca accredito come riconciliato
       setBankRows(p=>p.map(r=>r.idx===selAccredito.idx?{...r,riconciliato:true}:r));
+      // Aggiungi a storico locale
+      const now = new Date().toLocaleDateString("it-IT");
+      setRiconciliazioni(p=>[...p, {
+        "ID INCASSO": `RIC-${Date.now()}`,
+        "DATA": now,
+        "ACCREDITO": selAccredito.avere,
+        "DESCRIZIONE": selAccredito.descAdd||selAccredito.desc,
+        "FATTURE": Object.keys(recoSel).join(", "),
+      }]);
       setSelAccredito(null);
       setRecoSel({});
       notify("Riconciliazione salvata ✓","success");
@@ -1256,7 +1267,7 @@ function App() {
         </div>
       </div>
       <nav style={{display:"flex",gap:3}}>
-        {[["dashboard","Dashboard"],["documenti","Documenti"],["incassi","Incassi"],["assegni","Assegni"],["riconcilia","Riconcilia 🏦"]].map(([id,lbl])=>(
+        {[["dashboard","Dashboard"],["documenti","Documenti"],["incassi","Incassi"],["assegni","Assegni"],["riconcilia","Riconcilia 🏦"],["storico","Storico 📋"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)} style={{
             background:tab===id?"#1e293b":"transparent",
             color:tab===id?"#f1f5f9":"#64748b",
@@ -1614,7 +1625,7 @@ function App() {
 
                   {/* Totale allocato */}
                   {Object.keys(recoSel).length>0&&(()=>{
-                    const tot = Object.values(recoSel).reduce((s,v)=>s+parseNum(v),0);
+                    const tot = Object.values(recoSel).reduce((s,v)=>s+parseNum(v),0); // NAC sono negativi
                     const diff = selAccredito.avere - tot;
                     return (
                       <div style={{background: Math.abs(diff)<0.01?"#0a1a0a":"#1a0f00",
@@ -1641,66 +1652,81 @@ function App() {
 
                   {/* Lista fatture abbinabili */}
                   <div style={{maxHeight:320,overflowY:"auto",marginBottom:12}}>
-                    {docs
-                      .filter(d=>d[COL.stato]?.toUpperCase()==="APERTO"&&d[COL.tipoDocumento]==="FVE")
+                    {(()=>{
+                    const allOpen = docs.filter(d=>d[COL.stato]?.toUpperCase()==="APERTO")
                       .filter(d=>!recoSearch||
                         d[COL.ragioneSociale]?.toLowerCase().includes(recoSearch.toLowerCase())||
-                        d[COL.numeroDocumento]?.includes(recoSearch))
+                        d[COL.numeroDocumento]?.includes(recoSearch));
+                    const fves = allOpen.filter(d=>d[COL.tipoDocumento]==="FVE")
                       .sort((a,b)=>Math.abs(parseNum(a[COL.saldoResiduo])-selAccredito.avere)-Math.abs(parseNum(b[COL.saldoResiduo])-selAccredito.avere))
-                      .slice(0,20)
-                      .map(doc=>{
-                        const num = doc[COL.numeroDocumento];
-                        const checked = num in recoSel;
-                        const saldo = parseNum(doc[COL.saldoResiduo]);
-                        const match = Math.abs(saldo-selAccredito.avere)<0.01;
-                        return (
-                          <div key={num} style={{
-                            border:`1px solid ${checked?"#3b82f6":match?"#22c55e33":"#1e293b"}`,
-                            background:checked?"#0f1f35":match?"#0a1a10":"transparent",
-                            borderRadius:8,padding:"8px 10px",marginBottom:6,cursor:"pointer",
-                          }}
-                          onClick={()=>{
-                            setRecoSel(p=>{
-                              const n={...p};
-                              if(num in n) delete n[num];
-                              else n[num]=String(saldo);
-                              return n;
-                            });
-                          }}>
-                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                              <div>
-                                <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                                  <span style={{color:checked?"#60a5fa":"#94a3b8",
-                                    fontSize:11,fontWeight:700}}>
-                                    {checked?"☑":"☐"} {num}
-                                  </span>
-                                  {match&&<span style={{color:"#22c55e",fontSize:9,
-                                    background:"#0a2a15",padding:"1px 5px",borderRadius:4}}>
-                                    importo esatto
-                                  </span>}
-                                </div>
-                                <div style={{color:"#475569",fontSize:10,marginTop:2}}>
-                                  {doc[COL.ragioneSociale]}
-                                </div>
+                      .slice(0,20);
+                    const nacs = allOpen.filter(d=>d[COL.tipoDocumento]==="NAC");
+
+                    const DocRow = ({doc}) => {
+                      const num = doc[COL.numeroDocumento];
+                      const checked = num in recoSel;
+                      const saldo = parseNum(doc[COL.saldoResiduo]);
+                      const isNac = doc[COL.tipoDocumento]==="NAC";
+                      const match = !isNac && Math.abs(saldo-selAccredito.avere)<0.01;
+                      return (
+                        <div key={num} style={{
+                          border:`1px solid ${checked?(isNac?"#a855f7":"#3b82f6"):match?"#22c55e33":isNac?"#581c8733":"#1e293b"}`,
+                          background:checked?(isNac?"#1a0f2e":"#0f1f35"):match?"#0a1a10":isNac?"#0f0a1a":"transparent",
+                          borderRadius:8,padding:"8px 10px",marginBottom:6,cursor:"pointer",
+                        }}
+                        onClick={()=>{
+                          setRecoSel(p=>{
+                            const n={...p};
+                            if(num in n) delete n[num];
+                            // NAC: importo negativo (scala dall'accredito)
+                            else n[num]=isNac?String(-Math.abs(saldo)):String(saldo);
+                            return n;
+                          });
+                        }}>
+                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            <div>
+                              <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                                <span style={{color:checked?(isNac?"#c084fc":"#60a5fa"):(isNac?"#a855f7":"#94a3b8"),
+                                  fontSize:11,fontWeight:700}}>
+                                  {checked?"☑":"☐"} {num}
+                                </span>
+                                {match&&<span style={{color:"#22c55e",fontSize:9,background:"#0a2a15",padding:"1px 5px",borderRadius:4}}>importo esatto</span>}
+                                {isNac&&<span style={{color:"#c084fc",fontSize:9,background:"#2a1040",padding:"1px 5px",borderRadius:4}}>NAC</span>}
                               </div>
-                              <div>
-                                <div style={{color:"#f1f5f9",fontSize:12,fontWeight:700,textAlign:"right"}}>
-                                  {eur(saldo)}
-                                </div>
-                                {checked&&(
-                                  <input
-                                    value={recoSel[num]||""}
-                                    onChange={e=>{e.stopPropagation();setRecoSel(p=>({...p,[num]:e.target.value}));}}
-                                    onClick={e=>e.stopPropagation()}
-                                    style={{width:80,background:"#0a0f1e",border:"1px solid #3b82f6",
-                                      borderRadius:5,padding:"2px 6px",color:"#60a5fa",
-                                      fontSize:11,textAlign:"right",marginTop:3}}/>
-                                )}
+                              <div style={{color:"#475569",fontSize:10,marginTop:2}}>{doc[COL.ragioneSociale]}</div>
+                            </div>
+                            <div style={{textAlign:"right"}}>
+                              <div style={{color:isNac?"#c084fc":"#f1f5f9",fontSize:12,fontWeight:700}}>
+                                {isNac?"-":""}{eur(saldo)}
                               </div>
+                              {checked&&(
+                                <input
+                                  value={recoSel[num]||""}
+                                  onChange={e=>{e.stopPropagation();setRecoSel(p=>({...p,[num]:e.target.value}));}}
+                                  onClick={e=>e.stopPropagation()}
+                                  style={{width:80,background:"#0a0f1e",border:`1px solid ${isNac?"#a855f7":"#3b82f6"}`,
+                                    borderRadius:5,padding:"2px 6px",color:isNac?"#c084fc":"#60a5fa",
+                                    fontSize:11,textAlign:"right",marginTop:3}}/>
+                              )}
                             </div>
                           </div>
-                        );
-                    })}
+                        </div>
+                      );
+                    };
+
+                    return <>
+                      {fves.length>0&&<div style={{color:"#475569",fontSize:10,fontWeight:700,
+                        marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Fatture (FVE)</div>}
+                      {fves.map(doc=><DocRow key={doc[COL.numeroDocumento]} doc={doc}/>)}
+                      {nacs.length>0&&<>
+                        <div style={{color:"#a855f7",fontSize:10,fontWeight:700,
+                          margin:"10px 0 6px",textTransform:"uppercase",letterSpacing:1}}>
+                          ◈ Note di Credito (NAC) — scalano dall'accredito
+                        </div>
+                        {nacs.map(doc=><DocRow key={doc[COL.numeroDocumento]} doc={doc}/>)}
+                      </>}
+                    </>;
+                  })()}
                   </div>
 
                   {/* Bottoni */}
@@ -1731,7 +1757,63 @@ function App() {
           </div>
         )}
 
-      {showPay&&<PayModal docs={docs} onSave={handleSavePay} onClose={()=>setShowPay(false)}/>}
+        {/* STORICO RICONCILIAZIONI */}
+        {tab==="storico"&&(
+          <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
+            <div style={{padding:"14px 18px",borderBottom:"1px solid #1e293b",
+              display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <span style={{color:"#94a3b8",fontSize:11,fontWeight:700}}>◈ STORICO RICONCILIAZIONI BANCARIE</span>
+              <span style={{color:"#475569",fontSize:11}}>{riconciliazioni.length} operazioni</span>
+            </div>
+            {riconciliazioni.length===0?(
+              <div style={{padding:60,textAlign:"center",color:"#334155",fontSize:12}}>
+                Nessuna riconciliazione registrata
+              </div>
+            ):(
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead>
+                    <tr style={{background:"#070c18"}}>
+                      {["ID","Data","Accredito","Descrizione","Fatture/NAC collegate"].map(h=>(
+                        <th key={h} style={{padding:"10px 14px",textAlign:"left",
+                          color:"#475569",fontWeight:600,fontSize:11,borderBottom:"1px solid #1e293b"}}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...riconciliazioni].reverse().map((r,i)=>(
+                      <tr key={i} style={{borderBottom:"1px solid #0f172a"}}
+                        className="row-hover">
+                        <td style={{padding:"10px 14px",color:"#475569",fontSize:10,
+                          fontFamily:"'IBM Plex Mono',monospace"}}>{r["ID INCASSO"]||r["ID"]||"—"}</td>
+                        <td style={{padding:"10px 14px",color:"#94a3b8"}}>{r["DATA"]||r["Data Ricezione"]||"—"}</td>
+                        <td style={{padding:"10px 14px",color:"#4ade80",fontWeight:700,
+                          fontFamily:"'IBM Plex Mono',monospace"}}>
+                          {r["ACCREDITO"]?eur(r["ACCREDITO"]):r["IMPORTO"]?eur(r["IMPORTO"]):"—"}
+                        </td>
+                        <td style={{padding:"10px 14px",color:"#64748b",fontSize:11,maxWidth:300,
+                          overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          {r["DESCRIZIONE"]||r["NOTE"]||"—"}
+                        </td>
+                        <td style={{padding:"10px 14px"}}>{
+                          (r["FATTURE"]||r["NUMERO DOCUMENTO"]||"—").split(",").map((f,j)=>(
+                            <span key={j} style={{display:"inline-block",background:"#0f1f35",
+                              border:"1px solid #1e3a5f",borderRadius:4,padding:"1px 6px",
+                              color:"#60a5fa",fontSize:10,marginRight:4,marginBottom:2}}>
+                              {f.trim()}
+                            </span>
+                          ))
+                        }</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+      {showPay&&<PayModal docs={docs} onSave={handleSavePay} onClose={()=>setShowPay(false)} user={authed} onLogout={handleLogout}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
     </div>
   );
