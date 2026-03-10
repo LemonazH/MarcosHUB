@@ -856,6 +856,15 @@ function App() {
     finally { setLoading(false); }
   },[]);
 
+  // Auto-carica dati quando l'utente effettua il login
+  useEffect(()=>{
+    if(authed && sheetsAPI.user){
+      setDemo(false);
+      setAuth(true);
+      loadData();
+    }
+  },[authed]);
+
   if(!authed) return (
     <div style={{minHeight:"100vh",background:"#070c18",display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:20,padding:"48px 40px",width:360,textAlign:"center"}}>
