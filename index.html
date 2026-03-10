@@ -190,67 +190,51 @@ const isWarn  = s => ageDays(s)>60 && ageDays(s)<=90;
 /* ──────────────────────────────────────────────
    SORT HOOK — riutilizzabile per tutte le tabelle
 ────────────────────────────────────────────── */
-function useSort(data, defaultKey="", defaultDir="asc") {
-  const [sortKey, setSortKey] = useState(defaultKey);
-  const [sortDir, setSortDir] = useState(defaultDir);
-
-  const toggleSort = (key) => {
-    if (key === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
-    else { setSortKey(key); setSortDir("asc"); }
-  };
-
-  // Converte dd/mm/yyyy o yyyy-mm-dd in Date
+// Funzione pura di ordinamento (senza hook interni)
+function sortData(data, sortKey, sortDir) {
   const parseDate = v => {
     const s = String(v||"").trim();
-    // Formato italiano dd/mm/yyyy
     const itMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
     if (itMatch) return new Date(itMatch[3], itMatch[2]-1, itMatch[1]);
-    // Formato ISO yyyy-mm-dd
     const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (isoMatch) return new Date(isoMatch[1], isoMatch[2]-1, isoMatch[3]);
     return null;
   };
-
-  const sorted = [...data].sort((a, b) => {
-    const av = a[sortKey] ?? "";
-    const bv = b[sortKey] ?? "";
+  if(!sortKey) return [...data];
+  return [...data].sort((a,b)=>{
+    const av=a[sortKey]??"", bv=b[sortKey]??"";
+    const ad=parseDate(av), bd=parseDate(bv);
     let cmp;
-    // Date in formato italiano dd/mm/yyyy o ISO
-    const ad = parseDate(av), bd = parseDate(bv);
-    if (ad && bd) cmp = ad - bd;
+    if(ad&&bd) cmp=ad-bd;
     else {
-      // Numerico (con virgola decimale italiana)
-      const an = parseFloat(String(av).replace(/\./g,"").replace(",","."));
-      const bn = parseFloat(String(bv).replace(/\./g,"").replace(",","."));
-      if (!isNaN(an) && !isNaN(bn)) cmp = an - bn;
-      // Stringa
-      else cmp = String(av).localeCompare(String(bv), "it");
+      const an=parseFloat(String(av).replace(/\./g,"").replace(",","."));
+      const bn=parseFloat(String(bv).replace(/\./g,"").replace(",","."));
+      if(!isNaN(an)&&!isNaN(bn)) cmp=an-bn;
+      else cmp=String(av).localeCompare(String(bv),"it");
     }
-    return sortDir === "asc" ? cmp : -cmp;
+    return sortDir==="asc"?cmp:-cmp;
   });
+}
 
-  // SortTh: intestazione cliccabile con freccia
-  const SortTh = ({label, colKey, style={}}) => {
-    const active = colKey === sortKey;
+function makeSortTh(sortKey, sortDir, toggleSort) {
+  return function SortTh({label, colKey, style={}}) {
+    const active = colKey===sortKey;
     return (
-      <th onClick={() => toggleSort(colKey)}
-        style={{padding:"11px 13px", textAlign:"left", fontWeight:600, fontSize:11,
-          whiteSpace:"nowrap", cursor:"pointer", userSelect:"none",
-          color: active ? "#f1f5f9" : "#475569",
-          background: active ? "#162032" : "transparent",
-          transition:"color .15s,background .15s",
-          ...style}}>
+      <th onClick={()=>toggleSort(colKey)}
+        style={{padding:"11px 13px",textAlign:"left",fontWeight:600,fontSize:11,
+          whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",
+          color:active?"#f1f5f9":"#475569",
+          background:active?"#162032":"transparent",
+          transition:"color .15s,background .15s",...style}}>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           {label}
-          <span style={{fontSize:10, color: active ? "#6366f1" : "#334155"}}>
-            {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+          <span style={{fontSize:10,color:active?"#6366f1":"#334155"}}>
+            {active?(sortDir==="asc"?"▲":"▼"):"⇅"}
           </span>
         </span>
       </th>
     );
   };
-
-  return { sorted, sortKey, sortDir, toggleSort, SortTh };
 }
 
 /* ──────────────────────────────────────────────
@@ -838,12 +822,25 @@ function App() {
     return true;
   });
 
-  // Ordinamento tabella Documenti
-  const docSort = useSort(filtered, COL.dataDocumento, "asc");
-  // Ordinamento tabella Incassi
-  const incSort = useSort(incs, "Data Ricezione", "desc");
-  // Ordinamento tabella Assegni
-  const assSort = useSort(assegni, "DATA TITOLO", "desc");
+  // Ordinamento tabelle — useState semplici, nessun hook custom
+  const [docSortKey, setDocSortKey] = useState(COL.dataDocumento);
+  const [docSortDir, setDocSortDir] = useState("asc");
+  const [incSortKey, setIncSortKey] = useState("Data Ricezione");
+  const [incSortDir, setIncSortDir] = useState("desc");
+  const [assSortKey, setAssSortKey] = useState("DATA TITOLO");
+  const [assSortDir, setAssSortDir] = useState("desc");
+
+  const toggleDocSort = k => { setDocSortKey(k); setDocSortDir(d=>k===docSortKey?(d==="asc"?"desc":"asc"):"asc"); };
+  const toggleIncSort = k => { setIncSortKey(k); setIncSortDir(d=>k===incSortKey?(d==="asc"?"desc":"asc"):"asc"); };
+  const toggleAssSort = k => { setAssSortKey(k); setAssSortDir(d=>k===assSortKey?(d==="asc"?"desc":"asc"):"asc"); };
+
+  const docSorted = sortData(filtered, docSortKey, docSortDir);
+  const incSorted = sortData(incs, incSortKey, incSortDir);
+  const assSorted = sortData(assegni, assSortKey, assSortDir);
+
+  const DocSortTh = makeSortTh(docSortKey, docSortDir, toggleDocSort);
+  const IncSortTh = makeSortTh(incSortKey, incSortDir, toggleIncSort);
+  const AssSortTh = makeSortTh(assSortKey, assSortDir, toggleAssSort);
 
   if(!authed) return (
     <div style={{minHeight:"100vh",background:"#070c18",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -1100,20 +1097,20 @@ function App() {
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <thead>
                     <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
-                      <docSort.SortTh label="Tipo"           colKey={COL.tipoDocumento}/>
-                      <docSort.SortTh label="N° Doc"         colKey={COL.numeroDocumento}/>
-                      <docSort.SortTh label="Data"           colKey={COL.dataDocumento}/>
-                      <docSort.SortTh label="Cliente"        colKey={COL.ragioneSociale}/>
-                      <docSort.SortTh label="Importo"        colKey={COL.importoDocumento} style={{textAlign:"right"}}/>
-                      <docSort.SortTh label="Saldo Residuo"  colKey={COL.saldoResiduo} style={{textAlign:"right"}}/>
-                      <docSort.SortTh label="Scadenza"       colKey={COL.dataPagamento}/>
-                      <docSort.SortTh label="N° Assegno"     colKey={COL.nAssegno}/>
-                      <docSort.SortTh label="Note"           colKey={COL.note}/>
-                      <docSort.SortTh label="Stato"          colKey={COL.stato}/>
+                      <DocSortTh label="Tipo"           colKey={COL.tipoDocumento}/>
+                      <DocSortTh label="N° Doc"         colKey={COL.numeroDocumento}/>
+                      <DocSortTh label="Data"           colKey={COL.dataDocumento}/>
+                      <DocSortTh label="Cliente"        colKey={COL.ragioneSociale}/>
+                      <DocSortTh label="Importo"        colKey={COL.importoDocumento} style={{textAlign:"right"}}/>
+                      <DocSortTh label="Saldo Residuo"  colKey={COL.saldoResiduo} style={{textAlign:"right"}}/>
+                      <DocSortTh label="Scadenza"       colKey={COL.dataPagamento}/>
+                      <DocSortTh label="N° Assegno"     colKey={COL.nAssegno}/>
+                      <DocSortTh label="Note"           colKey={COL.note}/>
+                      <DocSortTh label="Stato"          colKey={COL.stato}/>
                     </tr>
                   </thead>
                   <tbody>
-                    {docSort.sorted.map((doc,i)=>{
+                    {docSorted.map((doc,i)=>{
                       const ov=doc[COL.stato]?.toUpperCase()==="APERTO"&&isOver(doc[COL.dataDocumento]);
                       const wn=doc[COL.stato]?.toUpperCase()==="APERTO"&&isWarn(doc[COL.dataDocumento]);
                       const origIdx=docs.indexOf(doc);
@@ -1172,15 +1169,15 @@ function App() {
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
                   <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
-                    <incSort.SortTh label="ID Incasso" colKey="ID Incasso"/>
-                    <incSort.SortTh label="Metodo"     colKey="Metodo"/>
-                    <incSort.SortTh label="Data"       colKey="Data Ricezione"/>
-                    <incSort.SortTh label="Importo"    colKey="Importo Totale" style={{textAlign:"right"}}/>
-                    <incSort.SortTh label="Note"       colKey="Note"/>
+                    <IncSortTh label="ID Incasso" colKey="ID Incasso"/>
+                    <IncSortTh label="Metodo"     colKey="Metodo"/>
+                    <IncSortTh label="Data"       colKey="Data Ricezione"/>
+                    <IncSortTh label="Importo"    colKey="Importo Totale" style={{textAlign:"right"}}/>
+                    <IncSortTh label="Note"       colKey="Note"/>
                   </tr>
                 </thead>
                 <tbody>
-                  {incSort.sorted.map((inc,i)=>(
+                  {incSorted.map((inc,i)=>(
                     <tr key={inc["ID Incasso"]} className="row-hover"
                       style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
                       <td style={{padding:"10px 13px",color:"#60a5fa"}}>{inc["ID Incasso"]}</td>
@@ -1205,7 +1202,7 @@ function App() {
               <div style={{display:"flex",gap:10,alignItems:"center"}}>
                 <div style={{background:"#0a1628",border:"1px solid #1e3a5f",borderRadius:8,
                   padding:"8px 16px",fontSize:12,color:"#60a5fa"}}>
-                  Totale: <strong>{eur(assSort.sorted.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}</strong>
+                  Totale: <strong>{eur(assSorted.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}</strong>
                 </div>
               </div>
             </div>
@@ -1214,17 +1211,17 @@ function App() {
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <thead>
                     <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
-                      <assSort.SortTh label="Cliente"       colKey="CLIENTE"/>
-                      <assSort.SortTh label="N° Titolo"     colKey="N TITOLO"/>
-                      <assSort.SortTh label="Data"          colKey="DATA TITOLO"/>
-                      <assSort.SortTh label="Importo"       colKey="IMPORTO TITOLO" style={{textAlign:"right"}}/>
-                      <assSort.SortTh label="Fatture Pagate" colKey="FATTURE PAGATE"/>
-                      <assSort.SortTh label="NC Scalate"    colKey="NC SCALATE"/>
-                      <assSort.SortTh label="Stato"         colKey="STATO TITOLO"/>
+                      <AssSortTh label="Cliente"       colKey="CLIENTE"/>
+                      <AssSortTh label="N° Titolo"     colKey="N TITOLO"/>
+                      <AssSortTh label="Data"          colKey="DATA TITOLO"/>
+                      <AssSortTh label="Importo"       colKey="IMPORTO TITOLO" style={{textAlign:"right"}}/>
+                      <AssSortTh label="Fatture Pagate" colKey="FATTURE PAGATE"/>
+                      <AssSortTh label="NC Scalate"    colKey="NC SCALATE"/>
+                      <AssSortTh label="Stato"         colKey="STATO TITOLO"/>
                     </tr>
                   </thead>
                   <tbody>
-                    {assSort.sorted.map((a,i)=>(
+                    {assSorted.map((a,i)=>(
                       <tr key={i} className="row-hover"
                         style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
                         <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600}}>{a["CLIENTE"]}</td>
