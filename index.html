@@ -81,50 +81,44 @@ const COL = {
 /* ──────────────────────────────────────────────
    GOOGLE SHEETS API LAYER
 ────────────────────────────────────────────── */
-const sheetsAPI = {
-  token: null,
+const WORKER_URL = "https://creditflow-api.m-torinese99.workers.dev";
 
-  signIn() {
-    return new Promise((resolve, reject) => {
-      if (!window.google?.accounts?.oauth2)
-        return reject("Google Identity Services non ancora caricato. Ricarica la pagina.");
-      const client = window.google.accounts.oauth2.initTokenClient({
-        client_id: CFG.CLIENT_ID,
-        scope: "https://www.googleapis.com/auth/spreadsheets",
-        callback: (r) => r.error ? reject(r.error) : (this.token = r.access_token, resolve()),
-      });
-      client.requestAccessToken();
-    });
+const sheetsAPI = {
+  // Credenziali utente passate dall'app dopo login
+  user: null,
+  pass: null,
+
+  authHeader() {
+    return "Basic " + btoa(this.user + ":" + this.pass);
   },
 
-  async req(path, opts = {}) {
-    const r = await fetch(
-      `https://sheets.googleapis.com/v4/spreadsheets/${CFG.SPREADSHEET_ID}${path}`,
-      { ...opts, headers: { Authorization:`Bearer ${this.token}`, "Content-Type":"application/json", ...opts.headers } }
-    );
-    if (!r.ok) { const e = await r.json(); throw new Error(e.error?.message || r.status); }
+  // signIn non serve più — il Worker gestisce l'autenticazione
+  async signIn() { return true; },
+
+  async getSheet(name) {
+    const r = await fetch(`${WORKER_URL}/sheet?name=${encodeURIComponent(name)}`, {
+      headers: { "Authorization": this.authHeader() }
+    });
+    if (!r.ok) throw new Error("Errore lettura foglio: " + name);
     return r.json();
   },
 
-  async getSheet(name) {
-    const d = await this.req(`/values/${encodeURIComponent(name)}`);
-    const [hdr, ...rows] = d.values || [[]];
-    return rows.map(row => hdr.reduce((o,h,i) => ({...o,[h]:row[i]??""}) ,{}));
-  },
-
   async setCell(sheet, rowIdx, colIdx, val) {
-    const col = String.fromCharCode(65 + colIdx);
-    await this.req(
-      `/values/${encodeURIComponent(sheet)}!${col}${rowIdx+2}?valueInputOption=USER_ENTERED`,
-      { method:"PUT", body: JSON.stringify({ values:[[val]] }) }
-    );
+    const r = await fetch(`${WORKER_URL}/update`, {
+      method: "POST",
+      headers: { "Authorization": this.authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ sheet, row: rowIdx, col: colIdx, value: val })
+    });
+    if (!r.ok) throw new Error("Errore aggiornamento cella");
   },
 
   async appendRow(sheet, values) {
-    await this.req(
-      `/values/${encodeURIComponent(sheet)}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
-      { method:"POST", body: JSON.stringify({ values:[values] }) }
-    );
+    const r = await fetch(`${WORKER_URL}/append`, {
+      method: "POST",
+      headers: { "Authorization": this.authHeader(), "Content-Type": "application/json" },
+      body: JSON.stringify({ sheet, values })
+    });
+    if (!r.ok) throw new Error("Errore aggiunta riga");
   },
 };
 
@@ -504,6 +498,11 @@ function PayModal({docs,onSave,onClose}) {
           <div>
             <h2 style={{color:"#f1f5f9",fontSize:16,fontWeight:700,marginBottom:3}}>⟁ Registra Incasso</h2>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
+          <span style={{color:"#475569",fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}>👤 {authed}</span>
+          <button onClick={handleLogout} style={{background:"transparent",border:"1px solid #1e293b",
+            borderRadius:6,padding:"4px 10px",color:"#64748b",fontSize:11,cursor:"pointer"}}>
+            Esci
+          </button>
               {["Dati Incasso","Riconcilia Fatture"].map((lbl,i)=>(
                 <React.Fragment key={i}>
                   <span style={{fontSize:11,color:step===i+1?"#6366f1":"#475569",fontWeight:step===i+1?700:400}}>
@@ -793,8 +792,69 @@ function SetupBanner() {
    MAIN APP
 ────────────────────────────────────────────── */
 function App() {
+  // ── LOGIN ──
+  const [authed, setAuthed] = useState(()=>{
+    const u = sessionStorage.getItem("cf_user");
+    const p = sessionStorage.getItem("cf_pass");
+    if(u && p){ sheetsAPI.user=u; sheetsAPI.pass=p; }
+    return u||"";
+  });
+  const [loginUser, setLoginUser] = useState("");
+  const [loginPass, setLoginPass] = useState("");
+  const [loginErr, setLoginErr] = useState("");
+
+  const USERS = { "Marco":"Marco", "Luca":"Luca" };
+
+  const handleLogin = () => {
+    if(USERS[loginUser] && USERS[loginUser]===loginPass){
+      sessionStorage.setItem("cf_user", loginUser);
+      sessionStorage.setItem("cf_pass", loginPass);
+      sheetsAPI.user = loginUser;
+      sheetsAPI.pass = loginPass;
+      setAuthed(loginUser); setLoginErr("");
+    } else { setLoginErr("Utente o password non corretti"); }
+  };
+
+  const handleLogout = () => { sessionStorage.removeItem("cf_user"); sessionStorage.removeItem("cf_pass"); sheetsAPI.user=null; sheetsAPI.pass=null; setAuthed(""); };
+
+  if(!authed) return (
+    <div style={{minHeight:"100vh",background:"#070c18",display:"flex",alignItems:"center",justifyContent:"center"}}>
+      <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:20,padding:"48px 40px",width:360,textAlign:"center"}}>
+        <div style={{width:52,height:52,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",
+          borderRadius:14,display:"flex",alignItems:"center",justifyContent:"center",
+          fontSize:24,margin:"0 auto 20px"}}>⟁</div>
+        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,marginBottom:4}}>CreditFlow</div>
+        <div style={{color:"#475569",fontSize:12,marginBottom:32}}>Gestione Crediti & Cash Flow</div>
+        <div style={{textAlign:"left",marginBottom:14}}>
+          <label style={{color:"#64748b",fontSize:11,fontWeight:600,display:"block",marginBottom:6}}>UTENTE</label>
+          <input value={loginUser} onChange={e=>setLoginUser(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()} placeholder="Nome utente"
+            style={{width:"100%",background:"#0f172a",border:"1px solid #1e293b",borderRadius:8,
+              padding:"10px 14px",color:"#f1f5f9",fontSize:13,fontFamily:"'IBM Plex Mono',monospace",
+              outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{textAlign:"left",marginBottom:24}}>
+          <label style={{color:"#64748b",fontSize:11,fontWeight:600,display:"block",marginBottom:6}}>PASSWORD</label>
+          <input type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)}
+            onKeyDown={e=>e.key==="Enter"&&handleLogin()} placeholder="••••••••"
+            style={{width:"100%",background:"#0f172a",border:"1px solid #1e293b",borderRadius:8,
+              padding:"10px 14px",color:"#f1f5f9",fontSize:13,fontFamily:"'IBM Plex Mono',monospace",
+              outline:"none",boxSizing:"border-box"}}/>
+        </div>
+        {loginErr&&<div style={{color:"#ef4444",fontSize:12,marginBottom:16}}>{loginErr}</div>}
+        <button onClick={handleLogin}
+          style={{width:"100%",background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"#fff",
+            border:"none",borderRadius:10,padding:"12px",fontSize:14,fontWeight:700,
+            cursor:"pointer",fontFamily:"'Syne',sans-serif",letterSpacing:.5}}>
+          Accedi
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── APP ──
   const [auth,setAuth]=useState(false);
-  const [demo,setDemo]=useState(true);
+  const [demo,setDemo]=useState(false);
   const [loading,setLoading]=useState(false);
   const [docs,setDocs]=useState(MOCK_DOCS);
   const [incs,setIncs]=useState(MOCK_INCS);
@@ -825,7 +885,7 @@ function App() {
   const handleSignIn=async()=>{
     setLoading(true);
     try {
-      await sheetsAPI.signIn();
+      // Con il Worker non serve signIn — le credenziali sono già in sheetsAPI
       setAuth(true); setDemo(false);
       await loadData();
     } catch(e) { notify("Auth fallita: "+e.message,"error"); setLoading(false); }
