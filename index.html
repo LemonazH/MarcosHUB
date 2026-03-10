@@ -913,7 +913,22 @@ function parseBankFile(file) {
         const fmtDate = v => {
           if(!v) return "";
           if(v instanceof Date) return `${String(v.getDate()).padStart(2,"0")}/${String(v.getMonth()+1).padStart(2,"0")}/${v.getFullYear()}`;
-          return String(v);
+          // Gestisci date in formato stringa dd.mm.yyyy o dd/mm/yyyy
+          const ds = String(v).trim();
+          const dm = ds.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})$/);
+          if(dm) return `${dm[1].padStart(2,"0")}/${dm[2].padStart(2,"0")}/${dm[3]}`;
+          return ds;
+        };
+
+        // Parsing numeri formato italiano: 1.234,56 → 1234.56
+        const parseIt = v => {
+          if(v === null || v === undefined || v === "") return 0;
+          // Se è già un numero (Excel lo converte automaticamente)
+          if(typeof v === "number") return v;
+          const s = String(v).trim().replace(/\s/g,"");
+          // Formato italiano con punto migliaia e virgola decimale
+          if(s.includes(",")) return parseFloat(s.replace(/\./g,"").replace(",",".")) || 0;
+          return parseFloat(s) || 0;
         };
 
         const accrediti = rows.slice(hdrIdx+1)
@@ -921,8 +936,8 @@ function parseBankFile(file) {
             idx: i,
             data: fmtDate(r[iData]),
             valuta: fmtDate(r[iValuta]),
-            dare: parseFloat(String(r[iDare]).replace(",",".")) || 0,
-            avere: parseFloat(String(r[iAvere]).replace(",",".")) || 0,
+            dare: parseIt(r[iDare]),
+            avere: parseIt(r[iAvere]),
             desc: String(r[iDesc]||"").trim(),
             descAdd: String(r[iDescAdd]||"").trim(),
           }))
