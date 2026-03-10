@@ -205,18 +205,33 @@ function useSort(data, defaultKey="", defaultDir="asc") {
     else { setSortKey(key); setSortDir("asc"); }
   };
 
+  // Converte dd/mm/yyyy o yyyy-mm-dd in Date
+  const parseDate = v => {
+    const s = String(v||"").trim();
+    // Formato italiano dd/mm/yyyy
+    const itMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (itMatch) return new Date(itMatch[3], itMatch[2]-1, itMatch[1]);
+    // Formato ISO yyyy-mm-dd
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) return new Date(isoMatch[1], isoMatch[2]-1, isoMatch[3]);
+    return null;
+  };
+
   const sorted = [...data].sort((a, b) => {
     const av = a[sortKey] ?? "";
     const bv = b[sortKey] ?? "";
-    // Numeric comparison
-    const an = parseFloat(String(av).replace(/\./g,"").replace(",",".")); 
-    const bn = parseFloat(String(bv).replace(/\./g,"").replace(",","."));
     let cmp;
-    if (!isNaN(an) && !isNaN(bn)) cmp = an - bn;
-    // Date comparison
-    else if (!isNaN(Date.parse(av)) && !isNaN(Date.parse(bv))) cmp = new Date(av) - new Date(bv);
-    // String comparison
-    else cmp = String(av).localeCompare(String(bv), "it");
+    // Date in formato italiano dd/mm/yyyy o ISO
+    const ad = parseDate(av), bd = parseDate(bv);
+    if (ad && bd) cmp = ad - bd;
+    else {
+      // Numerico (con virgola decimale italiana)
+      const an = parseFloat(String(av).replace(/\./g,"").replace(",","."));
+      const bn = parseFloat(String(bv).replace(/\./g,"").replace(",","."));
+      if (!isNaN(an) && !isNaN(bn)) cmp = an - bn;
+      // Stringa
+      else cmp = String(av).localeCompare(String(bv), "it");
+    }
     return sortDir === "asc" ? cmp : -cmp;
   });
 
