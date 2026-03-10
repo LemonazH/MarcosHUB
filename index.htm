@@ -1,0 +1,1194 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CreditFlow — Gestione Crediti & Cash Flow</title>
+
+  <!-- ═══════════════════════════════════════════════════════
+       ✏️  CONFIGURA QUI PRIMA DI APRIRE
+       ═══════════════════════════════════════════════════════ -->
+  <script>
+    window.CREDITFLOW_CONFIG = {
+      // 1) Da Google Cloud Console → Credenziali → ID client OAuth 2.0
+      CLIENT_ID: "96551240252-0m68cba5e80a2516uboonbjg6p6espj4.apps.googleusercontent.com",
+
+      // 2) Dall'URL del tuo Google Sheet:
+      //    https://docs.google.com/spreadsheets/d/ >>>QUI<<< /edit
+      SPREADSHEET_ID: "1xM0MFS7xx_D0NCHtb8gQy-gn2O7Iu3kcFK1rxoRqQ8o",
+
+      // 3) Nomi esatti dei fogli (modifica solo se li hai chiamati diversamente)
+      SHEET_DOCUMENTI:      "Documenti",
+      SHEET_INCASSI:        "Incassi",
+      SHEET_RICONCILIAZIONI:"Riconciliazioni",
+      SHEET_ASSEGNI:        "Assegni",
+    };
+  </script>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body, #root { height: 100%; }
+    body { background: #070c18; font-family: 'IBM Plex Mono', monospace; color: #f1f5f9; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
+    @keyframes spin    { to { transform: rotate(360deg); } }
+    @keyframes slideUp { from { transform:translateY(16px);opacity:0; } to { transform:translateY(0);opacity:1; } }
+    @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+    .row-hover:hover { background: #0f172a !important; }
+  </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
+const CFG = window.CREDITFLOW_CONFIG;
+
+/* ──────────────────────────────────────────────
+   MAPPATURA COLONNE GOOGLE SHEET
+────────────────────────────────────────────── */
+const COL = {
+  numeroDocumento:  "NUMERO DOCUMENTO",
+  tipoDocumento:    "TIPO DOCUMENTO",
+  dataDocumento:    "DATA DOCUMENTO",
+  codiceCliente:    "CODICE CLIENTE",
+  ragioneSociale:   "RAGIONE SOCIALE",
+  importoDocumento: "IMPORTO TOTALE",
+  dataPagamento:    "DATA PAGAMENTO PREVISTA",
+  giorniDilazione:  "GIORNI DILAZIONE",
+  dataAcc1:         "DATA ACCREDITO 1",
+  pagamento1:       "PAGAMENTO 1",
+  dataAcc2:         "DATA ACCREDITO 2",
+  pagamento2:       "PAGAMENTO 2",
+  dataAcc3:         "DATA ACCREDITO 3",
+  pagamento3:       "PAGAMENTO 3",
+  dataAcc4:         "DATA ACCREDITO 4",
+  pagamento4:       "PAGAMENTO 4",
+  note:             "NOTE",
+  saldoResiduo:     "SALDO RESIDUO",
+  nAssegno:         "N ASSEGNO",
+  stato:            "STATO",
+};
+
+/* ──────────────────────────────────────────────
+   GOOGLE SHEETS API LAYER
+────────────────────────────────────────────── */
+const sheetsAPI = {
+  token: null,
+
+  signIn() {
+    return new Promise((resolve, reject) => {
+      if (!window.google?.accounts?.oauth2)
+        return reject("Google Identity Services non ancora caricato. Ricarica la pagina.");
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: CFG.CLIENT_ID,
+        scope: "https://www.googleapis.com/auth/spreadsheets",
+        callback: (r) => r.error ? reject(r.error) : (this.token = r.access_token, resolve()),
+      });
+      client.requestAccessToken();
+    });
+  },
+
+  async req(path, opts = {}) {
+    const r = await fetch(
+      `https://sheets.googleapis.com/v4/spreadsheets/${CFG.SPREADSHEET_ID}${path}`,
+      { ...opts, headers: { Authorization:`Bearer ${this.token}`, "Content-Type":"application/json", ...opts.headers } }
+    );
+    if (!r.ok) { const e = await r.json(); throw new Error(e.error?.message || r.status); }
+    return r.json();
+  },
+
+  async getSheet(name) {
+    const d = await this.req(`/values/${encodeURIComponent(name)}`);
+    const [hdr, ...rows] = d.values || [[]];
+    return rows.map(row => hdr.reduce((o,h,i) => ({...o,[h]:row[i]??""}) ,{}));
+  },
+
+  async setCell(sheet, rowIdx, colIdx, val) {
+    const col = String.fromCharCode(65 + colIdx);
+    await this.req(
+      `/values/${encodeURIComponent(sheet)}!${col}${rowIdx+2}?valueInputOption=USER_ENTERED`,
+      { method:"PUT", body: JSON.stringify({ values:[[val]] }) }
+    );
+  },
+
+  async appendRow(sheet, values) {
+    await this.req(
+      `/values/${encodeURIComponent(sheet)}!A1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+      { method:"POST", body: JSON.stringify({ values:[values] }) }
+    );
+  },
+};
+
+/* ──────────────────────────────────────────────
+   ALGORITMO PREDIZIONE PAGAMENTI
+────────────────────────────────────────────── */
+function findExact(target, docs, i=0, acc=[]) {
+  if (Math.abs(target) < 0.01) return acc;
+  if (i >= docs.length || target < 0) return null;
+  const s = parseNum(docs[i][COL.saldoResiduo]);
+  return findExact(target-s, docs, i+1, [...acc, docs[i]]) || findExact(target, docs, i+1, acc);
+}
+
+function predictAllocation(amount, clientId, docs) {
+  const mine = docs.filter(d => d[COL.codiceCliente]===clientId && d[COL.stato]?.toUpperCase()==="APERTO");
+  const nacs = mine.filter(d => d[COL.tipoDocumento]==="NAC");
+  const nacTotal = nacs.reduce((s,d) => s+parseNum(d[COL.saldoResiduo]), 0);
+  const net = amount - nacTotal;
+
+  const fves = mine
+    .filter(d => d[COL.tipoDocumento]==="FVE")
+    .sort((a,b) => new Date(a[COL.dataDocumento])-new Date(b[COL.dataDocumento]));
+
+  let rem = net;
+  const full=[], partial=[];
+  for (const f of fves) {
+    if (rem<=0) break;
+    const s = parseNum(f[COL.saldoResiduo]);
+    if (rem>=s) { full.push({...f,allocato:s}); rem-=s; }
+    else         { partial.push({...f,allocato:rem}); rem=0; }
+  }
+  const uncovered = fves.filter(f => ![...full,...partial].find(c=>c[COL.numeroDocumento]===f[COL.numeroDocumento]));
+  const exact = rem>0.01 ? findExact(rem, uncovered) : null;
+
+  return { nacs, nacTotal, net, full, partial, exact, residual: Math.max(0,rem) };
+}
+
+/* ──────────────────────────────────────────────
+   MOCK DATA
+────────────────────────────────────────────── */
+const MOCK_DOCS = [
+  {"NUMERO DOCUMENTO":"154","TIPO DOCUMENTO":"FVE","DATA DOCUMENTO":"10/02/2025","CODICE CLIENTE":"600983","RAGIONE SOCIALE":"MOTTA S.A.S.","IMPORTO TOTALE":"319,74","DATA PAGAMENTO PREVISTA":"","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"","PAGAMENTO 1":"","DATA ACCREDITO 2":"","PAGAMENTO 2":"","DATA ACCREDITO 3":"","PAGAMENTO 3":"","DATA ACCREDITO 4":"","PAGAMENTO 4":"","NOTE":"","SALDO RESIDUO":"319,74","N ASSEGNO":"","STATO":"APERTO"},
+  {"NUMERO DOCUMENTO":"16","TIPO DOCUMENTO":"NAC","DATA DOCUMENTO":"10/01/2025","CODICE CLIENTE":"705100","RAGIONE SOCIALE":"FRANCESCO MOREA","IMPORTO TOTALE":"-18,24","DATA PAGAMENTO PREVISTA":"","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"","PAGAMENTO 1":"","DATA ACCREDITO 2":"","PAGAMENTO 2":"","DATA ACCREDITO 3":"","PAGAMENTO 3":"","DATA ACCREDITO 4":"","PAGAMENTO 4":"","NOTE":"","SALDO RESIDUO":"-18,24","N ASSEGNO":"","STATO":"APERTO"},
+  {"NUMERO DOCUMENTO":"1057","TIPO DOCUMENTO":"FVE","DATA DOCUMENTO":"21/08/2025","CODICE CLIENTE":"705075","RAGIONE SOCIALE":"P.A.R. SUPERMERCATI SRL","IMPORTO TOTALE":"4390,37","DATA PAGAMENTO PREVISTA":"11/10/2025","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"02/02/2026","PAGAMENTO 1":"266,19","DATA ACCREDITO 2":"28/02/2026","PAGAMENTO 2":"1500","DATA ACCREDITO 3":"31/03/2026","PAGAMENTO 3":"1500","DATA ACCREDITO 4":"30/04/2026","PAGAMENTO 4":"1124,18","NOTE":"ASSEGNO SOSTITUITO CON B/B","SALDO RESIDUO":"4124,18","N ASSEGNO":"AB - 90564","STATO":"APERTO"},
+  {"NUMERO DOCUMENTO":"1048","TIPO DOCUMENTO":"FVE","DATA DOCUMENTO":"20/08/2025","CODICE CLIENTE":"705075","RAGIONE SOCIALE":"P.A.R. SUPERMERCATI SRL","IMPORTO TOTALE":"677,17","DATA PAGAMENTO PREVISTA":"11/10/2025","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"02/02/2026","PAGAMENTO 1":"677,17","DATA ACCREDITO 2":"","PAGAMENTO 2":"","DATA ACCREDITO 3":"","PAGAMENTO 3":"","DATA ACCREDITO 4":"","PAGAMENTO 4":"","NOTE":"ASSEGNO SOSTITUITO CON B/B","SALDO RESIDUO":"0","N ASSEGNO":"AB - 90564","STATO":"CHIUSO"},
+];
+const MOCK_INCS = [
+  {"ID Incasso":"INC-001",Metodo:"Bonifico","Data Ricezione":"2024-03-01","Importo Totale":"16480.00",Note:"Pagamento fatture gen-feb"},
+];
+
+/* ──────────────────────────────────────────────
+   UTILS
+────────────────────────────────────────────── */
+// Converte stringa numerica italiana (virgola decimale) o inglese (punto) in float
+const parseNum = s => {
+  if(s===null||s===undefined||s==="") return 0;
+  const str = String(s).trim();
+  // Formato italiano: 1.234,56 → rimuovi punti migliaia, sostituisci virgola con punto
+  if(str.includes(",")) return parseFloat(str.replace(/\./g,"").replace(",",".")) || 0;
+  // Formato standard con punto decimale
+  return parseFloat(str) || 0;
+};
+const eur = n => new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(parseNum(n));
+const dFmt = s => { if(!s) return "—"; const d=new Date(s); return isNaN(d)?s:d.toLocaleDateString("it-IT"); };
+const ageDays = s => (Date.now()-new Date(s))/(86400000);
+const isOver  = s => ageDays(s)>90;
+const isWarn  = s => ageDays(s)>60 && ageDays(s)<=90;
+
+/* ──────────────────────────────────────────────
+   SORT HOOK — riutilizzabile per tutte le tabelle
+────────────────────────────────────────────── */
+function useSort(data, defaultKey="", defaultDir="asc") {
+  const [sortKey, setSortKey] = useState(defaultKey);
+  const [sortDir, setSortDir] = useState(defaultDir);
+
+  const toggleSort = (key) => {
+    if (key === sortKey) setSortDir(d => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  // Converte dd/mm/yyyy o yyyy-mm-dd in Date
+  const parseDate = v => {
+    const s = String(v||"").trim();
+    // Formato italiano dd/mm/yyyy
+    const itMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (itMatch) return new Date(itMatch[3], itMatch[2]-1, itMatch[1]);
+    // Formato ISO yyyy-mm-dd
+    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (isoMatch) return new Date(isoMatch[1], isoMatch[2]-1, isoMatch[3]);
+    return null;
+  };
+
+  const sorted = [...data].sort((a, b) => {
+    const av = a[sortKey] ?? "";
+    const bv = b[sortKey] ?? "";
+    let cmp;
+    // Date in formato italiano dd/mm/yyyy o ISO
+    const ad = parseDate(av), bd = parseDate(bv);
+    if (ad && bd) cmp = ad - bd;
+    else {
+      // Numerico (con virgola decimale italiana)
+      const an = parseFloat(String(av).replace(/\./g,"").replace(",","."));
+      const bn = parseFloat(String(bv).replace(/\./g,"").replace(",","."));
+      if (!isNaN(an) && !isNaN(bn)) cmp = an - bn;
+      // Stringa
+      else cmp = String(av).localeCompare(String(bv), "it");
+    }
+    return sortDir === "asc" ? cmp : -cmp;
+  });
+
+  // SortTh: intestazione cliccabile con freccia
+  const SortTh = ({label, colKey, style={}}) => {
+    const active = colKey === sortKey;
+    return (
+      <th onClick={() => toggleSort(colKey)}
+        style={{padding:"11px 13px", textAlign:"left", fontWeight:600, fontSize:11,
+          whiteSpace:"nowrap", cursor:"pointer", userSelect:"none",
+          color: active ? "#f1f5f9" : "#475569",
+          background: active ? "#162032" : "transparent",
+          transition:"color .15s,background .15s",
+          ...style}}>
+        <span style={{display:"flex",alignItems:"center",gap:5}}>
+          {label}
+          <span style={{fontSize:10, color: active ? "#6366f1" : "#334155"}}>
+            {active ? (sortDir === "asc" ? "▲" : "▼") : "⇅"}
+          </span>
+        </span>
+      </th>
+    );
+  };
+
+  return { sorted, sortKey, sortDir, toggleSort, SortTh };
+}
+
+/* ──────────────────────────────────────────────
+   SHARED STYLES
+────────────────────────────────────────────── */
+const S = {
+  input: { background:"#0a0f1e", border:"1px solid #1e293b", color:"#f1f5f9",
+           padding:"9px 12px", borderRadius:8, fontFamily:"'IBM Plex Mono',monospace",
+           fontSize:13, width:"100%" },
+  btn:   { border:"none", borderRadius:8, padding:"9px 18px", cursor:"pointer",
+           fontFamily:"'IBM Plex Mono',monospace", fontWeight:700, fontSize:12 },
+};
+
+/* ──────────────────────────────────────────────
+   MICRO-COMPONENTS
+────────────────────────────────────────────── */
+function Toast({msg,type,onClose}) {
+  useEffect(()=>{ const t=setTimeout(onClose,3800); return ()=>clearTimeout(t); },[onClose]);
+  const accent={success:"#22c55e",error:"#ef4444",info:"#6366f1",warn:"#fb923c"}[type]||"#6366f1";
+  return (
+    <div style={{position:"fixed",bottom:28,right:28,zIndex:9999,background:"#1e293b",
+      color:"#f1f5f9",padding:"13px 20px",borderRadius:10,borderLeft:`4px solid ${accent}`,
+      boxShadow:"0 8px 32px rgba(0,0,0,.6)",fontSize:13,maxWidth:360,
+      animation:"slideUp .3s ease",fontFamily:"'IBM Plex Mono',monospace"}}>
+      {msg}
+    </div>
+  );
+}
+
+function Spinner({size=16}) {
+  return <span style={{display:"inline-block",width:size,height:size,
+    border:"2px solid rgba(99,102,241,.3)",borderTop:"2px solid #6366f1",
+    borderRadius:"50%",animation:"spin .7s linear infinite",verticalAlign:"middle"}} />;
+}
+
+function Badge({label}) {
+  const map = {
+    FVE:   {bg:"#1e3a5f",c:"#60a5fa"},
+    NAC:   {bg:"#3b1f3b",c:"#c084fc"},
+    Aperto:{bg:"#1a3a2a",c:"#4ade80"},
+    APERTO:{bg:"#1a3a2a",c:"#4ade80"},
+    Chiuso:{bg:"#1e293b",c:"#64748b"},
+    CHIUSO:{bg:"#1e293b",c:"#64748b"},
+    Bonifico:{bg:"#1a2f4a",c:"#38bdf8"},
+    "Assegno Postdatato":{bg:"#3a2a1a",c:"#fb923c"},
+  };
+  const s = map[label]||{bg:"#1e293b",c:"#94a3b8"};
+  return <span style={{background:s.bg,color:s.c,padding:"2px 8px",borderRadius:5,
+    fontSize:11,fontWeight:600,letterSpacing:.4}}>{label}</span>;
+}
+
+function EditCell({value,onSave,numeric}) {
+  const [ed,setEd]=useState(false);
+  const [v,setV]=useState(value);
+  const ref=useRef();
+  useEffect(()=>{ if(ed&&ref.current) ref.current.focus(); },[ed]);
+  const commit=()=>{ setEd(false); if(v!==value) onSave(v); };
+  if(ed) return (
+    <input ref={ref} value={v} type={numeric?"number":"text"}
+      onChange={e=>setV(e.target.value)}
+      onBlur={commit}
+      onKeyDown={e=>{ if(e.key==="Enter")commit(); if(e.key==="Escape"){setV(value);setEd(false);} }}
+      style={{...S.input,padding:"3px 7px",width:"100%",fontSize:12}} />
+  );
+  return (
+    <span onDoubleClick={()=>setEd(true)} title="Doppio click per modificare"
+      style={{cursor:"text",display:"block",padding:"2px 3px",borderRadius:4,
+              transition:"background .15s"}}
+      onMouseEnter={e=>e.target.style.background="#1e293b"}
+      onMouseLeave={e=>e.target.style.background="transparent"}>
+      {value||"—"}
+    </span>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   CASH FLOW SVG CHART
+────────────────────────────────────────────── */
+function CashChart({docs}) {
+  const months={};
+  docs.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO").forEach(d=>{
+    const dt=new Date(d[COL.dataDocumento]);
+    const k=`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,"0")}`;
+    months[k]=(months[k]||0)+parseNum(d[COL.saldoResiduo]);
+  });
+  const entries=Object.entries(months).sort(([a],[b])=>a.localeCompare(b)).slice(-8);
+  if(!entries.length) return <div style={{color:"#475569",textAlign:"center",padding:40,fontSize:12}}>Nessun dato disponibile</div>;
+  const max=Math.max(...entries.map(([,v])=>v));
+  const W=560,H=170,P={t:8,r:16,b:38,l:58};
+  const iW=W-P.l-P.r, iH=H-P.t-P.b;
+  const bW=(iW/entries.length)*0.52, gap=iW/entries.length;
+  return (
+    <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#6366f1"/>
+          <stop offset="100%" stopColor="#818cf8" stopOpacity=".35"/>
+        </linearGradient>
+      </defs>
+      {[0,.25,.5,.75,1].map(r=>{
+        const y=P.t+iH*r, val=max*(1-r);
+        return <g key={r}>
+          <line x1={P.l} x2={W-P.r} y1={y} y2={y} stroke="#1e293b" strokeWidth={1}/>
+          <text x={P.l-6} y={y+4} textAnchor="end" fill="#475569" fontSize={9} fontFamily="IBM Plex Mono">
+            {(val/1000).toFixed(0)}k
+          </text>
+        </g>;
+      })}
+      {entries.map(([lbl,val],i)=>{
+        const bh=(val/max)*iH, x=P.l+i*gap+(gap-bW)/2, y=P.t+iH-bh;
+        return <g key={lbl}>
+          <rect x={x} y={y} width={bW} height={bh} rx={4} fill="url(#bg)"/>
+          <text x={x+bW/2} y={H-P.b+14} textAnchor="middle" fill="#64748b" fontSize={9} fontFamily="IBM Plex Mono">
+            {lbl.slice(5)}/{lbl.slice(2,4)}
+          </text>
+          <title>{lbl}: {eur(val)}</title>
+        </g>;
+      })}
+    </svg>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   PAYMENT MODAL — NUOVA VERSIONE
+   Flusso: cerca cliente → vedi fatture → predizione
+   FIFO → spunta/modifica manuale → salva
+────────────────────────────────────────────── */
+function PayModal({docs,onSave,onClose}) {
+  const [step,setStep]=useState(1); // 1=dati base, 2=fatture+riconciliazione
+  const [method,setMethod]=useState("Bonifico");
+  const [amount,setAmount]=useState("");
+  const [clientSearch,setClientSearch]=useState("");
+  const [cid,setCid]=useState("");
+  const [clientName,setClientName]=useState("");
+  const [date,setDate]=useState(new Date().toISOString().slice(0,10));
+  const [notes,setNotes]=useState("");
+  const [saving,setSaving]=useState(false);
+  // Fatture con checkbox e importo modificabile
+  const [rows,setRows]=useState([]); // [{doc, checked, importoAllocato}]
+  const [showSummary,setShowSummary]=useState(false);
+  const [showDropdown,setShowDropdown]=useState(false);
+
+  // Clienti unici da tutti i documenti aperti
+  const allClients=[];
+  const seen=new Set();
+  docs.filter(d=>d[COL.stato]?.toUpperCase()==="APERTO").forEach(d=>{
+    const key=d[COL.codiceCliente];
+    if(!seen.has(key)){
+      seen.add(key);
+      allClients.push({id:key,name:d[COL.ragioneSociale]});
+    }
+  });
+  const filteredClients=clientSearch.length>0
+    ? allClients.filter(c=>
+        c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
+        c.id.includes(clientSearch))
+    : allClients;
+
+  const selectClient=(id,name)=>{
+    setCid(id); setClientName(name);
+    setClientSearch(name);
+    setShowDropdown(false);
+  };
+
+  // Quando si va allo step 2, carica le fatture e applica predizione FIFO
+  const goToStep2=()=>{
+    if(!amount||!cid) return;
+    const clientDocs=docs.filter(d=>d[COL.codiceCliente]===cid&&d[COL.stato]?.toUpperCase()==="APERTO");
+    // FVE ordinate FIFO (più vecchie prima) — priorità nella predizione
+    const fves=clientDocs
+      .filter(d=>d[COL.tipoDocumento]==="FVE")
+      .sort((a,b)=>new Date(a[COL.dataDocumento])-new Date(b[COL.dataDocumento]));
+    // NAC in fondo, deselezionate di default — l'utente sceglie se includerle
+    const nacs=clientDocs
+      .filter(d=>d[COL.tipoDocumento]==="NAC")
+      .sort((a,b)=>new Date(a[COL.dataDocumento])-new Date(b[COL.dataDocumento]));
+
+    // Predizione FIFO: scala importo solo sulle FVE
+    let rem=parseNum(amount);
+    const fveRows=fves.map(doc=>{
+      const saldo=parseNum(doc[COL.saldoResiduo]);
+      if(rem>0){
+        const alloc=rem>=saldo?saldo:rem;
+        rem-=alloc;
+        return {doc, checked:true, importoAllocato:alloc};
+      }
+      return {doc, checked:false, importoAllocato:0};
+    });
+    // NAC sempre deselezionate di default
+    const nacRows=nacs.map(doc=>({doc, checked:false, importoAllocato:0}));
+    setRows([...fveRows, ...nacRows]);
+    setStep(2);
+  };
+
+  // Totale allocato da tutte le righe selezionate (FVE e NAC trattate ugualmente)
+  const totaleAllocato=rows.filter(r=>r.checked).reduce((s,r)=>s+r.importoAllocato,0);
+  const residuo=parseNum(amount)-totaleAllocato;
+
+  const toggleRow=(i)=>{
+    setRows(prev=>{
+      const r=[...prev];
+      r[i]={...r[i],checked:!r[i].checked,importoAllocato:!r[i].checked?parseNum(r[i].doc[COL.saldoResiduo]):0};
+      return r;
+    });
+  };
+
+  const setAlloc=(i,val)=>{
+    setRows(prev=>{
+      const r=[...prev];
+      const max=parseNum(r[i].doc[COL.saldoResiduo]);
+      const v=Math.min(Math.max(0,parseNum(val)),Math.abs(max));
+      r[i]={...r[i],importoAllocato:v,checked:v>0};
+      return r;
+    });
+  };
+
+  const save=async()=>{
+    if(saving) return;
+    setSaving(true);
+    const selectedRows=rows.filter(r=>r.checked&&r.importoAllocato>0);
+    const pred={
+      nacs: [],
+      nacTotal: 0,
+      net: parseNum(amount),
+      full: selectedRows.filter(r=>Math.abs(r.importoAllocato-Math.abs(parseNum(r.doc[COL.saldoResiduo])))<0.01).map(r=>({...r.doc,allocato:r.importoAllocato})),
+      partial: selectedRows.filter(r=>Math.abs(r.importoAllocato-Math.abs(parseNum(r.doc[COL.saldoResiduo])))>=0.01).map(r=>({...r.doc,allocato:r.importoAllocato})),
+      exact: [],
+      residual: Math.max(0,residuo),
+    };
+    await onSave({method,amount:parseNum(amount),cid,date,notes,pred});
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.85)",zIndex:1000,
+      display:"flex",alignItems:"center",justifyContent:"center",animation:"fadeIn .2s"}}>
+      <div style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:16,
+        width:680,maxHeight:"92vh",overflowY:"auto",
+        boxShadow:"0 24px 80px rgba(0,0,0,.9)",fontFamily:"'IBM Plex Mono',monospace"}}>
+
+        {/* Header */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
+          padding:"20px 28px",borderBottom:"1px solid #1e293b"}}>
+          <div>
+            <h2 style={{color:"#f1f5f9",fontSize:16,fontWeight:700,marginBottom:3}}>⟁ Registra Incasso</h2>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {["Dati Incasso","Riconcilia Fatture"].map((lbl,i)=>(
+                <React.Fragment key={i}>
+                  <span style={{fontSize:11,color:step===i+1?"#6366f1":"#475569",fontWeight:step===i+1?700:400}}>
+                    {i+1}. {lbl}
+                  </span>
+                  {i===0&&<span style={{color:"#1e293b",fontSize:11}}>→</span>}
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#64748b",fontSize:20,cursor:"pointer"}}>✕</button>
+        </div>
+
+        <div style={{padding:"24px 28px"}}>
+
+        {/* STEP 1 */}
+        {step===1&&(
+          <>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
+              <div>
+                <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>Metodo</label>
+                <select value={method} onChange={e=>setMethod(e.target.value)} style={S.input}>
+                  <option>Bonifico</option>
+                  <option>Assegno Postdatato</option>
+                </select>
+              </div>
+              <div>
+                <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>Data Ricezione</label>
+                <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={S.input}/>
+              </div>
+              <div>
+                <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>Importo Incassato (€)</label>
+                <input type="number" value={amount} onChange={e=>setAmount(e.target.value)}
+                  placeholder="0.00" style={{...S.input,fontSize:16,fontWeight:700,color:"#4ade80"}}/>
+              </div>
+              <div style={{position:"relative"}}>
+                <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>
+                  Cliente (cerca per nome o codice)
+                </label>
+                <input
+                  value={clientSearch}
+                  onChange={e=>{setClientSearch(e.target.value);setCid("");setShowDropdown(true);}}
+                  onFocus={()=>setShowDropdown(true)}
+                  placeholder="Es: Acme Srl o 100001"
+                  style={S.input}
+                  autoComplete="off"
+                />
+                {showDropdown&&filteredClients.length>0&&(
+                  <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:100,
+                    background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:8,
+                    maxHeight:180,overflowY:"auto",boxShadow:"0 8px 24px rgba(0,0,0,.8)"}}>
+                    {filteredClients.map(c=>(
+                      <div key={c.id} onClick={()=>selectClient(c.id,c.name)}
+                        style={{padding:"9px 14px",cursor:"pointer",fontSize:12,
+                          borderBottom:"1px solid #0f172a",display:"flex",justifyContent:"space-between"}}
+                        onMouseEnter={e=>e.currentTarget.style.background="#1e293b"}
+                        onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        <span style={{color:"#f1f5f9"}}>{c.name}</span>
+                        <span style={{color:"#475569"}}>{c.id}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div style={{marginBottom:18}}>
+              <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>Note</label>
+              <textarea value={notes} onChange={e=>setNotes(e.target.value)} rows={2}
+                placeholder="Note opzionali..." style={{...S.input,resize:"vertical"}}/>
+            </div>
+            {cid&&(
+              <div style={{background:"#0a1628",border:"1px solid #1e3a5f",borderRadius:8,
+                padding:"10px 14px",marginBottom:16,fontSize:12,color:"#60a5fa"}}>
+                ✓ Cliente selezionato: <strong>{clientName}</strong> (cod. {cid})
+                {" — "}
+                {docs.filter(d=>d[COL.codiceCliente]===cid&&d[COL.stato]?.toUpperCase()==="APERTO").length} documenti aperti (FVE + NAC)
+              </div>
+            )}
+            <div style={{display:"flex",gap:10,justifyContent:"flex-end"}}>
+              <button onClick={onClose} style={{...S.btn,background:"#1e293b",color:"#94a3b8"}}>Annulla</button>
+              <button onClick={goToStep2} disabled={!amount||!cid}
+                style={{...S.btn,
+                  background:amount&&cid?"linear-gradient(135deg,#4f46e5,#7c3aed)":"#1e293b",
+                  color:amount&&cid?"#fff":"#475569",
+                  cursor:amount&&cid?"pointer":"not-allowed"}}>
+                Avanti → Riconcilia Fatture
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* STEP 2 */}
+        {step===2&&(
+          <>
+            {/* Riepilogo importo */}
+            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+              {[
+                {lbl:"Importo Incasso",val:eur(amount),c:"#4ade80"},
+                {lbl:"Totale Allocato",val:eur(totaleAllocato),c:"#60a5fa"},
+                {lbl:"Residuo",val:eur(residuo),c:Math.abs(residuo)<0.01?"#22c55e":residuo>0?"#fb923c":"#ef4444"},
+              ].map(({lbl,val,c})=>(
+                <div key={lbl} style={{background:"#070c18",border:"1px solid #1e293b",
+                  borderRadius:8,padding:"10px 14px",textAlign:"center"}}>
+                  <div style={{color:"#475569",fontSize:10,marginBottom:4}}>{lbl}</div>
+                  <div style={{color:c,fontSize:15,fontWeight:700}}>{val}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* Dropdown Riepilogo Predizione */}
+            {rows.filter(r=>r.checked).length>0&&(
+              <div style={{marginBottom:14}}>
+                <button onClick={()=>setShowSummary(s=>!s)}
+                  style={{width:"100%",background:"#0a1628",border:"1px solid #1e3a5f",
+                    borderRadius:8,padding:"9px 14px",cursor:"pointer",
+                    display:"flex",justifyContent:"space-between",alignItems:"center",
+                    color:"#60a5fa",fontFamily:"'IBM Plex Mono',monospace",fontSize:12,fontWeight:600}}>
+                  <span>◈ Riepilogo predizione FIFO — {rows.filter(r=>r.checked).length} documenti selezionati</span>
+                  <span style={{fontSize:16}}>{showSummary?"▲":"▼"}</span>
+                </button>
+                {showSummary&&(
+                  <div style={{background:"#070c18",border:"1px solid #1e3a5f",borderTop:"none",
+                    borderRadius:"0 0 8px 8px",padding:"12px 14px"}}>
+                    {rows.filter(r=>r.checked).map((row,i)=>{
+                      const saldo=parseNum(row.doc[COL.saldoResiduo]);
+                      const isFull=Math.abs(row.importoAllocato-Math.abs(saldo))<0.01;
+                      const isNac=row.doc[COL.tipoDocumento]==="NAC";
+                      return (
+                        <div key={i} style={{display:"flex",justifyContent:"space-between",
+                          alignItems:"center",padding:"6px 0",
+                          borderBottom:"1px solid #0f172a",fontSize:11}}>
+                          <div style={{display:"flex",alignItems:"center",gap:8}}>
+                            <span style={{color:isNac?"#c084fc":isFull?"#22c55e":"#fb923c",fontSize:13}}>
+                              {isNac?"◈":isFull?"✓":"◑"}
+                            </span>
+                            <span style={{color:"#94a3b8"}}>{row.doc[COL.numeroDocumento]}</span>
+                            <span style={{color:"#475569"}}>{dFmt(row.doc[COL.dataDocumento])}</span>
+                          </div>
+                          <div style={{display:"flex",gap:12,alignItems:"center"}}>
+                            {!isFull&&<span style={{color:"#475569",textDecoration:"line-through",fontSize:10}}>{eur(saldo)}</span>}
+                            <span style={{color:isNac?"#c084fc":isFull?"#22c55e":"#fb923c",fontWeight:700}}>
+                              {eur(row.importoAllocato)}
+                            </span>
+                            <span style={{color:isNac?"#c084fc":"#64748b",fontSize:10,
+                              background:isNac?"#2a1040":"#1e293b",padding:"1px 6px",borderRadius:4}}>
+                              {isNac?"NAC":isFull?"SALDATO":"PARZIALE"}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    <div style={{display:"flex",justifyContent:"space-between",
+                      paddingTop:10,marginTop:4,borderTop:"1px solid #1e293b",
+                      color:"#f1f5f9",fontWeight:700,fontSize:12}}>
+                      <span>Totale allocato</span>
+                      <span style={{color:"#4ade80"}}>{eur(totaleAllocato)}</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Legenda */}
+            <div style={{display:"flex",gap:14,marginBottom:12,fontSize:11,color:"#475569"}}>
+              <span>☑ = inclusa nel pagamento</span>
+              <span style={{color:"#c084fc"}}>◈ NAC = nota di credito (selezionabile)</span>
+            </div>
+
+            {/* Tabella fatture */}
+            <div style={{border:"1px solid #1e293b",borderRadius:10,overflow:"hidden",marginBottom:20}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead>
+                  <tr style={{background:"#0a0f1e",borderBottom:"1px solid #1e293b"}}>
+                    <th style={{padding:"9px 12px",textAlign:"left",color:"#475569",fontWeight:600,fontSize:11,width:36}}></th>
+                    <th style={{padding:"9px 12px",textAlign:"left",color:"#475569",fontWeight:600,fontSize:11}}>Tipo</th>
+                    <th style={{padding:"9px 12px",textAlign:"left",color:"#475569",fontWeight:600,fontSize:11}}>Numero</th>
+                    <th style={{padding:"9px 12px",textAlign:"left",color:"#475569",fontWeight:600,fontSize:11}}>Data</th>
+                    <th style={{padding:"9px 12px",textAlign:"right",color:"#475569",fontWeight:600,fontSize:11}}>Saldo</th>
+                    <th style={{padding:"9px 12px",textAlign:"right",color:"#475569",fontWeight:600,fontSize:11}}>Importo da Pagare</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((row,i)=>{
+                    const saldo=parseNum(row.doc[COL.saldoResiduo]);
+                    const isPartial=row.checked&&Math.abs(row.importoAllocato-Math.abs(saldo))>=0.01;
+                    return (
+                      <tr key={i} style={{
+                        borderBottom:"1px solid #0a0f1e",
+                        background:row.doc[COL.tipoDocumento]==="NAC"?"#1a0f2a":row.checked?"#0a1628":"#070c18",
+                        opacity:row.checked?1:0.5,
+                      }}>
+                        <td style={{padding:"9px 12px",textAlign:"center"}}>
+                          <input type="checkbox" checked={row.checked}
+                            onChange={()=>toggleRow(i)}
+                            style={{width:15,height:15,cursor:"pointer",
+                              accentColor:row.doc[COL.tipoDocumento]==="NAC"?"#c084fc":"#6366f1"}}/>
+                        </td>
+                        <td style={{padding:"9px 12px"}}><Badge label={row.doc[COL.tipoDocumento]}/></td>
+                        <td style={{padding:"9px 12px",color:"#60a5fa"}}>{row.doc[COL.numeroDocumento]}</td>
+                        <td style={{padding:"9px 12px",color:isOver(row.doc[COL.dataDocumento])?"#ef4444":isWarn(row.doc[COL.dataDocumento])?"#fb923c":"#94a3b8"}}>
+                          {dFmt(row.doc[COL.dataDocumento])}
+                        </td>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:"#94a3b8"}}>{eur(saldo)}</td>
+                        <td style={{padding:"9px 12px",textAlign:"right"}}>
+                          {row.checked
+                            ? <div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",gap:6}}>
+                                {isPartial&&<span style={{color:"#fb923c",fontSize:10}}>parziale</span>}
+                                <input
+                                  type="number"
+                                  value={row.importoAllocato}
+                                  onChange={e=>setAlloc(i,e.target.value)}
+                                  min={0} max={Math.abs(saldo)} step={0.01}
+                                  style={{...S.input,width:110,padding:"4px 8px",fontSize:12,
+                                    textAlign:"right",
+                                    color:row.doc[COL.tipoDocumento]==="NAC"?"#c084fc":"#4ade80",
+                                    fontWeight:700,
+                                    border:`1px solid ${isPartial?"#fb923c44":"#1e293b"}`}}
+                                />
+                              </div>
+                            : <span style={{color:"#475569",fontSize:11}}>non inclusa</span>
+                          }
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {Math.abs(residuo)<0.01&&(
+              <div style={{background:"#0a2a1a",border:"1px solid #22c55e44",borderRadius:8,
+                padding:"10px 14px",marginBottom:16,color:"#22c55e",fontSize:12,textAlign:"center"}}>
+                ✓ Perfetto! L'importo è completamente riconciliato
+              </div>
+            )}
+            {residuo>0.01&&(
+              <div style={{background:"#1a1200",border:"1px solid #fb923c44",borderRadius:8,
+                padding:"10px 14px",marginBottom:16,color:"#fb923c",fontSize:12}}>
+                ⚠ Residuo di {eur(residuo)} non allocato — puoi lasciarlo come acconto o spuntare altre fatture
+              </div>
+            )}
+
+            <div style={{display:"flex",gap:10,justifyContent:"space-between"}}>
+              <button onClick={()=>setStep(1)} style={{...S.btn,background:"#1e293b",color:"#94a3b8"}}>
+                ← Indietro
+              </button>
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={onClose} style={{...S.btn,background:"#1e293b",color:"#94a3b8"}}>Annulla</button>
+                <button onClick={save} disabled={saving||rows.filter(r=>r.checked).length===0}
+                  style={{...S.btn,
+                    background:rows.filter(r=>r.checked).length>0?"linear-gradient(135deg,#059669,#10b981)":"#1e293b",
+                    color:rows.filter(r=>r.checked).length>0?"#fff":"#475569",
+                    cursor:rows.filter(r=>r.checked).length>0?"pointer":"not-allowed"}}>
+                  {saving?<><Spinner size={13}/> Salvo...</>:"✓ Conferma & Salva"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   SETUP BANNER (mostrato se CLIENT_ID non configurato)
+────────────────────────────────────────────── */
+function SetupBanner() {
+  const configured = CFG.CLIENT_ID !== "INSERISCI_QUI_IL_TUO_CLIENT_ID.apps.googleusercontent.com"
+                  && CFG.SPREADSHEET_ID !== "INSERISCI_QUI_LO_SPREADSHEET_ID";
+  if (configured) return null;
+  return (
+    <div style={{background:"#1a1200",border:"1px solid #fb923c44",borderRadius:10,
+      padding:"14px 20px",marginBottom:20,fontSize:12,color:"#fb923c",lineHeight:1.8}}>
+      <strong>⚙️ Configurazione richiesta</strong><br/>
+      Apri questo file HTML in un editor di testo e sostituisci:<br/>
+      • <code style={{color:"#fde68a"}}>INSERISCI_QUI_IL_TUO_CLIENT_ID</code> → il tuo OAuth 2.0 Client ID (Google Cloud Console)<br/>
+      • <code style={{color:"#fde68a"}}>INSERISCI_QUI_LO_SPREADSHEET_ID</code> → l'ID del tuo Google Sheet (dall'URL)<br/>
+      Nel frattempo puoi esplorare l'app in modalità <strong>Demo</strong>.
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────
+   MAIN APP
+────────────────────────────────────────────── */
+function App() {
+  const [auth,setAuth]=useState(false);
+  const [demo,setDemo]=useState(true);
+  const [loading,setLoading]=useState(false);
+  const [docs,setDocs]=useState(MOCK_DOCS);
+  const [incs,setIncs]=useState(MOCK_INCS);
+  const [assegni,setAssegni]=useState([]);
+  const [tab,setTab]=useState("dashboard");
+  const [toast,setToast]=useState(null);
+  const [showPay,setShowPay]=useState(false);
+  const [fState,setFState]=useState("Tutti");
+  const [fType,setFType]=useState("Tutti");
+  const [search,setSearch]=useState("");
+
+  const notify=(msg,type="info")=>setToast({msg,type});
+
+  const loadData=useCallback(async()=>{
+    setLoading(true);
+    try {
+      const [d,i,a]=await Promise.all([
+        sheetsAPI.getSheet(CFG.SHEET_DOCUMENTI),
+        sheetsAPI.getSheet(CFG.SHEET_INCASSI),
+        sheetsAPI.getSheet(CFG.SHEET_ASSEGNI),
+      ]);
+      setDocs(d); setIncs(i); setAssegni(a);
+      notify("Dati sincronizzati ✓","success");
+    } catch(e) { notify("Errore: "+e.message,"error"); }
+    finally { setLoading(false); }
+  },[]);
+
+  const handleSignIn=async()=>{
+    setLoading(true);
+    try {
+      await sheetsAPI.signIn();
+      setAuth(true); setDemo(false);
+      await loadData();
+    } catch(e) { notify("Auth fallita: "+e.message,"error"); setLoading(false); }
+  };
+
+  const DOC_COLS=[
+    "NUMERO DOCUMENTO","TIPO DOCUMENTO","DATA DOCUMENTO","CODICE CLIENTE","RAGIONE SOCIALE",
+    "IMPORTO TOTALE","DATA PAGAMENTO PREVISTA","GIORNI DILAZIONE",
+    "DATA ACCREDITO 1","PAGAMENTO 1","DATA ACCREDITO 2","PAGAMENTO 2",
+    "DATA ACCREDITO 3","PAGAMENTO 3","DATA ACCREDITO 4","PAGAMENTO 4",
+    "NOTE","SALDO RESIDUO","N ASSEGNO","STATO"
+  ]; // colonne A-T nel foglio Documenti
+
+  const handleEdit=async(origIdx,field,val)=>{
+    if(demo){
+      setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:val}; return d; });
+      notify("Modifica salvata (demo)","success"); return;
+    }
+    setLoading(true);
+    try {
+      const colIdx=DOC_COLS.indexOf(field);
+      if(colIdx===-1){ notify("Colonna non trovata: "+field,"error"); return; }
+      await sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, origIdx, colIdx, val);
+      setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:val}; return d; });
+      notify("Salvato su Sheets ✓","success");
+    } catch(e){ notify("Errore: "+e.message,"error"); }
+    finally { setLoading(false); }
+  };
+
+  const handleSavePay=async({method,amount,cid,date,notes,pred})=>{
+    const id=`INC-${Date.now()}`;
+    if(!demo){
+      try {
+        await sheetsAPI.appendRow(CFG.SHEET_INCASSI,[id,method,date,amount,notes]);
+        for(const f of [...pred.full,...pred.partial])
+          await sheetsAPI.appendRow(CFG.SHEET_RICONCILIAZIONI,[id,f[COL.numeroDocumento],f.allocato]);
+      } catch(e){ notify("Errore salvataggio: "+e.message,"error"); return; }
+    }
+    setIncs(p=>[...p,{"ID Incasso":id,Metodo:method,"Data Ricezione":date,"Importo Totale":amount,Note:notes}]);
+    // Aggiorna stato documenti in memoria e su Google Sheets
+    setDocs(p=>{
+      const d=[...p];
+      for(const f of pred.full){
+        // Usa la chiave corretta COL.numeroDocumento = "NUMERO DOCUMENTO"
+        const i=d.findIndex(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
+        if(i>=0){
+          d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:"CHIUSO"};
+          // Aggiorna su Sheets: colonna G=SALDO RESIDUO (idx 6), H=STATO (idx 7)
+          if(!demo){
+            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, i, DOC_COLS.indexOf(COL.saldoResiduo), "0").catch(()=>{});
+            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, i, DOC_COLS.indexOf(COL.stato), "CHIUSO").catch(()=>{});
+          }
+        }
+      }
+      for(const f of pred.partial){
+        const i=d.findIndex(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
+        if(i>=0){
+          const nuovoSaldo=(parseNum(d[i][COL.saldoResiduo])-f.allocato).toFixed(2);
+          d[i]={...d[i],[COL.saldoResiduo]:nuovoSaldo,[COL.stato]:"APERTO"};
+          // Aggiorna saldo residuo su Sheets
+          if(!demo){
+            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, i, DOC_COLS.indexOf(COL.saldoResiduo), nuovoSaldo).catch(()=>{});
+          }
+        }
+      }
+      return d;
+    });
+    notify("Pagamento registrato ✓ — Sheets aggiornato","success");
+  };
+
+  /* KPIs */
+  const open=docs.filter(d=>d[COL.stato]?.toUpperCase()==="APERTO");
+  const totFVE=open.filter(d=>d[COL.tipoDocumento]==="FVE").reduce((s,d)=>s+parseNum(d[COL.saldoResiduo]),0);
+  const totNAC=open.filter(d=>d[COL.tipoDocumento]==="NAC").reduce((s,d)=>s+parseNum(d[COL.saldoResiduo]),0);
+  const overdue=open.filter(d=>d[COL.tipoDocumento]==="FVE"&&isOver(d[COL.dataDocumento]));
+
+  const filtered=docs.filter(d=>{
+    if(fState!=="Tutti"&&d[COL.stato]?.toUpperCase()!==fState) return false;
+    if(fType!=="Tutti"&&d[COL.tipoDocumento]!==fType) return false;
+    if(search){ const q=search.toLowerCase(); return Object.values(d).some(v=>String(v).toLowerCase().includes(q)); }
+    return true;
+  });
+
+  // Ordinamento tabella Documenti
+  const docSort = useSort(filtered, COL.dataDocumento, "asc");
+  // Ordinamento tabella Incassi
+  const incSort = useSort(incs, "Data Ricezione", "desc");
+  // Ordinamento tabella Assegni
+  const assSort = useSort(assegni, "DATA TITOLO", "desc");
+
+  /* ── HEADER ── */
+  const Header=()=>(
+    <header style={{background:"#0a0f1e",borderBottom:"1px solid #1e293b",
+      padding:"0 28px",display:"flex",alignItems:"center",justifyContent:"space-between",height:58}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        <div style={{width:32,height:32,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",
+          borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>⟁</div>
+        <div>
+          <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:15,letterSpacing:-.5}}>CreditFlow</div>
+          <div style={{color:"#475569",fontSize:9}}>Gestione Crediti & Cash Flow</div>
+        </div>
+      </div>
+      <nav style={{display:"flex",gap:3}}>
+        {[["dashboard","Dashboard"],["documenti","Documenti"],["incassi","Incassi"],["assegni","Assegni"]].map(([id,lbl])=>(
+          <button key={id} onClick={()=>setTab(id)} style={{
+            background:tab===id?"#1e293b":"transparent",
+            color:tab===id?"#f1f5f9":"#64748b",
+            border:"none",borderRadius:8,padding:"7px 15px",cursor:"pointer",
+            fontSize:12,fontFamily:"'IBM Plex Mono',monospace",fontWeight:tab===id?700:400,
+          }}>{lbl}</button>
+        ))}
+      </nav>
+      <div style={{display:"flex",alignItems:"center",gap:10}}>
+        {demo&&<span style={{color:"#fb923c",fontSize:10,background:"#3a1f0a",padding:"3px 8px",borderRadius:5}}>DEMO</span>}
+        {loading&&<Spinner/>}
+        {!auth
+          ? <button onClick={handleSignIn} style={{...S.btn,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"#fff"}}>⟐ Connetti Google</button>
+          : <button onClick={loadData} style={{...S.btn,background:"#1e293b",color:"#60a5fa"}}>↻ Sync</button>
+        }
+        <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff"}}>
+          + Pagamento
+        </button>
+      </div>
+    </header>
+  );
+
+  /* ── RENDER ── */
+  return (
+    <div style={{minHeight:"100vh",background:"#070c18"}}>
+      <Header/>
+      <main style={{padding:"26px 28px",maxWidth:1280,margin:"0 auto"}}>
+        <SetupBanner/>
+
+        {/* DASHBOARD */}
+        {tab==="dashboard"&&(
+          <>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:24}}>
+              {[
+                {lbl:"Crediti Aperti (FVE)",val:eur(totFVE),accent:"#6366f1",icon:"◈"},
+                {lbl:"Note di Credito Aperte",val:eur(totNAC),accent:"#c084fc",icon:"↩"},
+                {lbl:"Esposizione Netta",val:eur(totFVE+totNAC),accent:"#38bdf8",icon:"⟐"},
+                {lbl:"Scaduti >90gg",val:overdue.length,accent:"#ef4444",icon:"⚠",
+                 sub:eur(overdue.reduce((s,d)=>s+parseNum(d[COL.saldoResiduo]),0))},
+              ].map(({lbl,val,accent,icon,sub})=>(
+                <div key={lbl} style={{background:"#0a0f1e",border:`1px solid ${accent}33`,
+                  borderRadius:14,padding:"18px 20px",borderTop:`3px solid ${accent}`}}>
+                  <div style={{color:"#475569",fontSize:11,marginBottom:8}}>{icon} {lbl}</div>
+                  <div style={{color:accent,fontSize:21,fontFamily:"'Syne',sans-serif",fontWeight:800}}>{val}</div>
+                  {sub&&<div style={{color:"#64748b",fontSize:11,marginTop:3}}>{sub}</div>}
+                </div>
+              ))}
+            </div>
+
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:18}}>
+              {/* Scadenziario */}
+              <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,padding:22}}>
+                <div style={{color:"#94a3b8",fontSize:11,fontWeight:700,marginBottom:14}}>◈ SCADENZIARIO CRITICO</div>
+                {open.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO"&&(isOver(d[COL.dataDocumento])||isWarn(d[COL.dataDocumento]))).slice(0,6).map(d=>{
+                  const ov=isOver(d[COL.dataDocumento]);
+                  return (
+                    <div key={d[COL.numeroDocumento]} style={{
+                      display:"flex",justifyContent:"space-between",alignItems:"center",
+                      background:ov?"#1a0a0a":"#1a1500",
+                      border:`1px solid ${ov?"#ef444433":"#fb923c33"}`,
+                      borderRadius:8,padding:"9px 13px",marginBottom:7,
+                    }}>
+                      <div>
+                        <div style={{color:ov?"#ef4444":"#fb923c",fontSize:12,fontWeight:600}}>{d[COL.numeroDocumento]}</div>
+                        <div style={{color:"#475569",fontSize:11}}>{d[COL.ragioneSociale]} • {dFmt(d[COL.dataDocumento])}</div>
+                      </div>
+                      <div style={{color:ov?"#ef4444":"#fb923c",fontSize:13,fontWeight:700}}>{eur(d[COL.saldoResiduo])}</div>
+                    </div>
+                  );
+                })}
+                {open.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO"&&(isOver(d[COL.dataDocumento])||isWarn(d[COL.dataDocumento]))).length===0&&(
+                  <div style={{color:"#22c55e",fontSize:12,textAlign:"center",padding:24}}>✓ Nessun documento critico</div>
+                )}
+              </div>
+              {/* Cash Flow */}
+              <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,padding:22}}>
+                <div style={{color:"#94a3b8",fontSize:11,fontWeight:700,marginBottom:14}}>◈ PREVISIONE CASH FLOW</div>
+                <CashChart docs={docs}/>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* DOCUMENTI */}
+        {tab==="documenti"&&(
+          <>
+            <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
+              <input value={search} onChange={e=>setSearch(e.target.value)}
+                placeholder="🔍 Cerca..." style={{...S.input,width:220}}/>
+              <select value={fState} onChange={e=>setFState(e.target.value)} style={{...S.input,width:130}}>
+                {["Tutti","APERTO","CHIUSO"].map(o=><option key={o}>{o}</option>)}
+              </select>
+              <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:110}}>
+                {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
+              </select>
+              <span style={{color:"#475569",fontSize:11,marginLeft:"auto"}}>
+                {filtered.length} doc • <span style={{color:"#6366f1"}}>doppio click = modifica</span>
+              </span>
+            </div>
+            <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead>
+                    <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
+                      <docSort.SortTh label="Tipo"           colKey={COL.tipoDocumento}/>
+                      <docSort.SortTh label="N° Doc"         colKey={COL.numeroDocumento}/>
+                      <docSort.SortTh label="Data"           colKey={COL.dataDocumento}/>
+                      <docSort.SortTh label="Cliente"        colKey={COL.ragioneSociale}/>
+                      <docSort.SortTh label="Importo"        colKey={COL.importoDocumento} style={{textAlign:"right"}}/>
+                      <docSort.SortTh label="Saldo Residuo"  colKey={COL.saldoResiduo} style={{textAlign:"right"}}/>
+                      <docSort.SortTh label="Scadenza"       colKey={COL.dataPagamento}/>
+                      <docSort.SortTh label="N° Assegno"     colKey={COL.nAssegno}/>
+                      <docSort.SortTh label="Note"           colKey={COL.note}/>
+                      <docSort.SortTh label="Stato"          colKey={COL.stato}/>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {docSort.sorted.map((doc,i)=>{
+                      const ov=doc[COL.stato]?.toUpperCase()==="APERTO"&&isOver(doc[COL.dataDocumento]);
+                      const wn=doc[COL.stato]?.toUpperCase()==="APERTO"&&isWarn(doc[COL.dataDocumento]);
+                      const origIdx=docs.indexOf(doc);
+                      const base=ov?"#0f0808":wn?"#0f0d06":i%2===0?"#0a0f1e":"#08111a";
+                      return (
+                        <tr key={doc[COL.numeroDocumento]+i} className="row-hover"
+                          style={{borderBottom:"1px solid #0f172a",background:base}}>
+                          <td style={{padding:"9px 11px"}}><Badge label={doc[COL.tipoDocumento]}/></td>
+                          <td style={{padding:"9px 11px",color:"#60a5fa",fontWeight:600}}>
+                            <EditCell value={doc[COL.numeroDocumento]} onSave={v=>handleEdit(origIdx,COL.numeroDocumento,v)}/>
+                          </td>
+                          <td style={{padding:"9px 11px",color:ov?"#ef4444":wn?"#fb923c":"#94a3b8"}}>
+                            <EditCell value={doc[COL.dataDocumento]} onSave={v=>handleEdit(origIdx,COL.dataDocumento,v)}/>
+                            {ov&&<span style={{color:"#ef4444",fontSize:10}}> ⚠</span>}
+                          </td>
+                          <td style={{padding:"9px 11px",color:"#e2e8f0"}}>
+                            <EditCell value={doc[COL.ragioneSociale]} onSave={v=>handleEdit(origIdx,COL.ragioneSociale,v)}/>
+                          </td>
+                          <td style={{padding:"9px 11px",color:"#94a3b8",textAlign:"right"}}>
+                            <EditCell value={doc[COL.importoDocumento]} numeric onSave={v=>handleEdit(origIdx,COL.importoDocumento,v)}/>
+                          </td>
+                          <td style={{padding:"9px 11px",textAlign:"right",fontWeight:700,
+                            color:parseNum(doc[COL.saldoResiduo])>0?"#f1f5f9":"#22c55e"}}>
+                            <EditCell value={doc[COL.saldoResiduo]} numeric onSave={v=>handleEdit(origIdx,COL.saldoResiduo,v)}/>
+                          </td>
+                          <td style={{padding:"9px 11px",color:"#64748b",fontSize:11}}>
+                            {doc[COL.dataPagamento]||"—"}
+                          </td>
+                          <td style={{padding:"9px 11px",color:"#38bdf8",fontSize:11}}>
+                            <EditCell value={doc[COL.nAssegno]||""} onSave={v=>handleEdit(origIdx,COL.nAssegno,v)}/>
+                          </td>
+                          <td style={{padding:"9px 11px",color:"#64748b",fontSize:11,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                            <EditCell value={doc[COL.note]||""} onSave={v=>handleEdit(origIdx,COL.note,v)}/>
+                          </td>
+                          <td style={{padding:"9px 11px"}}><Badge label={doc[COL.stato]}/></td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* INCASSI */}
+        {tab==="incassi"&&(
+          <>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <span style={{color:"#94a3b8",fontSize:12}}>{incs.length} incassi registrati</span>
+              <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff"}}>
+                + Nuovo Incasso
+              </button>
+            </div>
+            <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <thead>
+                  <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
+                    <incSort.SortTh label="ID Incasso" colKey="ID Incasso"/>
+                    <incSort.SortTh label="Metodo"     colKey="Metodo"/>
+                    <incSort.SortTh label="Data"       colKey="Data Ricezione"/>
+                    <incSort.SortTh label="Importo"    colKey="Importo Totale" style={{textAlign:"right"}}/>
+                    <incSort.SortTh label="Note"       colKey="Note"/>
+                  </tr>
+                </thead>
+                <tbody>
+                  {incSort.sorted.map((inc,i)=>(
+                    <tr key={inc["ID Incasso"]} className="row-hover"
+                      style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
+                      <td style={{padding:"10px 13px",color:"#60a5fa"}}>{inc["ID Incasso"]}</td>
+                      <td style={{padding:"10px 13px"}}><Badge label={inc[COL.metodo]}/></td>
+                      <td style={{padding:"10px 13px",color:"#94a3b8"}}>{dFmt(inc["Data Ricezione"])}</td>
+                      <td style={{padding:"10px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}>{eur(inc["Importo Totale"])}</td>
+                      <td style={{padding:"10px 13px",color:"#64748b"}}>{inc.Note||"—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </main>
+
+        {/* ASSEGNI */}
+        {tab==="assegni"&&(
+          <>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+              <span style={{color:"#94a3b8",fontSize:12}}>{assegni.length} assegni nel registro</span>
+              <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                <div style={{background:"#0a1628",border:"1px solid #1e3a5f",borderRadius:8,
+                  padding:"8px 16px",fontSize:12,color:"#60a5fa"}}>
+                  Totale: <strong>{eur(assSort.sorted.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}</strong>
+                </div>
+              </div>
+            </div>
+            <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
+              <div style={{overflowX:"auto"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <thead>
+                    <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
+                      <assSort.SortTh label="Cliente"       colKey="CLIENTE"/>
+                      <assSort.SortTh label="N° Titolo"     colKey="N TITOLO"/>
+                      <assSort.SortTh label="Data"          colKey="DATA TITOLO"/>
+                      <assSort.SortTh label="Importo"       colKey="IMPORTO TITOLO" style={{textAlign:"right"}}/>
+                      <assSort.SortTh label="Fatture Pagate" colKey="FATTURE PAGATE"/>
+                      <assSort.SortTh label="NC Scalate"    colKey="NC SCALATE"/>
+                      <assSort.SortTh label="Stato"         colKey="STATO TITOLO"/>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {assSort.sorted.map((a,i)=>(
+                      <tr key={i} className="row-hover"
+                        style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
+                        <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600}}>{a["CLIENTE"]}</td>
+                        <td style={{padding:"9px 13px",color:"#38bdf8",fontFamily:"'IBM Plex Mono',monospace"}}>{a["N TITOLO"]}</td>
+                        <td style={{padding:"9px 13px",color:"#94a3b8"}}>{a["DATA TITOLO"]}</td>
+                        <td style={{padding:"9px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}>{eur(a["IMPORTO TITOLO"])}</td>
+                        <td style={{padding:"9px 13px",color:"#64748b",fontSize:11}}>{a["FATTURE PAGATE"]||"—"}</td>
+                        <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11}}>{a["NC SCALATE"]||"—"}</td>
+                        <td style={{padding:"9px 13px"}}>
+                          <span style={{background:"#1a2f1a",color:"#4ade80",padding:"2px 8px",
+                            borderRadius:5,fontSize:11,fontWeight:600}}>
+                            {a["STATO TITOLO"]||"—"}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+      {showPay&&<PayModal docs={docs} onSave={handleSavePay} onClose={()=>setShowPay(false)}/>}
+      {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
