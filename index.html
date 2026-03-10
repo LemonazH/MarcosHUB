@@ -899,13 +899,10 @@ function parseBankFile(file) {
         const wb = XLSX.read(e.target.result, {type:"array", cellDates:true});
         const ws = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, {header:1, defval:""});
-        console.log("Totale righe:", rows.length);
-        // Stampa tutte le righe per vedere la struttura completa
-        rows.slice(0,12).forEach((r,i) => console.log("Riga "+i+":", JSON.stringify(r)));
-        // Cerca intestazione
-        let hdrIdx = rows.findIndex(r => r.some(c => String(c).toLowerCase().includes("data contabile") || String(c).toLowerCase().includes("avere") || String(c).toLowerCase().includes("dare")));
-        if(hdrIdx < 0) hdrIdx = 8;
-        console.log("hdrIdx usato:", hdrIdx, "intestazioni:", JSON.stringify(rows[hdrIdx]));
+        // Cerca la riga che ha ESATTAMENTE "Avere" come colonna
+        let hdrIdx = rows.findIndex(r => r.some(c => String(c).trim() === "Avere"));
+        if(hdrIdx < 0) hdrIdx = 8; // fallback indice 8
+        console.log("hdrIdx:", hdrIdx, "intestazioni:", JSON.stringify(rows[hdrIdx]));
         const hdr = rows[hdrIdx];
         const iData = hdr.findIndex(c => String(c).includes("Data Contabile"));
         const iValuta = hdr.findIndex(c => String(c).includes("Data Valuta"));
@@ -1175,8 +1172,8 @@ function App() {
       setBankRows(rows);
       setSelAccredito(null);
       setRecoSel({});
-      notify(`File caricato: ${rows.length} accrediti trovati`,"success");
-    } catch(err) { notify("Errore lettura file: "+err.message,"error"); }
+      setToast({msg:`File caricato: ${rows.length} accrediti trovati`, type:"success"});
+    } catch(err) { setToast({msg:"Errore lettura file: "+err.message, type:"error"}); }
     e.target.value="";
   };
 
