@@ -1202,6 +1202,8 @@ function App() {
         sessionStorage.setItem("cf_user", loginUser);
         d1API.user = loginUser;
         setAuthed(loginUser); setLoginErr("");
+        // Carica subito i dati reali senza aspettare il useEffect
+        setTimeout(() => loadData(), 50);
       } else { setLoginErr("Utente o password non corretti"); }
     } catch(e) { setLoginErr("Errore connessione: " + e.message); }
   };
@@ -1212,8 +1214,8 @@ function App() {
   const [auth,setAuth]=useState(false);
   const [demo,setDemo]=useState(false); // D1: demo sempre false
   const [loading,setLoading]=useState(false);
-  const [docs,setDocs]=useState(MOCK_DOCS);
-  const [incs,setIncs]=useState(MOCK_INCS);
+  const [docs,setDocs]=useState([]);
+  const [incs,setIncs]=useState([]);
   const [assegni,setAssegni]=useState([]);
   const [bankRows,setBankRows]=useState([]);
   const [riconciliazioni,setRiconciliazioni]=useState([]); // righe accrediti dal file banca
@@ -1322,7 +1324,7 @@ function App() {
       setAuth(true);
       loadData();
     }
-  },[authed]);
+  },[authed, loadData]);
 
   if(!authed) return (
     <div style={{minHeight:"100vh",background:"#070c18",display:"flex",alignItems:"center",justifyContent:"center"}}>
