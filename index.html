@@ -212,7 +212,7 @@ function sortData(data, sortKey, sortDir) {
   };
   if(!sortKey) return [...data];
   return [...data].sort((a,b)=>{
-    const av=a[sortKey]??"", bv=b[sortKey]??"";
+    const av=a[sortKey]||"", bv=b[sortKey]||"";
     const ad=parseDate(av), bd=parseDate(bv);
     let cmp;
     if(ad&&bd) cmp=ad-bd;
@@ -1100,10 +1100,10 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
 
       righe.forEach(r => {
         const tipo      = r[3];  // D
-        const numDoc    = String(r[5] ?? "").trim();  // F
+        const numDoc    = String(r[5] || "").trim();  // F
         const data      = excelDateToISO(r[0]);       // A
-        const codCliente= String(r[8] ?? "").trim();  // I
-        const cliente   = String(r[9] ?? "").trim();  // J
+        const codCliente= String(r[8] || "").trim();  // I
+        const cliente   = String(r[9] || "").trim();  // J
         let importo     = parseFloat(r[13]) || 0;    // N
 
         // NAC → importo negativo
@@ -1900,7 +1900,6 @@ function App() {
             </div>
           </>
         )}
-      </main>
 
         {/* ASSEGNI */}
         {tab==="assegni"&&(
@@ -1951,7 +1950,7 @@ function App() {
           </>
         )}
 
-        {/* RICONCILIA */
+        {/* RICONCILIA */}
         {tab==="riconcilia"&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 380px",gap:18,alignItems:"start"}}>
 
@@ -2267,6 +2266,7 @@ function App() {
         {tab==="migrazione"&&(
           <MigrazioneTab docs={docs} authed={authed} notify={notify} onComplete={loadData}/>
         )}
+      </main>
 
       {showPay&&<PayModal docs={docs} onSave={handleSavePay} onClose={()=>setShowPay(false)} user={authed} onLogout={handleLogout}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
@@ -2274,7 +2274,31 @@ function App() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(e) { return { error: e }; }
+  render() {
+    if (this.state.error) return (
+      <div style={{padding:40,background:"#0a0f1e",minHeight:"100vh",color:"#ef4444"}}>
+        <h2 style={{fontFamily:"monospace"}}>⚠ Errore App</h2>
+        <pre style={{background:"#070c18",padding:20,borderRadius:8,color:"#f87171",fontSize:12,overflow:"auto"}}>
+          {this.state.error.toString()}
+          {this.state.error.stack}
+        </pre>
+      </div>
+    );
+    return this.props.children;
+  }
+}
+try {
+  ReactDOM.createRoot(document.getElementById("root")).render(
+    <ErrorBoundary><App/></ErrorBoundary>
+  );
+} catch(e) {
+  document.getElementById("root").innerHTML = 
+    "<pre style='color:#ef4444;padding:20px;background:#0a0f1e;min-height:100vh'>" + 
+    "ERRORE CRITICO:\n" + e.toString() + "\n" + (e.stack||"") + "</pre>";
+}
 </script>
 </body>
 </html>
