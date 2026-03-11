@@ -335,35 +335,33 @@ function EditCell({value, onSave, numeric, display, color}) {
 }
 
 /* ──────────────────────────────────────────────
-   CASH FLOW SVG CHART
+   CASH FLOW SVG CHART — giorno per giorno
 ────────────────────────────────────────────── */
 function CashChart({assegni}) {
-  const [hover, setHover] = React.useState(null);
+  const [hoverIdx, setHoverIdx] = React.useState(null);
+  const [mousePos, setMousePos] = React.useState({x:0, y:0});
+  const svgRef = React.useRef(null);
 
   const parseDateKey = v => {
     if(!v) return null;
     const s = String(v).trim();
-    // ISO: 2026-03-25
     const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if(iso) return s.slice(0,10);
-    // IT: 25/03/2026
-    const it = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    const it = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
     if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
     return null;
   };
 
   const todayKey = new Date().toISOString().slice(0,10);
-  const cutoffDate = new Date(); cutoffDate.setDate(cutoffDate.getDate()+90);
+  const cutoffDate = new Date(); cutoffDate.setDate(cutoffDate.getDate()+45);
   const cutoffKey = cutoffDate.toISOString().slice(0,10);
 
   // Raggruppa SOLO assegni IN ARCHIVIO per data titolo esatta
   const byDay = {};
   (assegni||[]).forEach(a => {
-    const stato = (a["STATO TITOLO"]||"").toUpperCase();
-    if(!stato.includes("ARCHIVIO")) return; // solo IN ARCHIVIO (da incassare)
+    if(!(a["STATO TITOLO"]||"").toUpperCase().includes("ARCHIVIO")) return;
     const k = parseDateKey(a["DATA TITOLO"]);
-    if(!k) return;
-    if(k < todayKey || k > cutoffKey) return;
+    if(!k || k < todayKey || k > cutoffKey) return;
     if(!byDay[k]) byDay[k] = {total:0, items:[]};
     byDay[k].total += parseNum(a["IMPORTO TITOLO"]);
     byDay[k].items.push(a);
@@ -373,135 +371,240 @@ function CashChart({assegni}) {
 
   if(!entries.length) return (
     <div style={{color:"#475569",textAlign:"center",padding:40,fontSize:12}}>
-      Nessun assegno IN ARCHIVIO nei prossimi 90 giorni
+      Nessun assegno IN ARCHIVIO nei prossimi 45 giorni
     </div>
   );
 
-  const W=700, H=230, P={t:28,r:20,b:44,l:72};
-  const iW=W-P.l-P.r, iH=H-P.t-P.b;
-  const maxVal = Math.max(...entries.map(([,v])=>v.total), 1);
+  // Dimensioni SVG
+  const W = 800, H = 240, P = {t:32, r:24, b:48, l:76};
+  const iW = W - P.l - P.r, iH = H - P.t - P.b;
   const n = entries.length;
-  const barW = Math.max(10, Math.min(40, Math.floor((iW/Math.max(n,1))*0.7)));
-  const gap = iW/Math.max(n,1);
-  const xOf = i => P.l + i*gap + gap/2;
-  const fmtDay = k => `${k.slice(8,10)}/${k.slice(5,7)}`;
-  const step = Math.max(1, Math.ceil(n/8));
+  const gap = iW / n;
+  const barW = Math.max(6, Math.min(36, gap * 0.72));
+  const xOf = i => P.l + i * gap + gap / 2;
+  const maxVal = Math.max(...entries.map(([,v]) => v.total), 1);
+
+  // griglia Y — 5 linee pulite
+  const gridVals = [0, 0.25, 0.5, 0.75, 1].map(r => ({
+    r, y: P.t + iH * r, val: maxVal * (1 - r)
+  }));
+
+  const fmtDay  = k => `${k.slice(8,10)}/${k.slice(5,7)}`;
+  const fmtFull = k => {
+    const d = new Date(k + "T00:00:00");
+    return d.toLocaleDateString("it-IT",{weekday:"short",day:"2-digit",month:"short"});
+  };
+
+  // Ogni quante label mostrare sull'asse X (max ~10 visibili)
+  const labelStep = Math.max(1, Math.ceil(n / 10));
+
+  const handleMouseMove = (e) => {
+    if(!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const mx = (e.clientX - rect.left) * scaleX;
+    // Trova barra più vicina
+    let closest = null, minDist = Infinity;
+    entries.forEach(([,], i) => {
+      const dist = Math.abs(mx - xOf(i));
+      if(dist < minDist && dist < gap/2) { minDist = dist; closest = i; }
+    });
+    setHoverIdx(closest);
+    setMousePos({x: e.clientX - rect.left, y: e.clientY - rect.top});
+  };
 
   return (
     <div style={{position:"relative", userSelect:"none"}}>
-      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
+      <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`}
+        style={{overflow:"visible", cursor:"crosshair"}}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={()=>setHoverIdx(null)}>
         <defs>
-          <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22c55e" stopOpacity="1"/>
-            <stop offset="100%" stopColor="#15803d" stopOpacity="0.8"/>
+          <linearGradient id="bG"  x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#22c55e" stopOpacity="0.95"/>
+            <stop offset="100%" stopColor="#14532d" stopOpacity="0.7"/>
           </linearGradient>
-          <linearGradient id="barHov" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#4ade80"/>
-            <stop offset="100%" stopColor="#22c55e"/>
+          <linearGradient id="bGh" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#4ade80"/>
+            <stop offset="100%" stopColor="#16a34a"/>
           </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
         </defs>
 
-        {/* Griglia orizzontale */}
-        {[0,.25,.5,.75,1].map(r=>{
-          const y = P.t + iH*r;
-          const val = maxVal*(1-r);
-          return <g key={r}>
+        {/* Griglia */}
+        {gridVals.map(({r, y, val}) => (
+          <g key={r}>
             <line x1={P.l} x2={W-P.r} y1={y} y2={y}
-              stroke="#1e293b" strokeWidth={1} strokeDasharray="3,3"/>
-            <text x={P.l-6} y={y+4} textAnchor="end" fill="#475569" fontSize={9} fontFamily="IBM Plex Mono">
-              {val>=1000?`${(val/1000).toFixed(0)}k`:Math.round(val)}
+              stroke="#1e293b" strokeWidth={r===1?1.5:1} strokeDasharray={r===1?"":"3,4"}/>
+            <text x={P.l-8} y={y+4} textAnchor="end" fill="#475569" fontSize={9}
+              fontFamily="IBM Plex Mono,monospace">
+              {val>=1000 ? `${(val/1000).toFixed(1)}k` : Math.round(val)}
             </text>
-          </g>;
-        })}
+          </g>
+        ))}
 
-        {/* Barre — una per data, altezza = somma esatta */}
-        {entries.map(([k,v],i)=>{
-          const h = Math.max(2, (v.total/maxVal)*iH);
+        {/* Barre */}
+        {entries.map(([k,v], i) => {
+          const h = Math.max(3, (v.total / maxVal) * iH);
           const x = xOf(i) - barW/2;
           const y = P.t + iH - h;
-          const isHov = hover===i;
-          const isToday = k===todayKey;
-          const nAss = v.items.length;
-          return <g key={k}
-            onMouseEnter={()=>setHover(i)}
-            onMouseLeave={()=>setHover(null)}
-            style={{cursor:"pointer"}}>
-            {/* highlight sfondo hover */}
-            {isHov&&<rect x={x-4} y={P.t} width={barW+8} height={iH}
-              rx={4} fill="#22c55e" opacity={0.06}/>}
-            {/* barra principale */}
-            <rect x={x} y={y} width={barW} height={h} rx={3}
-              fill={isHov?"url(#barHov)":"url(#barGrad)"}
-              opacity={isHov?1:0.82}/>
-            {/* numero assegni sopra barra */}
-            {nAss>1&&<text x={x+barW/2} y={y-4} textAnchor="middle"
-              fill="#94a3b8" fontSize={8} fontFamily="IBM Plex Mono">
-              x{nAss}
-            </text>}
-            {/* importo sopra barra (solo hover) */}
-            {isHov&&<text x={x+barW/2} y={y-(nAss>1?14:5)} textAnchor="middle"
-              fill="#4ade80" fontSize={9} fontFamily="IBM Plex Mono" fontWeight="bold">
-              {eur(v.total)}
-            </text>}
-            {/* label data asse X */}
-            {(i%step===0||n<=12)&&<text x={x+barW/2} y={H-P.b+13} textAnchor="middle"
-              fill={isToday?"#818cf8":"#64748b"} fontSize={8} fontFamily="IBM Plex Mono"
-              fontWeight={isToday?"bold":"normal"}>
-              {fmtDay(k)}
-            </text>}
-          </g>;
+          const isHov = hoverIdx === i;
+          const isToday = k === todayKey;
+          const nA = v.items.length;
+
+          return (
+            <g key={k}>
+              {/* colonna hover sfondo */}
+              {isHov && <rect x={x - gap*0.15} y={P.t} width={barW + gap*0.3} height={iH}
+                rx={3} fill="#22c55e" opacity={0.07}/>}
+
+              {/* barra */}
+              <rect x={x} y={y} width={barW} height={h} rx={3}
+                fill={isHov ? "url(#bGh)" : "url(#bG)"}
+                filter={isHov ? "url(#glow)" : ""}
+                opacity={isHov ? 1 : 0.8}/>
+
+              {/* pallino multi-assegno */}
+              {nA > 1 && (
+                <g>
+                  <circle cx={x+barW/2} cy={y-8} r={7} fill="#1e3a5f" stroke="#38bdf8" strokeWidth={1}/>
+                  <text x={x+barW/2} y={y-4} textAnchor="middle" fill="#38bdf8"
+                    fontSize={7} fontFamily="IBM Plex Mono,monospace" fontWeight="bold">
+                    {nA}
+                  </text>
+                </g>
+              )}
+
+              {/* linea oggi */}
+              {isToday && <line x1={x+barW/2} x2={x+barW/2} y1={P.t} y2={P.t+iH}
+                stroke="#818cf8" strokeWidth={1} strokeDasharray="3,3" opacity={0.5}/>}
+
+              {/* label asse X */}
+              {(i % labelStep === 0 || n <= 15) && (
+                <text x={x+barW/2} y={H-P.b+15} textAnchor="middle"
+                  fill={isToday ? "#818cf8" : isHov ? "#94a3b8" : "#475569"}
+                  fontSize={8} fontFamily="IBM Plex Mono,monospace"
+                  fontWeight={isToday||isHov ? "bold" : "normal"}>
+                  {fmtDay(k)}
+                </text>
+              )}
+            </g>
+          );
         })}
 
-        {/* Cornice */}
+        {/* Asse Y */}
         <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#1e293b" strokeWidth={1}/>
-        <line x1={P.l} x2={W-P.r} y1={P.t+iH} y2={P.t+iH} stroke="#1e293b" strokeWidth={1}/>
       </svg>
 
-      {/* Tooltip HTML con dettaglio assegni */}
-      {hover!==null&&(()=>{
-        const [k,v] = entries[hover];
-        const xi = xOf(hover);
-        const left = xi > W*0.55 ? `calc(${(xi/W)*100}% - 240px)` : `calc(${(xi/W)*100}% + 12px)`;
+      {/* ── TOOLTIP DETTAGLIATO ── */}
+      {hoverIdx !== null && (() => {
+        const [k, v] = entries[hoverIdx];
+        const svgEl = svgRef.current;
+        if(!svgEl) return null;
+        const rect = svgEl.getBoundingClientRect();
+        const pct = (xOf(hoverIdx) / W);
+        // flip verso sinistra se troppo vicino al bordo destro
+        const flipLeft = pct > 0.58;
+        const tooltipW = 260;
+
         return (
           <div style={{
-            position:"absolute", top:0, left,
-            background:"#0a0f1e", border:"1px solid #22c55e44",
-            borderRadius:10, padding:"12px 14px", minWidth:220, maxWidth:260,
-            zIndex:100, pointerEvents:"none", boxShadow:"0 8px 32px #00000088"
+            position:"absolute",
+            top: Math.max(0, mousePos.y - 16),
+            left: flipLeft
+              ? `calc(${pct*100}% - ${tooltipW+12}px)`
+              : `calc(${pct*100}% + 12px)`,
+            width: tooltipW,
+            background:"#050d1a",
+            border:"1px solid #22c55e55",
+            borderRadius:12,
+            zIndex:200,
+            pointerEvents:"none",
+            boxShadow:"0 12px 40px #00000099, 0 0 0 1px #22c55e22",
+            overflow:"hidden",
           }}>
-            <div style={{color:"#4ade80",fontWeight:700,fontSize:12,marginBottom:4,
-              fontFamily:"'IBM Plex Mono',monospace"}}>
-              📅 {fmtDay(k)} &nbsp;—&nbsp; {eur(v.total)}
-            </div>
-            <div style={{color:"#64748b",fontSize:10,marginBottom:8}}>
-              {v.items.length} assegn{v.items.length===1?"o":"i"} in archivio
-            </div>
-            {v.items.map((a,j)=>(
-              <div key={j} style={{borderTop:"1px solid #1e293b",paddingTop:5,marginTop:5}}>
-                <div style={{color:"#e2e8f0",fontSize:11,fontWeight:600,
-                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                  {a["CLIENTE"]}
-                </div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
-                  <span style={{color:"#38bdf8",fontSize:10,fontFamily:"'IBM Plex Mono',monospace"}}>
-                    {a["N TITOLO"]}
-                  </span>
-                  <span style={{color:"#4ade80",fontSize:11,fontWeight:700}}>
-                    {eur(a["IMPORTO TITOLO"])}
-                  </span>
-                </div>
-                {a["FATTURE PAGATE"]&&<div style={{color:"#64748b",fontSize:9,marginTop:2}}>
-                  Fatt: {fmtDocList(a["FATTURE PAGATE"])}
-                </div>}
+            {/* Header */}
+            <div style={{
+              background:"linear-gradient(135deg,#0a2218,#071810)",
+              padding:"10px 14px",
+              borderBottom:"1px solid #1e293b"
+            }}>
+              <div style={{color:"#4ade80",fontWeight:800,fontSize:13,
+                fontFamily:"'IBM Plex Mono',monospace"}}>
+                📅 {fmtFull(k)}
               </div>
-            ))}
+              <div style={{display:"flex",justifyContent:"space-between",
+                alignItems:"center",marginTop:4}}>
+                <span style={{color:"#64748b",fontSize:10}}>
+                  {v.items.length} assegn{v.items.length===1?"o":"i"}
+                </span>
+                <span style={{color:"#4ade80",fontWeight:800,fontSize:14,
+                  fontFamily:"'IBM Plex Mono',monospace"}}>
+                  {eur(v.total)}
+                </span>
+              </div>
+            </div>
+
+            {/* Lista assegni scrollabile */}
+            <div style={{
+              maxHeight: 220,
+              overflowY:"auto",
+              padding:"6px 0",
+              scrollbarWidth:"thin",
+              scrollbarColor:"#1e293b transparent"
+            }}>
+              {v.items.map((a, j) => (
+                <div key={j} style={{
+                  padding:"7px 14px",
+                  borderBottom: j < v.items.length-1 ? "1px solid #0f172a" : "none",
+                  background: j%2===0 ? "transparent" : "#050d1a"
+                }}>
+                  {/* Cliente */}
+                  <div style={{color:"#e2e8f0",fontSize:11,fontWeight:700,
+                    overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",
+                    marginBottom:3}}>
+                    {a["CLIENTE"]||"—"}
+                  </div>
+                  {/* Riga importo + n.titolo */}
+                  <div style={{display:"flex",justifyContent:"space-between",
+                    alignItems:"center"}}>
+                    <span style={{color:"#38bdf8",fontSize:10,
+                      fontFamily:"'IBM Plex Mono',monospace"}}>
+                      {a["N TITOLO"]||"—"}
+                    </span>
+                    <span style={{color:"#4ade80",fontSize:12,fontWeight:800,
+                      fontFamily:"'IBM Plex Mono',monospace"}}>
+                      {eur(a["IMPORTO TITOLO"])}
+                    </span>
+                  </div>
+                  {/* Fatture / NC */}
+                  {(a["FATTURE PAGATE"]||a["NC SCALATE"]) && (
+                    <div style={{marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>
+                      {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>
+                        Fatt: {fmtDocList(a["FATTURE PAGATE"])}
+                      </span>}
+                      {a["NC SCALATE"]&&<span style={{color:"#c084fc",fontSize:9}}>
+                        NC: {fmtDocList(a["NC SCALATE"])}
+                      </span>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
         );
       })()}
 
-      <div style={{display:"flex",gap:20,justifyContent:"center",marginTop:6,fontSize:11,color:"#475569"}}>
-        <span><span style={{color:"#22c55e"}}>■</span> Assegni IN ARCHIVIO</span>
-        <span>Totale: <strong style={{color:"#4ade80"}}>{eur(entries.reduce((s,[,v])=>s+v.total,0))}</strong></span>
+      {/* Footer */}
+      <div style={{display:"flex",gap:20,justifyContent:"center",
+        marginTop:8,fontSize:11,color:"#475569",flexWrap:"wrap"}}>
+        <span><span style={{color:"#22c55e"}}>■</span> Assegni IN ARCHIVIO — prossimi 45 gg</span>
+        <span>Totale: <strong style={{color:"#4ade80"}}>
+          {eur(entries.reduce((s,[,v])=>s+v.total,0))}
+        </strong></span>
         <span>{entries.reduce((s,[,v])=>s+v.items.length,0)} assegni · {entries.length} date</span>
       </div>
     </div>
@@ -1632,6 +1735,66 @@ function App() {
     } catch(e){ notify("Errore: "+e.message,"error"); }
   };
   /* ── RICONCILIAZIONE BANCARIA ── */
+  const parseBankFile = async (file) => {
+    const buf = await file.arrayBuffer();
+    const wb = window.XLSX.read(buf, { type: "array", cellDates: true });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+    if (rows.length < 2) throw new Error("File vuoto o non riconosciuto");
+
+    // Trova riga intestazione (prima riga non vuota)
+    const hdrIdx = rows.findIndex(r => r.some(c => c != null));
+    const hdr = rows[hdrIdx].map(h => String(h||"").toLowerCase().trim());
+
+    // Mappa colonne comuni di estratti conto italiani
+    const findCol = (...keys) => {
+      for (const k of keys) {
+        const i = hdr.findIndex(h => h.includes(k));
+        if (i >= 0) return i;
+      }
+      return -1;
+    };
+
+    const colData    = findCol("data valuta","data val","valuta","data operaz","data");
+    const colAvere   = findCol("avere","accredito","entrate","credito","importo accr");
+    const colDare    = findCol("dare","addebito","uscite","debito");
+    const colImporto = findCol("importo","amount","valore");
+    const colCausale = findCol("causale","descrizione","descriz","dettaglio","note","narrat");
+
+    const toDateStr = v => {
+      if (!v) return null;
+      if (v instanceof Date) return v.toISOString().slice(0,10);
+      const s = String(v).trim();
+      const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (iso) return s.slice(0,10);
+      const it = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+      if (it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
+      return null;
+    };
+
+    const result = [];
+    for (let i = hdrIdx + 1; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row || row.every(v => v == null)) continue;
+      const data = toDateStr(colData >= 0 ? row[colData] : null);
+      if (!data) continue;
+
+      let avere = 0;
+      if (colAvere >= 0 && row[colAvere]) {
+        avere = parseFloat(String(row[colAvere]).replace(/[^\d.,-]/g,"").replace(",",".")) || 0;
+      } else if (colImporto >= 0 && row[colImporto]) {
+        const v = parseFloat(String(row[colImporto]).replace(/[^\d.,-]/g,"").replace(",",".")) || 0;
+        avere = v > 0 ? v : 0; // prende solo accrediti (positivi)
+      }
+      if (avere <= 0) continue; // salta addebiti
+
+      const causale = colCausale >= 0 ? String(row[colCausale]||"").trim() : "";
+      result.push({ idx: result.length, data, avere, causale, riconciliato: false });
+    }
+    if (result.length === 0) throw new Error("Nessun accredito trovato. Verificare il formato del file.");
+    return result;
+  };
+
   const handleBankFile = async e => {
     const file = e.target.files[0];
     if(!file) return;
@@ -1820,7 +1983,7 @@ function App() {
             </div>
             <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:900}}>
                   <thead>
                     <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
                       <DocSortTh label="Tipo"           colKey={COL.tipoDocumento}/>
@@ -1939,6 +2102,15 @@ function App() {
             <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <colgroup>
+                    <col style={{width:"22%"}}/>{/* Cliente */}
+                    <col style={{width:"13%"}}/>{/* N Titolo */}
+                    <col style={{width:"10%"}}/>{/* Data */}
+                    <col style={{width:"12%"}}/>{/* Importo */}
+                    <col style={{width:"18%"}}/>{/* Fatture */}
+                    <col style={{width:"12%"}}/>{/* NC */}
+                    <col style={{width:"13%"}}/>{/* Stato */}
+                  </colgroup>
                   <thead>
                     <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
                       <AssSortTh label="Cliente"       colKey="CLIENTE"/>
