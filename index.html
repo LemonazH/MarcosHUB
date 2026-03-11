@@ -126,6 +126,12 @@ const d1API = {
 // Alias per compatibilità — non usato nella nuova versione
 const sheetsAPI = d1API;
 
+// Formatta lista numeri doc come "xx - xx - xxx"
+const fmtDocList = (str) => {
+  if (!str) return "—";
+  return str.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean).join(" - ");
+};
+
 /* ──────────────────────────────────────────────
    ALGORITMO PREDIZIONE PAGAMENTI
 ────────────────────────────────────────────── */
@@ -1387,7 +1393,16 @@ function App() {
         _id: row.id,
       });
       setDocs((docs_raw||[]).map(normalize));
-      setIncs(incs_raw||[]);
+      setIncs((incs_raw||[]).filter(r=>r&&r.id).map(r=>({
+        "ID Incasso":     r.id,
+        "Metodo":         r.metodo,
+        "Data Ricezione": r.data_incasso,
+        "Importo Totale": r.importo_totale,
+        "Cliente":        r.ragione_sociale,
+        "N Assegno":      r.n_assegno,
+        "Note":           r.note,
+        _id: r.id,
+      })));
       // Normalizza assegni
       setAssegni((ass_raw||[]).map(r=>({
         "CLIENTE": r.cliente, "N TITOLO": r.n_titolo,
@@ -1499,6 +1514,41 @@ function App() {
       await d1API.updateDocumento(doc._id, { [d1field]: val, utente: authed });
       notify("Salvato ✓","success");
     } catch(e){ notify("Errore: "+e.message,"error"); }
+  };
+
+  // Edit inline assegni
+  const handleEditAssegno = async (idx, field, val) => {
+    const ass = assegni[idx];
+    if (!ass?._id) { notify("ID assegno mancante","error"); return; }
+    const fieldMap = {
+      "CLIENTE":"cliente","N TITOLO":"n_titolo","DATA TITOLO":"data_titolo",
+      "IMPORTO TITOLO":"importo","FATTURE PAGATE":"fatture_pagate",
+      "NC SCALATE":"nc_scalate","STATO TITOLO":"stato",
+    };
+    const d1field = fieldMap[field];
+    if (!d1field) return;
+    setAssegni(p=>{ const a=[...p]; a[idx]={...a[idx],[field]:val}; return a; });
+    try {
+      await d1API.call(`/api/assegni/${ass._id}`, "PUT", { [d1field]: val, utente: authed });
+      notify("Assegno aggiornato ✓","success");
+    } catch(e) { notify("Errore: "+e.message,"error"); }
+  };
+
+  // Edit inline incassi
+  const handleEditIncasso = async (idx, field, val) => {
+    const inc = incs[idx];
+    if (!inc?._id) { notify("ID incasso mancante","error"); return; }
+    const fieldMap = {
+      "Metodo":"metodo","Data Ricezione":"data_incasso","Importo Totale":"importo_totale",
+      "N Assegno":"n_assegno","Note":"note","Cliente":"ragione_sociale",
+    };
+    const d1field = fieldMap[field];
+    if (!d1field) return;
+    setIncs(p=>{ const a=[...p]; a[idx]={...a[idx],[field]:val}; return a; });
+    try {
+      await d1API.call(`/api/incassi/${inc._id}`, "PUT", { [d1field]: val, utente: authed });
+      notify("Incasso aggiornato ✓","success");
+    } catch(e) { notify("Errore: "+e.message,"error"); }
   };
 
   const handleSavePay=async({method,amount,cid,date,notes,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
@@ -1826,20 +1876,25 @@ function App() {
                     <IncSortTh label="Metodo"     colKey="Metodo"/>
                     <IncSortTh label="Data"       colKey="Data Ricezione"/>
                     <IncSortTh label="Importo"    colKey="Importo Totale" style={{textAlign:"right"}}/>
+                    <IncSortTh label="Cliente"    colKey="Cliente"/>
                     <IncSortTh label="Note"       colKey="Note"/>
                   </tr>
                 </thead>
                 <tbody>
-                  {incSorted.map((inc,i)=>(
-                    <tr key={inc["ID Incasso"]} className="row-hover"
+                  {incSorted.map((inc,i)=>{
+                    const origIdx = incs.indexOf(inc);
+                    return (
+                    <tr key={inc["ID Incasso"]||i} className="row-hover"
                       style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
-                      <td style={{padding:"10px 13px",color:"#60a5fa"}}>{inc["ID Incasso"]}</td>
-                      <td style={{padding:"10px 13px"}}><Badge label={inc[COL.metodo]}/></td>
-                      <td style={{padding:"10px 13px",color:"#94a3b8"}}>{dFmt(inc["Data Ricezione"])}</td>
-                      <td style={{padding:"10px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}>{eur(inc["Importo Totale"])}</td>
-                      <td style={{padding:"10px 13px",color:"#64748b"}}>{inc.Note||"—"}</td>
+                      <td style={{padding:"10px 13px",color:"#60a5fa",fontFamily:"'IBM Plex Mono',monospace",fontSize:11}}>{inc["ID Incasso"]||"—"}</td>
+                      <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#94a3b8"}}><EditCell value={inc["Data Ricezione"]||""} onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",textAlign:"right"}}><EditCell value={inc["Importo Totale"]||""} numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#e2e8f0"}}><EditCell value={inc["Cliente"]||""} onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#64748b"}}><EditCell value={inc["Note"]||""} onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -1874,23 +1929,21 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {assSorted.map((a,i)=>(
+                    {assSorted.map((a,i)=>{
+                    const origIdxA = assegni.indexOf(a);
+                    return (
                       <tr key={i} className="row-hover"
                         style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
-                        <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600}}>{a["CLIENTE"]}</td>
-                        <td style={{padding:"9px 13px",color:"#38bdf8",fontFamily:"'IBM Plex Mono',monospace"}}>{a["N TITOLO"]}</td>
-                        <td style={{padding:"9px 13px",color:"#94a3b8"}}>{a["DATA TITOLO"]}</td>
-                        <td style={{padding:"9px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}>{eur(a["IMPORTO TITOLO"])}</td>
-                        <td style={{padding:"9px 13px",color:"#64748b",fontSize:11}}>{a["FATTURE PAGATE"]||"—"}</td>
-                        <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11}}>{a["NC SCALATE"]||"—"}</td>
-                        <td style={{padding:"9px 13px"}}>
-                          <span style={{background:"#1a2f1a",color:"#4ade80",padding:"2px 8px",
-                            borderRadius:5,fontSize:11,fontWeight:600}}>
-                            {a["STATO TITOLO"]||"—"}
-                          </span>
-                        </td>
+                        <td style={{padding:"9px 13px"}}><EditCell value={a["CLIENTE"]||""} onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
+                        <td style={{padding:"9px 13px",fontFamily:"'IBM Plex Mono',monospace"}}><EditCell value={a["N TITOLO"]||""} onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px"}}><EditCell value={a["DATA TITOLO"]||""} onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",textAlign:"right"}}><EditCell value={a["IMPORTO TITOLO"]||""} numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#64748b",fontSize:11}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
+                        <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11}}>{fmtDocList(a["NC SCALATE"])}</td>
+                        <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
                       </tr>
-                    ))}
+                    );
+                  })}
                   </tbody>
                 </table>
               </div>
@@ -1898,7 +1951,7 @@ function App() {
           </>
         )}
 
-        {/* RICONCILIA */}
+        {/* RICONCILIA */
         {tab==="riconcilia"&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 380px",gap:18,alignItems:"start"}}>
 
