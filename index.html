@@ -1039,145 +1039,252 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 
 
 /* ──────────────────────────────────────────────
-   MIGRAZIONE DA GOOGLE SHEETS → D1
+   IMPORT EXCEL DAL GESTIONALE
 ────────────────────────────────────────────── */
 function MigrazioneTab({docs, authed, notify, onComplete}) {
-  const [phase, setPhase] = React.useState("idle"); // idle | sheets | migrating | done
-  const [sheetUrl, setSheetUrl] = React.useState("");
-  const [csvData, setCsvData] = React.useState(null);
-  const [progress, setProgress] = React.useState({docs:0, assegni:0});
+  const [phase, setPhase] = React.useState("idle"); // idle | preview | importing | done
+  const [parsed, setParsed] = React.useState(null); // {nuovi, duplicati, fve, nac}
   const [log, setLog] = React.useState([]);
+  const fileRef = React.useRef();
 
   const addLog = msg => setLog(p => [...p, msg]);
 
-  // Step 1: L'utente incolla i dati dal foglio (come JSON o carica CSV)
-  const handleJsonPaste = async (e) => {
-    const text = e.target.value;
+  // Formatta data Excel (numero seriale o Date JS) → "YYYY-MM-DD"
+  const excelDateToISO = val => {
+    if (!val) return null;
+    if (val instanceof Date) {
+      return val.toISOString().slice(0,10);
+    }
+    if (typeof val === "number") {
+      // Numero seriale Excel
+      const d = new Date((val - 25569) * 86400 * 1000);
+      return d.toISOString().slice(0,10);
+    }
+    if (typeof val === "string" && val.match(/^\d{4}-\d{2}-\d{2}/)) return val.slice(0,10);
+    return String(val);
+  };
+
+  const handleFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setPhase("idle"); setParsed(null); setLog([]);
+
     try {
-      const data = JSON.parse(text);
-      setCsvData(data);
-      addLog(`✓ ${data.documenti?.length||0} documenti e ${data.assegni?.length||0} assegni pronti`);
+      // Legge il file come ArrayBuffer
+      const buf = await file.arrayBuffer();
+      const XLSX = window.XLSX;
+      const wb = XLSX.read(buf, { type: "array", cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      if (rows.length < 2) { notify("File vuoto o non valido","error"); return; }
+
+      // Colonne: A=0 Data, D=3 Tipo, F=5 Num.Doc, I=8 CodPV, J=9 Cliente, N=13 Tot.lordo
+      const righe = rows.slice(1).filter(r => r[3] === "FVE" || r[3] === "NAC");
+
+      if (righe.length === 0) { notify("Nessuna riga FVE/NAC trovata","error"); return; }
+
+      // Costruisce set dei documenti già presenti per deduplicazione
+      // Chiave: numero_documento + "|" + tipo_documento + "|" + data_documento
+      const esistenti = new Set(
+        docs.map(d => `${d[COL.numeroDocumento]}|${d[COL.tipoDocumento]}|${d[COL.dataDocumento]}`)
+      );
+
+      const nuovi = [], duplicati = [];
+
+      righe.forEach(r => {
+        const tipo      = r[3];  // D
+        const numDoc    = String(r[5] ?? "").trim();  // F
+        const data      = excelDateToISO(r[0]);       // A
+        const codCliente= String(r[8] ?? "").trim();  // I
+        const cliente   = String(r[9] ?? "").trim();  // J
+        let importo     = parseFloat(r[13]) || 0;    // N
+
+        // NAC → importo negativo
+        if (tipo === "NAC" && importo > 0) importo = -importo;
+
+        const chiave = `${numDoc}|${tipo}|${data}`;
+
+        const doc = {
+          numero_documento: numDoc,
+          tipo_documento: tipo,
+          data_documento: data,
+          codice_cliente: codCliente,
+          ragione_sociale: cliente,
+          importo_totale: importo,
+          saldo_residuo: importo,
+          stato: "APERTO",
+        };
+
+        if (esistenti.has(chiave)) {
+          duplicati.push(doc);
+        } else {
+          nuovi.push(doc);
+          esistenti.add(chiave); // evita duplicati interni al file stesso
+        }
+      });
+
+      const fve = nuovi.filter(d => d.tipo_documento === "FVE");
+      const nac = nuovi.filter(d => d.tipo_documento === "NAC");
+
+      setParsed({ nuovi, duplicati, fve, nac });
+      addLog(`📂 File letto: ${righe.length} righe totali`);
+      addLog(`✅ Nuovi da importare: ${nuovi.length} (${fve.length} FVE, ${nac.length} NAC)`);
+      addLog(`⏭ Già presenti (saltati): ${duplicati.length}`);
+      setPhase("preview");
     } catch(err) {
-      // ignore parse errors while typing
+      notify("Errore lettura file: " + err.message, "error");
+      addLog("❌ " + err.message);
     }
   };
 
-  const handleMigrate = async () => {
-    if(!csvData) { notify("Nessun dato da migrare","error"); return; }
-    setPhase("migrating");
-    addLog("Avvio migrazione...");
+  const handleImport = async () => {
+    if (!parsed?.nuovi?.length) { notify("Nessun documento nuovo da importare","error"); return; }
+    setPhase("importing");
+    addLog("Avvio importazione...");
     try {
-      // Migra documenti
-      if(csvData.documenti?.length > 0) {
-        const BATCH = 50;
-        let tot = 0;
-        for(let i=0; i<csvData.documenti.length; i+=BATCH) {
-          const batch = csvData.documenti.slice(i, i+BATCH);
-          const res = await d1API.migrate("documenti", batch);
-          tot += res.inserted || 0;
-          setProgress(p=>({...p, docs: tot}));
-          addLog(`Documenti: ${tot}/${csvData.documenti.length} inseriti`);
-        }
+      const BATCH = 50;
+      let tot = 0;
+      for (let i = 0; i < parsed.nuovi.length; i += BATCH) {
+        const batch = parsed.nuovi.slice(i, i + BATCH);
+        const res = await d1API.migrate("documenti", batch);
+        tot += res.inserted || 0;
+        addLog(`Inseriti ${tot}/${parsed.nuovi.length}...`);
       }
-      // Migra assegni
-      if(csvData.assegni?.length > 0) {
-        const res = await d1API.migrate("assegni", csvData.assegni);
-        setProgress(p=>({...p, assegni: res.inserted||0}));
-        addLog(`Assegni: ${res.inserted||0} inseriti`);
-      }
-      addLog("✅ Migrazione completata!");
+      addLog(`✅ Importazione completata! ${tot} documenti aggiunti.`);
       setPhase("done");
-      setTimeout(()=>{ onComplete(); notify("Dati migrati con successo ✓","success"); }, 1000);
+      setTimeout(() => { onComplete(); notify(`${tot} documenti importati ✓`, "success"); }, 800);
     } catch(err) {
       addLog("❌ Errore: " + err.message);
-      notify("Errore migrazione: "+err.message, "error");
-      setPhase("idle");
+      notify("Errore: " + err.message, "error");
+      setPhase("preview");
     }
   };
+
+  const reset = () => { setParsed(null); setLog([]); setPhase("idle"); if(fileRef.current) fileRef.current.value=""; };
 
   return (
     <div style={{maxWidth:700,margin:"0 auto"}}>
-      <h2 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:8}}>
-        ⬆ Migrazione Dati da Google Sheets
+      <h2 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:4}}>
+        ⬆ Importa da Excel
       </h2>
       <p style={{color:"#64748b",fontSize:12,marginBottom:24}}>
-        Esporta i tuoi dati da Google Sheets come JSON e incollali qui per importarli in D1.
+        Carica il file Excel esportato dal gestionale. Vengono letti solo i documenti FVE e NAC,
+        scartando automaticamente i duplicati già presenti.
       </p>
 
-      {/* Istruzioni */}
-      <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:10,padding:16,marginBottom:20}}>
-        <div style={{color:"#60a5fa",fontWeight:700,fontSize:12,marginBottom:10}}>📋 Come esportare da Google Sheets</div>
-        <div style={{color:"#94a3b8",fontSize:11,lineHeight:1.7}}>
-          1. Apri il tuo Google Sheet<br/>
-          2. Vai su <strong style={{color:"#f1f5f9"}}>Estensioni → Apps Script</strong><br/>
-          3. Incolla questo script e premi ▶ Esegui:
-        </div>
-        <pre style={{background:"#070c18",padding:12,borderRadius:8,fontSize:10,color:"#a3e635",marginTop:10,overflow:"auto",lineHeight:1.5}}>{`function esportaPerMigrazione() {
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const shDocs = ss.getSheetByName("Documenti");
-  const shAss  = ss.getSheetByName("Assegni");
-  const cols = ["NUMERO DOCUMENTO","TIPO DOCUMENTO","DATA DOCUMENTO",
-    "CODICE CLIENTE","RAGIONE SOCIALE","IMPORTO TOTALE",
-    "DATA PAGAMENTO PREVISTA","GIORNI DILAZIONE",
-    "DATA ACCREDITO 1","PAGAMENTO 1","DATA ACCREDITO 2","PAGAMENTO 2",
-    "DATA ACCREDITO 3","PAGAMENTO 3","DATA ACCREDITO 4","PAGAMENTO 4",
-    "NOTE","SALDO RESIDUO","N ASSEGNO","STATO"];
-  const colsAss = ["CLIENTE","N TITOLO","DATA TITOLO",
-    "IMPORTO TITOLO","FATTURE PAGATE","NC SCALATE","STATO TITOLO"];
-  function sheetToObj(sheet, headers) {
-    const vals = sheet.getDataRange().getValues();
-    const hdr = vals[0];
-    return vals.slice(1).filter(r=>r[0]).map(r => {
-      const o = {};
-      headers.forEach(h => { o[h.toLowerCase().replace(/ /g,"_")] = r[hdr.indexOf(h)]||""; });
-      return o;
-    });
-  }
-  const result = JSON.stringify({
-    documenti: sheetToObj(shDocs, cols),
-    assegni:   sheetToObj(shAss, colsAss)
-  });
-  Logger.log(result);
-  // Oppure: crea un file di testo nel Drive
-  DriveApp.createFile("creditflow_export.json", result, MimeType.PLAIN_TEXT);
-  SpreadsheetApp.getUi().alert("Export completato! Controlla i Log o il tuo Drive.");
-}`}</pre>
-        <div style={{color:"#94a3b8",fontSize:11,marginTop:10}}>
-          4. Copia il JSON dall'output e incollalo qui sotto
-        </div>
+      {/* Drop area file */}
+      <div style={{border:"2px dashed #1e293b",borderRadius:12,padding:"32px",textAlign:"center",
+        marginBottom:20,background:"#0a0f1e",cursor:"pointer"}}
+        onClick={()=>fileRef.current?.click()}>
+        <div style={{fontSize:32,marginBottom:8}}>📊</div>
+        <div style={{color:"#94a3b8",fontSize:13}}>Clicca per selezionare il file <strong style={{color:"#f1f5f9"}}>.xlsx</strong></div>
+        <div style={{color:"#475569",fontSize:11,marginTop:4}}>Colonne usate: A (data), D (tipo), F (num.doc), I (cod.cliente), J (cliente), N (importo)</div>
+        <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile}
+          style={{display:"none"}} />
       </div>
 
-      {/* Input JSON */}
-      <textarea
-        placeholder='Incolla qui il JSON esportato: {"documenti":[...],"assegni":[...]}'
-        onChange={handleJsonPaste}
-        rows={6}
-        style={{width:"100%",background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:8,
-          padding:"12px",color:"#f1f5f9",fontSize:11,fontFamily:"'IBM Plex Mono',monospace",
-          resize:"vertical",marginBottom:16}}
-      />
+      {/* Preview risultato parsing */}
+      {parsed && (
+        <div style={{marginBottom:20}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:16}}>
+            {[
+              {label:"Nuovi totali", val:parsed.nuovi.length, color:"#4ade80"},
+              {label:"FVE nuove",    val:parsed.fve.length,   color:"#60a5fa"},
+              {label:"NAC nuove",    val:parsed.nac.length,   color:"#f59e0b"},
+              {label:"Duplicati",    val:parsed.duplicati.length, color:"#475569"},
+            ].map(({label,val,color})=>(
+              <div key={label} style={{background:"#0a0f1e",border:"1px solid #1e293b",
+                borderRadius:8,padding:"12px",textAlign:"center"}}>
+                <div style={{color,fontSize:22,fontWeight:800}}>{val}</div>
+                <div style={{color:"#64748b",fontSize:10,marginTop:2}}>{label}</div>
+              </div>
+            ))}
+          </div>
 
-      {csvData && (
-        <div style={{background:"#0f2a1a",border:"1px solid #22c55e44",borderRadius:8,
-          padding:"12px 16px",marginBottom:16,display:"flex",gap:24,fontSize:12}}>
-          <span style={{color:"#4ade80"}}>📄 Documenti: <strong>{csvData.documenti?.length||0}</strong></span>
-          <span style={{color:"#4ade80"}}>📝 Assegni: <strong>{csvData.assegni?.length||0}</strong></span>
+          {/* Anteprima prime righe nuove */}
+          {parsed.nuovi.length > 0 && (
+            <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:8,
+              overflow:"auto",marginBottom:16,maxHeight:180}}>
+              <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <thead>
+                  <tr style={{background:"#0f172a"}}>
+                    {["Tipo","N.Doc","Data","Cliente","Importo"].map(h=>(
+                      <th key={h} style={{padding:"6px 10px",color:"#64748b",fontWeight:600,textAlign:"left"}}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {parsed.nuovi.slice(0,8).map((d,i)=>(
+                    <tr key={i} style={{borderTop:"1px solid #1e293b"}}>
+                      <td style={{padding:"5px 10px"}}>
+                        <span style={{background:d.tipo_documento==="FVE"?"#1e3a5f":"#3a1f0a",
+                          color:d.tipo_documento==="FVE"?"#60a5fa":"#f59e0b",
+                          padding:"1px 6px",borderRadius:4,fontSize:10}}>{d.tipo_documento}</span>
+                      </td>
+                      <td style={{padding:"5px 10px",color:"#f1f5f9"}}>{d.numero_documento}</td>
+                      <td style={{padding:"5px 10px",color:"#94a3b8"}}>{d.data_documento}</td>
+                      <td style={{padding:"5px 10px",color:"#f1f5f9",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.ragione_sociale}</td>
+                      <td style={{padding:"5px 10px",color:d.importo_totale<0?"#f87171":"#4ade80",fontFamily:"'IBM Plex Mono',monospace"}}>
+                        {new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(d.importo_totale)}
+                      </td>
+                    </tr>
+                  ))}
+                  {parsed.nuovi.length > 8 && (
+                    <tr><td colSpan={5} style={{padding:"6px 10px",color:"#475569",fontSize:10}}>
+                      ... e altri {parsed.nuovi.length - 8} documenti
+                    </td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
 
-      <button onClick={handleMigrate}
-        disabled={!csvData || phase==="migrating"}
-        style={{background:csvData?"linear-gradient(135deg,#059669,#10b981)":"#1e293b",
-          color:csvData?"#fff":"#475569",border:"none",borderRadius:10,
-          padding:"12px 28px",fontWeight:700,fontSize:13,cursor:csvData?"pointer":"not-allowed",
-          fontFamily:"'Syne',sans-serif"}}>
-        {phase==="migrating" ? "Migrazione in corso..." : phase==="done" ? "✅ Completato!" : "⬆ Avvia Migrazione"}
-      </button>
+      {/* Bottoni azione */}
+      <div style={{display:"flex",gap:10}}>
+        {phase === "preview" && parsed?.nuovi?.length > 0 && (
+          <button onClick={handleImport}
+            style={{background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff",
+              border:"none",borderRadius:10,padding:"12px 28px",fontWeight:700,
+              fontSize:13,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+            ⬆ Importa {parsed.nuovi.length} documenti
+          </button>
+        )}
+        {phase === "preview" && parsed?.nuovi?.length === 0 && (
+          <div style={{color:"#f59e0b",fontSize:13,padding:"12px 0"}}>
+            ✓ Tutti i documenti del file sono già presenti nel database.
+          </div>
+        )}
+        {phase === "importing" && (
+          <button disabled style={{background:"#1e293b",color:"#475569",border:"none",
+            borderRadius:10,padding:"12px 28px",fontWeight:700,fontSize:13,fontFamily:"'Syne',sans-serif"}}>
+            Importazione in corso...
+          </button>
+        )}
+        {phase === "done" && (
+          <button onClick={reset}
+            style={{background:"#1e293b",color:"#94a3b8",border:"none",borderRadius:10,
+              padding:"12px 28px",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+            ↺ Importa un altro file
+          </button>
+        )}
+        {(phase === "preview" || phase === "done") && (
+          <button onClick={reset}
+            style={{background:"transparent",color:"#475569",border:"1px solid #1e293b",
+              borderRadius:10,padding:"12px 20px",fontWeight:600,fontSize:13,
+              cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+            Annulla
+          </button>
+        )}
+      </div>
 
-      {log.length>0 && (
+      {/* Log */}
+      {log.length > 0 && (
         <div style={{marginTop:20,background:"#070c18",border:"1px solid #1e293b",
-          borderRadius:8,padding:12,maxHeight:200,overflow:"auto"}}>
-          {log.map((l,i)=><div key={i} style={{fontSize:11,color:"#94a3b8",marginBottom:4}}>{l}</div>)}
+          borderRadius:8,padding:12,maxHeight:150,overflow:"auto"}}>
+          {log.map((l,i)=><div key={i} style={{fontSize:11,color:"#94a3b8",marginBottom:3}}>{l}</div>)}
         </div>
       )}
     </div>
