@@ -1740,13 +1740,68 @@ function App() {
     const wb = window.XLSX.read(buf, { type: "array", cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
     const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
-    if (rows.length < 2) throw new Error("File vuoto o non riconosciuto");
+    if (rows.length < 1) throw new Error("File vuoto");
 
-    // Trova riga intestazione (prima riga non vuota)
-    const hdrIdx = rows.findIndex(r => r.some(c => c != null));
+    // Debug: stampa struttura file in console
+    console.log("=== BANK FILE DEBUG ===");
+    console.log("Fogli:", wb.SheetNames);
+    console.log("Righe totali:", rows.length);
+    rows.slice(0, 6).forEach((r, i) => console.log(`Riga ${i}:`, r));
+
+    // Converti numero seriale Excel → data stringa YYYY-MM-DD
+    const toDateStr = v => {
+      if (!v && v !== 0) return null;
+      // Date JS (cellDates:true)
+      if (v instanceof Date && !isNaN(v)) return v.toISOString().slice(0,10);
+      // Numero seriale Excel
+      if (typeof v === "number") {
+        const d = new Date(Math.round((v - 25569) * 86400 * 1000));
+        if (!isNaN(d)) return d.toISOString().slice(0,10);
+      }
+      const s = String(v).trim();
+      // ISO 2026-03-25
+      const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+      if (iso) return s.slice(0,10);
+      // IT 25/03/2026 o 25-03-2026
+      const it = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+      if (it) {
+        const y = it[3].length===2 ? "20"+it[3] : it[3];
+        return `${y}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
+      }
+      return null;
+    };
+
+    // Converti valore in numero (gestisce virgola decimale italiana)
+    const toNum = v => {
+      if (v == null || v === "") return null;
+      if (typeof v === "number") return v;
+      const s = String(v).trim().replace(/\s/g,"");
+      // formato italiano: 1.234,56
+      if (s.match(/^\-?\d{1,3}(\.\d{3})*(,\d+)?$/)) {
+        return parseFloat(s.replace(/\./g,"").replace(",","."));
+      }
+      // formato internazionale o semplice
+      return parseFloat(s.replace(/[^\d\-\.]/g,"")) || null;
+    };
+
+    // ── Trova riga intestazione ──
+    // Cerca la prima riga che contiene parole chiave bancarie
+    const HEADER_KEYS = ["data","importo","avere","dare","causale","descrizione","valuta","accredito","addebito","saldo","movimento"];
+    let hdrIdx = -1;
+    for (let i = 0; i < Math.min(rows.length, 15); i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const txt = r.map(c => String(c||"").toLowerCase()).join(" ");
+      const matches = HEADER_KEYS.filter(k => txt.includes(k));
+      if (matches.length >= 2) { hdrIdx = i; break; }
+    }
+    // Fallback: prima riga non vuota
+    if (hdrIdx < 0) hdrIdx = rows.findIndex(r => r && r.some(c => c != null));
+    if (hdrIdx < 0) throw new Error("Intestazione non trovata nel file");
+
     const hdr = rows[hdrIdx].map(h => String(h||"").toLowerCase().trim());
+    console.log("Header trovato a riga", hdrIdx, ":", hdr);
 
-    // Mappa colonne comuni di estratti conto italiani
     const findCol = (...keys) => {
       for (const k of keys) {
         const i = hdr.findIndex(h => h.includes(k));
@@ -1755,43 +1810,75 @@ function App() {
       return -1;
     };
 
-    const colData    = findCol("data valuta","data val","valuta","data operaz","data");
-    const colAvere   = findCol("avere","accredito","entrate","credito","importo accr");
-    const colDare    = findCol("dare","addebito","uscite","debito");
-    const colImporto = findCol("importo","amount","valore");
-    const colCausale = findCol("causale","descrizione","descriz","dettaglio","note","narrat");
+    // Colonne data — prova più varianti
+    const colData    = findCol("data val","valuta","data oper","data mov","data cont","data");
+    const colAvere   = findCol("avere","accredito","entrate","credito","entrata");
+    const colDare    = findCol("dare","addebito","uscite","debito","uscita");
+    const colImporto = findCol("importo","amount","valore","mov");
+    const colCausale = findCol("causale","descrizione","descriz","dettaglio","note","narrat","tipo");
+    const colSaldo   = findCol("saldo");
 
-    const toDateStr = v => {
-      if (!v) return null;
-      if (v instanceof Date) return v.toISOString().slice(0,10);
-      const s = String(v).trim();
-      const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-      if (iso) return s.slice(0,10);
-      const it = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-      if (it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
-      return null;
-    };
+    console.log("Colonne rilevate:", {colData,colAvere,colDare,colImporto,colCausale,colSaldo});
+
+    // ── Strategia di lettura importo ──
+    // 1. Colonna "avere" dedicata
+    // 2. Colonna "importo" con segno (positivo = accredito)
+    // 3. Rilevazione automatica: scansiona tutte le colonne numeriche
+
+    // Se non troviamo colonne standard, tentiamo rilevazione automatica
+    const autoDetect = colData < 0 || (colAvere < 0 && colImporto < 0);
 
     const result = [];
-    for (let i = hdrIdx + 1; i < rows.length; i++) {
-      const row = rows[i];
-      if (!row || row.every(v => v == null)) continue;
-      const data = toDateStr(colData >= 0 ? row[colData] : null);
-      if (!data) continue;
 
-      let avere = 0;
-      if (colAvere >= 0 && row[colAvere]) {
-        avere = parseFloat(String(row[colAvere]).replace(/[^\d.,-]/g,"").replace(",",".")) || 0;
-      } else if (colImporto >= 0 && row[colImporto]) {
-        const v = parseFloat(String(row[colImporto]).replace(/[^\d.,-]/g,"").replace(",",".")) || 0;
-        avere = v > 0 ? v : 0; // prende solo accrediti (positivi)
+    if (autoDetect) {
+      console.warn("Colonne standard non trovate — rilevazione automatica");
+      // Scansiona ogni riga cercando una data + un numero positivo
+      for (let i = hdrIdx + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.every(v => v == null)) continue;
+        let data = null, avere = 0, causale = "";
+        for (const cell of row) {
+          if (!data) data = toDateStr(cell);
+          const n = toNum(cell);
+          if (n != null && n > 0 && n > avere) avere = n;
+          if (typeof cell === "string" && cell.length > 5 && !data) causale = cell;
+        }
+        if (data && avere > 0) {
+          result.push({ idx: result.length, data, avere, causale, riconciliato: false });
+        }
       }
-      if (avere <= 0) continue; // salta addebiti
+    } else {
+      for (let i = hdrIdx + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.every(v => v == null)) continue;
 
-      const causale = colCausale >= 0 ? String(row[colCausale]||"").trim() : "";
-      result.push({ idx: result.length, data, avere, causale, riconciliato: false });
+        const data = toDateStr(colData >= 0 ? row[colData] : null);
+        if (!data) continue;
+
+        let avere = 0;
+        if (colAvere >= 0) {
+          avere = toNum(row[colAvere]) || 0;
+        }
+        if (avere <= 0 && colImporto >= 0) {
+          const n = toNum(row[colImporto]);
+          if (n != null && n > 0) avere = n;
+          // se n < 0 è un addebito, lo saltiamo
+        }
+        // Se c'è colonna dare/avere separate e avere è 0, skip
+        if (avere <= 0) continue;
+
+        const causale = colCausale >= 0 ? String(row[colCausale]||"").trim() : "";
+        result.push({ idx: result.length, data, avere, causale, riconciliato: false });
+      }
     }
-    if (result.length === 0) throw new Error("Nessun accredito trovato. Verificare il formato del file.");
+
+    console.log("Risultati trovati:", result.length, result.slice(0,3));
+
+    if (result.length === 0) {
+      // Messaggio di errore dettagliato con struttura reale del file
+      const preview = rows.slice(0, 5).map((r,i) => `Riga ${i}: [${(r||[]).slice(0,6).join(" | ")}]`).join("\n");
+      throw new Error(`Nessun accredito trovato.\n\nStruttura file rilevata:\n${preview}\n\nColonne intestazione: ${hdr.join(", ")}`);
+    }
     return result;
   };
 
@@ -1804,7 +1891,12 @@ function App() {
       setSelAccredito(null);
       setRecoSel({});
       setToast({msg:`File caricato: ${rows.length} accrediti trovati`, type:"success"});
-    } catch(err) { setToast({msg:"Errore lettura file: "+err.message, type:"error"}); }
+    } catch(err) {
+      // Mostra le prime righe dell'errore (senza \n che rompe il toast)
+      const msg = err.message.replace(/\n/g," | ").slice(0,200);
+      setToast({msg:"Errore lettura file: "+msg, type:"error"});
+      console.error("parseBankFile error:", err.message);
+    }
     e.target.value="";
   };
 
