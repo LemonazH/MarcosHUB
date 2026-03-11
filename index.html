@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v2.1 -->
+<!DOCTYPE html><!-- v3.0-D1 -->
 <html lang="it">
 <head>
   <meta charset="UTF-8" />
@@ -84,44 +84,47 @@ const COL = {
 ────────────────────────────────────────────── */
 const WORKER_URL = "https://creditflow-api.m-torinese99.workers.dev";
 
-const sheetsAPI = {
-  // Credenziali utente passate dall'app dopo login
+/* ── D1 API — sostituisce completamente sheetsAPI ── */
+const d1API = {
   user: null,
-  pass: null,
 
-  authHeader() {
-    return "Basic " + btoa(this.user + ":" + this.pass);
+  async call(path, method="GET", body=null) {
+    const opts = { method, headers: { "Content-Type": "application/json" } };
+    if (body) opts.body = JSON.stringify({ ...body, utente: this.user });
+    const r = await fetch(`${WORKER_URL}${path}`, opts);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || "Errore API");
+    return data;
   },
 
-  // signIn non serve più — il Worker gestisce l'autenticazione
-  async signIn() { return true; },
-
-  async getSheet(name) {
-    const r = await fetch(`${WORKER_URL}/sheet?name=${encodeURIComponent(name)}`, {
-      headers: { "Authorization": this.authHeader() }
-    });
-    if (!r.ok) throw new Error("Errore lettura foglio: " + name);
-    return r.json();
+  async auth(username, password) {
+    return this.call("/api/auth", "POST", { username, password });
   },
 
-  async setCell(sheet, rowIdx, colIdx, val) {
-    const r = await fetch(`${WORKER_URL}/update`, {
-      method: "POST",
-      headers: { "Authorization": this.authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ sheet, row: rowIdx, col: colIdx, value: val })
-    });
-    if (!r.ok) throw new Error("Errore aggiornamento cella");
+  async getDashboard()    { return this.call("/api/dashboard"); },
+  async getDocumenti(params={}) {
+    const qs = new URLSearchParams(params).toString();
+    return this.call("/api/documenti" + (qs ? "?" + qs : ""));
   },
+  async updateDocumento(id, fields) {
+    return this.call(`/api/documenti/${id}`, "PUT", { ...fields, utente: this.user });
+  },
+  async getPagamenti()    { return this.call("/api/pagamenti"); },
+  async postPagamento(body) { return this.call("/api/pagamenti", "POST", body); },
+  async getAssegni()      { return this.call("/api/assegni"); },
+  async updateAssegno(id, stato_titolo) {
+    return this.call(`/api/assegni/${id}`, "PUT", { stato_titolo, utente: this.user });
+  },
+  async getRiconciliazioni() { return this.call("/api/riconciliazioni"); },
+  async postRiconciliazione(body) { return this.call("/api/riconciliazioni", "POST", body); },
+  async getAudit(docId)   { return this.call(`/api/audit/documenti/${docId}`); },
 
-  async appendRow(sheet, values) {
-    const r = await fetch(`${WORKER_URL}/append`, {
-      method: "POST",
-      headers: { "Authorization": this.authHeader(), "Content-Type": "application/json" },
-      body: JSON.stringify({ sheet, values })
-    });
-    if (!r.ok) throw new Error("Errore aggiunta riga");
-  },
+  // Migrazione dati da Google Sheets
+  async migrate(table, rows) { return this.call("/api/migrate", "POST", { table, rows }); },
 };
+
+// Alias per compatibilità — non usato nella nuova versione
+const sheetsAPI = d1API;
 
 /* ──────────────────────────────────────────────
    ALGORITMO PREDIZIONE PAGAMENTI
@@ -1034,35 +1037,180 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 }
 
 
+
+/* ──────────────────────────────────────────────
+   MIGRAZIONE DA GOOGLE SHEETS → D1
+────────────────────────────────────────────── */
+function MigrazioneTab({docs, authed, notify, onComplete}) {
+  const [phase, setPhase] = React.useState("idle"); // idle | sheets | migrating | done
+  const [sheetUrl, setSheetUrl] = React.useState("");
+  const [csvData, setCsvData] = React.useState(null);
+  const [progress, setProgress] = React.useState({docs:0, assegni:0});
+  const [log, setLog] = React.useState([]);
+
+  const addLog = msg => setLog(p => [...p, msg]);
+
+  // Step 1: L'utente incolla i dati dal foglio (come JSON o carica CSV)
+  const handleJsonPaste = async (e) => {
+    const text = e.target.value;
+    try {
+      const data = JSON.parse(text);
+      setCsvData(data);
+      addLog(`✓ ${data.documenti?.length||0} documenti e ${data.assegni?.length||0} assegni pronti`);
+    } catch(err) {
+      // ignore parse errors while typing
+    }
+  };
+
+  const handleMigrate = async () => {
+    if(!csvData) { notify("Nessun dato da migrare","error"); return; }
+    setPhase("migrating");
+    addLog("Avvio migrazione...");
+    try {
+      // Migra documenti
+      if(csvData.documenti?.length > 0) {
+        const BATCH = 50;
+        let tot = 0;
+        for(let i=0; i<csvData.documenti.length; i+=BATCH) {
+          const batch = csvData.documenti.slice(i, i+BATCH);
+          const res = await d1API.migrate("documenti", batch);
+          tot += res.inserted || 0;
+          setProgress(p=>({...p, docs: tot}));
+          addLog(`Documenti: ${tot}/${csvData.documenti.length} inseriti`);
+        }
+      }
+      // Migra assegni
+      if(csvData.assegni?.length > 0) {
+        const res = await d1API.migrate("assegni", csvData.assegni);
+        setProgress(p=>({...p, assegni: res.inserted||0}));
+        addLog(`Assegni: ${res.inserted||0} inseriti`);
+      }
+      addLog("✅ Migrazione completata!");
+      setPhase("done");
+      setTimeout(()=>{ onComplete(); notify("Dati migrati con successo ✓","success"); }, 1000);
+    } catch(err) {
+      addLog("❌ Errore: " + err.message);
+      notify("Errore migrazione: "+err.message, "error");
+      setPhase("idle");
+    }
+  };
+
+  return (
+    <div style={{maxWidth:700,margin:"0 auto"}}>
+      <h2 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:8}}>
+        ⬆ Migrazione Dati da Google Sheets
+      </h2>
+      <p style={{color:"#64748b",fontSize:12,marginBottom:24}}>
+        Esporta i tuoi dati da Google Sheets come JSON e incollali qui per importarli in D1.
+      </p>
+
+      {/* Istruzioni */}
+      <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:10,padding:16,marginBottom:20}}>
+        <div style={{color:"#60a5fa",fontWeight:700,fontSize:12,marginBottom:10}}>📋 Come esportare da Google Sheets</div>
+        <div style={{color:"#94a3b8",fontSize:11,lineHeight:1.7}}>
+          1. Apri il tuo Google Sheet<br/>
+          2. Vai su <strong style={{color:"#f1f5f9"}}>Estensioni → Apps Script</strong><br/>
+          3. Incolla questo script e premi ▶ Esegui:
+        </div>
+        <pre style={{background:"#070c18",padding:12,borderRadius:8,fontSize:10,color:"#a3e635",marginTop:10,overflow:"auto",lineHeight:1.5}}>{`function esportaPerMigrazione() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const shDocs = ss.getSheetByName("Documenti");
+  const shAss  = ss.getSheetByName("Assegni");
+  const cols = ["NUMERO DOCUMENTO","TIPO DOCUMENTO","DATA DOCUMENTO",
+    "CODICE CLIENTE","RAGIONE SOCIALE","IMPORTO TOTALE",
+    "DATA PAGAMENTO PREVISTA","GIORNI DILAZIONE",
+    "DATA ACCREDITO 1","PAGAMENTO 1","DATA ACCREDITO 2","PAGAMENTO 2",
+    "DATA ACCREDITO 3","PAGAMENTO 3","DATA ACCREDITO 4","PAGAMENTO 4",
+    "NOTE","SALDO RESIDUO","N ASSEGNO","STATO"];
+  const colsAss = ["CLIENTE","N TITOLO","DATA TITOLO",
+    "IMPORTO TITOLO","FATTURE PAGATE","NC SCALATE","STATO TITOLO"];
+  function sheetToObj(sheet, headers) {
+    const vals = sheet.getDataRange().getValues();
+    const hdr = vals[0];
+    return vals.slice(1).filter(r=>r[0]).map(r => {
+      const o = {};
+      headers.forEach(h => { o[h.toLowerCase().replace(/ /g,"_")] = r[hdr.indexOf(h)]||""; });
+      return o;
+    });
+  }
+  const result = JSON.stringify({
+    documenti: sheetToObj(shDocs, cols),
+    assegni:   sheetToObj(shAss, colsAss)
+  });
+  Logger.log(result);
+  // Oppure: crea un file di testo nel Drive
+  DriveApp.createFile("creditflow_export.json", result, MimeType.PLAIN_TEXT);
+  SpreadsheetApp.getUi().alert("Export completato! Controlla i Log o il tuo Drive.");
+}`}</pre>
+        <div style={{color:"#94a3b8",fontSize:11,marginTop:10}}>
+          4. Copia il JSON dall'output e incollalo qui sotto
+        </div>
+      </div>
+
+      {/* Input JSON */}
+      <textarea
+        placeholder='Incolla qui il JSON esportato: {"documenti":[...],"assegni":[...]}'
+        onChange={handleJsonPaste}
+        rows={6}
+        style={{width:"100%",background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:8,
+          padding:"12px",color:"#f1f5f9",fontSize:11,fontFamily:"'IBM Plex Mono',monospace",
+          resize:"vertical",marginBottom:16}}
+      />
+
+      {csvData && (
+        <div style={{background:"#0f2a1a",border:"1px solid #22c55e44",borderRadius:8,
+          padding:"12px 16px",marginBottom:16,display:"flex",gap:24,fontSize:12}}>
+          <span style={{color:"#4ade80"}}>📄 Documenti: <strong>{csvData.documenti?.length||0}</strong></span>
+          <span style={{color:"#4ade80"}}>📝 Assegni: <strong>{csvData.assegni?.length||0}</strong></span>
+        </div>
+      )}
+
+      <button onClick={handleMigrate}
+        disabled={!csvData || phase==="migrating"}
+        style={{background:csvData?"linear-gradient(135deg,#059669,#10b981)":"#1e293b",
+          color:csvData?"#fff":"#475569",border:"none",borderRadius:10,
+          padding:"12px 28px",fontWeight:700,fontSize:13,cursor:csvData?"pointer":"not-allowed",
+          fontFamily:"'Syne',sans-serif"}}>
+        {phase==="migrating" ? "Migrazione in corso..." : phase==="done" ? "✅ Completato!" : "⬆ Avvia Migrazione"}
+      </button>
+
+      {log.length>0 && (
+        <div style={{marginTop:20,background:"#070c18",border:"1px solid #1e293b",
+          borderRadius:8,padding:12,maxHeight:200,overflow:"auto"}}>
+          {log.map((l,i)=><div key={i} style={{fontSize:11,color:"#94a3b8",marginBottom:4}}>{l}</div>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function App() {
   // ── LOGIN ──
   const [authed, setAuthed] = useState(()=>{
     const u = sessionStorage.getItem("cf_user");
-    const p = sessionStorage.getItem("cf_pass");
-    if(u && p){ sheetsAPI.user=u; sheetsAPI.pass=p; }
+    if(u){ d1API.user=u; }
     return u||"";
   });
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginErr, setLoginErr] = useState("");
 
-  const USERS = { "Marco":"Marco", "Luca":"Luca" };
-
-  const handleLogin = () => {
-    if(USERS[loginUser] && USERS[loginUser]===loginPass){
-      sessionStorage.setItem("cf_user", loginUser);
-      sessionStorage.setItem("cf_pass", loginPass);
-      sheetsAPI.user = loginUser;
-      sheetsAPI.pass = loginPass;
-      setAuthed(loginUser); setLoginErr("");
-    } else { setLoginErr("Utente o password non corretti"); }
+  const handleLogin = async () => {
+    try {
+      const res = await d1API.auth(loginUser, loginPass);
+      if(res.ok){
+        sessionStorage.setItem("cf_user", loginUser);
+        d1API.user = loginUser;
+        setAuthed(loginUser); setLoginErr("");
+      } else { setLoginErr("Utente o password non corretti"); }
+    } catch(e) { setLoginErr("Errore connessione: " + e.message); }
   };
 
-  const handleLogout = () => { sessionStorage.removeItem("cf_user"); sessionStorage.removeItem("cf_pass"); sheetsAPI.user=null; sheetsAPI.pass=null; setAuthed(""); };
+  const handleLogout = () => { sessionStorage.removeItem("cf_user"); d1API.user=null; setAuthed(""); };
 
   // ── APP HOOKS (devono stare SEMPRE prima di qualsiasi return) ──
   const [auth,setAuth]=useState(false);
-  const [demo,setDemo]=useState(false);
+  const [demo,setDemo]=useState(false); // D1: demo sempre false
   const [loading,setLoading]=useState(false);
   const [docs,setDocs]=useState(MOCK_DOCS);
   const [incs,setIncs]=useState(MOCK_INCS);
@@ -1110,31 +1258,56 @@ function App() {
   const loadData=useCallback(async()=>{
     setLoading(true);
     try {
-      const [d,i,a,rc]=await Promise.all([
-        sheetsAPI.getSheet(CFG.SHEET_DOCUMENTI),
-        sheetsAPI.getSheet(CFG.SHEET_INCASSI),
-        sheetsAPI.getSheet(CFG.SHEET_ASSEGNI),
-        sheetsAPI.getSheet(CFG.SHEET_RICONCILIAZIONI),
+      const [docs_raw, incs_raw, ass_raw, rico_raw] = await Promise.all([
+        d1API.getDocumenti(),
+        d1API.getPagamenti(),
+        d1API.getAssegni(),
+        d1API.getRiconciliazioni(),
       ]);
-      setDocs(d); setIncs(i); setAssegni(a);
-      // Raggruppa riconciliazioni per ID (ogni ID può avere più fatture)
+      // Normalizza documenti D1 → formato COL usato dal frontend
+      const normalize = row => ({
+        [COL.numeroDocumento]:   row.numero_documento,
+        [COL.tipoDocumento]:     row.tipo_documento,
+        [COL.dataDocumento]:     row.data_documento,
+        [COL.codiceCliente]:     row.codice_cliente,
+        [COL.ragioneSociale]:    row.ragione_sociale,
+        [COL.importoDocumento]:  String(row.importo_totale||0),
+        [COL.dataPagPrevista]:   row.data_pagamento_prevista,
+        [COL.giorniDilazione]:   row.giorni_dilazione,
+        [COL.dataAcc1]:          row.data_accredito_1,
+        [COL.pagamento1]:        row.pagamento_1,
+        [COL.dataAcc2]:          row.data_accredito_2,
+        [COL.pagamento2]:        row.pagamento_2,
+        [COL.dataAcc3]:          row.data_accredito_3,
+        [COL.pagamento3]:        row.pagamento_3,
+        [COL.dataAcc4]:          row.data_accredito_4,
+        [COL.pagamento4]:        row.pagamento_4,
+        [COL.note]:              row.note,
+        [COL.saldoResiduo]:      String(row.saldo_residuo||0),
+        [COL.nAssegno]:          row.n_assegno,
+        [COL.stato]:             row.stato,
+        _id: row.id,
+      });
+      setDocs((docs_raw||[]).map(normalize));
+      setIncs(incs_raw||[]);
+      // Normalizza assegni
+      setAssegni((ass_raw||[]).map(r=>({
+        "CLIENTE": r.cliente, "N TITOLO": r.n_titolo,
+        "DATA TITOLO": r.data_titolo, "IMPORTO TITOLO": r.importo_titolo,
+        "FATTURE PAGATE": r.fatture_pagate, "NC SCALATE": r.nc_scalate,
+        "STATO TITOLO": r.stato_titolo, _id: r.id,
+      })));
+      // Normalizza riconciliazioni
       const ricoMap = {};
-      (rc||[]).forEach(r => {
-        const id = r["ID INCASSO"] || r["ID"] || "";
+      (rico_raw||[]).forEach(r => {
+        const id = String(r.pagamento_id || r.id);
         if(!ricoMap[id]) ricoMap[id] = {
-          id,
-          data: r["DATA"] || r["Data Ricezione"] || "",
-          accredito: r["ACCREDITO"] || r["IMPORTO"] || 0,
-          descrizione: r["DESCRIZIONE"] || r["NOTE"] || "",
-          fatture: [],
-          tipo: r["TIPO"] || "",
+          id, data: r.data||"", accredito: r.importo||0,
+          descrizione: r.descrizione||"", fatture: [],
+          tipo: r.metodo||"Banca",
         };
-        const numDoc = r["NUMERO DOCUMENTO"] || r["FATTURE"] || "";
-        if(numDoc && !ricoMap[id].fatture.includes(numDoc))
-          ricoMap[id].fatture.push(numDoc);
-        // Accumula importo se non presente nell'header
-        if(!ricoMap[id].accredito && r["IMPORTO"])
-          ricoMap[id].accredito = (parseFloat(ricoMap[id].accredito)||0) + (parseFloat(r["IMPORTO"])||0);
+        if(r.numero_documento && !ricoMap[id].fatture.includes(r.numero_documento))
+          ricoMap[id].fatture.push(r.numero_documento);
       });
       setRiconciliazioni(Object.values(ricoMap));
       notify("Dati sincronizzati ✓","success");
@@ -1144,7 +1317,7 @@ function App() {
 
   // Auto-carica dati quando l'utente effettua il login
   useEffect(()=>{
-    if(authed && sheetsAPI.user){
+    if(authed && d1API.user){
       setDemo(false);
       setAuth(true);
       loadData();
@@ -1189,14 +1362,7 @@ function App() {
   // ── APP ──
   const notify=(msg,type="info")=>setToast({msg,type});
 
-  const handleSignIn=async()=>{
-    setLoading(true);
-    try {
-      // Con il Worker non serve signIn — le credenziali sono già in sheetsAPI
-      setAuth(true); setDemo(false);
-      await loadData();
-    } catch(e) { notify("Auth fallita: "+e.message,"error"); setLoading(false); }
-  };
+  // handleSignIn rimosso (D1 non richiede Google sign-in)
 
   const DOC_COLS=[
     "NUMERO DOCUMENTO","TIPO DOCUMENTO","DATA DOCUMENTO","CODICE CLIENTE","RAGIONE SOCIALE",
@@ -1206,91 +1372,79 @@ function App() {
     "NOTE","SALDO RESIDUO","N ASSEGNO","STATO"
   ]; // colonne A-T nel foglio Documenti
 
+  const COL_D1_MAP = {
+    "NUMERO DOCUMENTO":"numero_documento","TIPO DOCUMENTO":"tipo_documento",
+    "DATA DOCUMENTO":"data_documento","CODICE CLIENTE":"codice_cliente",
+    "RAGIONE SOCIALE":"ragione_sociale","IMPORTO TOTALE":"importo_totale",
+    "DATA PAGAMENTO PREVISTA":"data_pagamento_prevista","GIORNI DILAZIONE":"giorni_dilazione",
+    "DATA ACCREDITO 1":"data_accredito_1","PAGAMENTO 1":"pagamento_1",
+    "DATA ACCREDITO 2":"data_accredito_2","PAGAMENTO 2":"pagamento_2",
+    "DATA ACCREDITO 3":"data_accredito_3","PAGAMENTO 3":"pagamento_3",
+    "DATA ACCREDITO 4":"data_accredito_4","PAGAMENTO 4":"pagamento_4",
+    "NOTE":"note","SALDO RESIDUO":"saldo_residuo","N ASSEGNO":"n_assegno","STATO":"stato",
+  };
+
   const handleEdit=async(origIdx,field,val)=>{
-    if(demo){
-      setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:val}; return d; });
-      notify("Modifica salvata (demo)","success"); return;
-    }
-    setLoading(true);
+    setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:val}; return d; });
+    const doc = docs[origIdx];
+    if(!doc?._id) { notify("ID documento mancante","error"); return; }
+    const d1field = COL_D1_MAP[field];
+    if(!d1field) { notify("Campo non mappato: "+field,"warn"); return; }
     try {
-      const colIdx=DOC_COLS.indexOf(field);
-      if(colIdx===-1){ notify("Colonna non trovata: "+field,"error"); return; }
-      await sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, origIdx, colIdx, val);
-      setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:val}; return d; });
-      notify("Salvato su Sheets ✓","success");
+      await d1API.updateDocumento(doc._id, { [d1field]: val, utente: authed });
+      notify("Salvato ✓","success");
     } catch(e){ notify("Errore: "+e.message,"error"); }
-    finally { setLoading(false); }
   };
 
   const handleSavePay=async({method,amount,cid,date,notes,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
-    const id=`INC-${Date.now()}`;
-    if(!demo){
-      try {
-        // 1. Salva in foglio Incassi
-        await sheetsAPI.appendRow(CFG.SHEET_INCASSI,[id,method,date,amount,notes]);
-        // 2. Salva riconciliazioni per ogni FVE/partial
-        for(const f of [...pred.full,...pred.partial])
-          await sheetsAPI.appendRow(CFG.SHEET_RICONCILIAZIONI,[id,f[COL.numeroDocumento],f.allocato]);
-        // 3. Se assegno, salva nel Registro Assegni
-        if(method==="Assegno"&&nAssegno){
-          await sheetsAPI.appendRow(CFG.SHEET_ASSEGNI,[
-            docs.find(d=>d[COL.codiceCliente]===cid)?.[COL.ragioneSociale]||"",
-            nAssegno, dataTitolo, amount, fveNums, nacNums||"", "IN ARCHIVIO"
-          ]);
-        }
-      } catch(e){ notify("Errore salvataggio: "+e.message,"error"); return; }
-    }
-    setIncs(p=>[...p,{"ID Incasso":id,Metodo:method,"Data Ricezione":date,"Importo Totale":amount,Note:notes}]);
-    // Aggiungi allo storico riconciliazioni
-    setRiconciliazioni(p=>[...p,{
-      id, data:date, accredito:amount,
-      descrizione:notes,
-      fatture:[...pred.full,...pred.partial].map(f=>f[COL.numeroDocumento]),
-      tipo:"Pagamento",
-    }]);
+    try {
+      const cliente = docs.find(d=>d[COL.codiceCliente]===cid)?.[COL.ragioneSociale]||"";
+      // Costruisci allocazioni per D1
+      const allDocs = [...pred.full,...pred.partial,...pred.nacs];
+      const allocazioni = allDocs.map(f => ({
+        documento_id: f._id,
+        importo: f.allocato,
+        descrizione: notes,
+      }));
+      // Prepara assegno se presente
+      const assegno = (method==="Assegno" && nAssegno) ? {
+        cliente, n_titolo: nAssegno, data_titolo: dataTitolo,
+        importo_titolo: amount, fatture_pagate: fveNums, nc_scalate: nacNums||"",
+      } : null;
 
-    // Aggiorna documenti in memoria + Sheets
-    setDocs(p=>{
-      const d=[...p];
-      const allSelected=[...pred.full,...pred.partial,...pred.nacs];
-      for(const f of allSelected){
-        const i=d.findIndex(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
-        if(i<0) continue;
-        const isNac=f[COL.tipoDocumento]==="NAC";
-        const isFull=pred.full.some(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
-        // Nota "DA INCASSARE" solo sulle FVE, non sulle NAC
-        const nuovaNota = isNac ? (d[i][COL.note]||"") : notes;
-        if(isFull){
-          d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:"CHIUSO",[COL.note]:nuovaNota};
-          if(!demo){
-            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI,i,DOC_COLS.indexOf(COL.saldoResiduo),"0").catch(()=>{});
-            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI,i,DOC_COLS.indexOf(COL.stato),"CHIUSO").catch(()=>{});
-            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI,i,DOC_COLS.indexOf(COL.note),nuovaNota).catch(()=>{});
-          }
-        } else {
-          const nuovoSaldo=Math.max(0,parseNum(d[i][COL.saldoResiduo])-f.allocato).toFixed(2);
-          d[i]={...d[i],[COL.saldoResiduo]:nuovoSaldo,[COL.note]:nuovaNota};
-          if(!demo){
-            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI,i,DOC_COLS.indexOf(COL.saldoResiduo),nuovoSaldo).catch(()=>{});
-            sheetsAPI.setCell(CFG.SHEET_DOCUMENTI,i,DOC_COLS.indexOf(COL.note),nuovaNota).catch(()=>{});
+      const res = await d1API.postPagamento({
+        metodo: method, data_ricezione: date,
+        importo_totale: amount, note: notes,
+        utente: authed, allocazioni, assegno,
+      });
+
+      // Aggiorna stato locale
+      setDocs(p=>{
+        const d=[...p];
+        for(const f of allDocs){
+          const i=d.findIndex(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
+          if(i<0) continue;
+          const isFull=pred.full.some(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
+          const nuovaNota = f[COL.tipoDocumento]==="NAC" ? (d[i][COL.note]||"") : notes;
+          if(isFull)
+            d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:"PAGATO",[COL.note]:nuovaNota};
+          else {
+            const ns=Math.max(0,parseNum(d[i][COL.saldoResiduo])-f.allocato).toFixed(2);
+            d[i]={...d[i],[COL.saldoResiduo]:ns,[COL.stato]:"PARZIALE",[COL.note]:nuovaNota};
           }
         }
-      }
-      return d;
-    });
-
-    // Se assegno, aggiorna assegni in memoria
-    if(method==="Assegno"&&nAssegno){
-      const cliente=docs.find(d=>d[COL.codiceCliente]===cid)?.[COL.ragioneSociale]||"";
-      setAssegni(p=>[...p,{
-        "CLIENTE":cliente,"N TITOLO":nAssegno,"DATA TITOLO":dataTitolo,
-        "IMPORTO TITOLO":amount,"FATTURE PAGATE":fveNums,
-        "NC SCALATE":nacNums||"","STATO TITOLO":"IN ARCHIVIO"
+        return d;
+      });
+      setRiconciliazioni(p=>[...p,{
+        id: String(res.pagamento_id), data:date, accredito:amount,
+        descrizione:notes, fatture:allDocs.map(f=>f[COL.numeroDocumento]), tipo:"Pagamento",
       }]);
-    }
-    notify("Pagamento registrato ✓","success");
+      if(assegno)
+        setAssegni(p=>[...p,{"CLIENTE":cliente,"N TITOLO":nAssegno,"DATA TITOLO":dataTitolo,
+          "IMPORTO TITOLO":amount,"FATTURE PAGATE":fveNums,"NC SCALATE":nacNums||"","STATO TITOLO":"IN PORTAFOGLIO"}]);
+      notify("Pagamento registrato ✓","success");
+    } catch(e){ notify("Errore: "+e.message,"error"); }
   };
-
   /* ── RICONCILIAZIONE BANCARIA ── */
   const handleBankFile = async e => {
     const file = e.target.files[0];
@@ -1315,57 +1469,37 @@ function App() {
         const docIdx = docs.findIndex(d=>d[COL.numeroDocumento]===numDoc);
         if(docIdx<0) continue;
         const doc = docs[docIdx];
-        // Trova primo slot libero (DATA ACCREDITO 1-4)
-        const slots = [
-          {dc:COL.dataAcc1, pc:COL.pagamento1, ci:8},
-          {dc:COL.dataAcc2, pc:COL.pagamento2, ci:10},
-          {dc:COL.dataAcc3, pc:COL.pagamento3, ci:12},
-          {dc:COL.dataAcc4, pc:COL.pagamento4, ci:14},
-        ];
-        const slot = slots.find(s=>!doc[s.dc]||doc[s.dc]==="") || slots[3];
-        const slotDcIdx = DOC_COLS.indexOf(slot.dc);
-        const slotPcIdx = DOC_COLS.indexOf(slot.pc);
         const nuovoSaldo = Math.max(0, parseNum(doc[COL.saldoResiduo]) - parseNum(importoAllocato));
-        const nuovoStato = nuovoSaldo < 0.01 ? "CHIUSO" : "APERTO";
-
-        // Aggiorna Sheets
-        if(!demo){
-          await sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, docIdx, slotDcIdx, dataAccredito);
-          await sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, docIdx, slotPcIdx, String(parseNum(importoAllocato)));
-          await sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, docIdx, DOC_COLS.indexOf(COL.saldoResiduo), String(nuovoSaldo.toFixed(2)));
-          await sheetsAPI.setCell(CFG.SHEET_DOCUMENTI, docIdx, DOC_COLS.indexOf(COL.stato), nuovoStato);
-          // Salva in Riconciliazioni
-          await sheetsAPI.appendRow(CFG.SHEET_RICONCILIAZIONI, [
-            `RIC-${Date.now()}`, numDoc, parseNum(importoAllocato), dataAccredito, selAccredito.desc
-          ]);
+        const nuovoStato = nuovoSaldo < 0.01 ? "PAGATO" : "APERTO";
+        // Trova primo slot libero
+        const slots=[{dc:COL.dataAcc1,pc:COL.pagamento1},{dc:COL.dataAcc2,pc:COL.pagamento2},{dc:COL.dataAcc3,pc:COL.pagamento3},{dc:COL.dataAcc4,pc:COL.pagamento4}];
+        const slot = slots.find(s=>!doc[s.dc]||doc[s.dc]==="") || slots[3];
+        // Aggiorna su D1
+        if(doc._id) {
+          await d1API.updateDocumento(doc._id, {
+            [COL_D1_MAP[slot.dc]]: dataAccredito,
+            [COL_D1_MAP[slot.pc]]: parseNum(importoAllocato),
+            saldo_residuo: nuovoSaldo,
+            stato: nuovoStato,
+            utente: authed,
+          });
+          await d1API.postRiconciliazione({
+            numero_documento: numDoc,
+            importo: parseNum(importoAllocato),
+            data: dataAccredito,
+            descrizione: selAccredito.desc||"",
+          });
         }
-
         // Aggiorna in memoria
         setDocs(p=>{
           const d=[...p];
-          d[docIdx]={...d[docIdx],
-            [slot.dc]: dataAccredito,
-            [slot.pc]: String(parseNum(importoAllocato)),
-            [COL.saldoResiduo]: String(nuovoSaldo.toFixed(2)),
-            [COL.stato]: nuovoStato,
-          };
+          d[docIdx]={...d[docIdx],[slot.dc]:dataAccredito,[slot.pc]:String(parseNum(importoAllocato)),[COL.saldoResiduo]:String(nuovoSaldo.toFixed(2)),[COL.stato]:nuovoStato};
           return d;
         });
       }
-      // Marca accredito come riconciliato
       setBankRows(p=>p.map(r=>r.idx===selAccredito.idx?{...r,riconciliato:true}:r));
-      // Aggiungi a storico locale con struttura normalizzata
-      const now = new Date().toLocaleDateString("it-IT");
-      setRiconciliazioni(p=>[...p, {
-        id: `RIC-${Date.now()}`,
-        data: now,
-        accredito: selAccredito.avere,
-        descrizione: selAccredito.descAdd||selAccredito.desc,
-        fatture: Object.keys(recoSel),
-        tipo: "Banca",
-      }]);
-      setSelAccredito(null);
-      setRecoSel({});
+      setRiconciliazioni(p=>[...p,{id:`RIC-${Date.now()}`,data:selAccredito.data,accredito:selAccredito.avere,descrizione:selAccredito.descAdd||selAccredito.desc,fatture:Object.keys(recoSel),tipo:"Banca"}]);
+      setSelAccredito(null); setRecoSel({});
       notify("Riconciliazione salvata ✓","success");
     } catch(err){ notify("Errore: "+err.message,"error"); }
     setRecoSaving(false);
@@ -1382,19 +1516,7 @@ function App() {
 
 
   /* ── HEADER ── */
-  const SetupBanner=()=>{
-    if(sheetsAPI.user) return null;
-    return (
-      <div style={{background:"#1a1000",border:"1px solid #fb923c44",borderRadius:10,
-        padding:"12px 18px",marginBottom:18,display:"flex",alignItems:"center",gap:12,fontSize:12}}>
-        <span style={{fontSize:18}}>⚠️</span>
-        <span style={{color:"#fb923c"}}>
-          Connessione Google Sheets non attiva — i dati mostrati sono di esempio.{" "}
-          <strong>Effettua il login per caricare i dati reali.</strong>
-        </span>
-      </div>
-    );
-  };
+  const SetupBanner=()=>{ return null; }; // D1 — sempre connesso dopo login
 
   const Header=()=>(
     <header style={{background:"#0a0f1e",borderBottom:"1px solid #1e293b",
@@ -1408,7 +1530,7 @@ function App() {
         </div>
       </div>
       <nav style={{display:"flex",gap:3}}>
-        {[["dashboard","Dashboard"],["documenti","Documenti"],["incassi","Incassi"],["assegni","Assegni"],["riconcilia","Riconcilia 🏦"],["storico","Storico 📋"]].map(([id,lbl])=>(
+        {[["dashboard","Dashboard"],["documenti","Documenti"],["incassi","Incassi"],["assegni","Assegni"],["riconcilia","Riconcilia 🏦"],["storico","Storico 📋"],["migrazione","⬆ Migra"]].map(([id,lbl])=>(
           <button key={id} onClick={()=>setTab(id)} style={{
             background:tab===id?"#1e293b":"transparent",
             color:tab===id?"#f1f5f9":"#64748b",
@@ -1420,10 +1542,7 @@ function App() {
       <div style={{display:"flex",alignItems:"center",gap:10}}>
         {demo&&<span style={{color:"#fb923c",fontSize:10,background:"#3a1f0a",padding:"3px 8px",borderRadius:5}}>DEMO</span>}
         {loading&&<Spinner/>}
-        {!auth
-          ? <button onClick={handleSignIn} style={{...S.btn,background:"linear-gradient(135deg,#4f46e5,#7c3aed)",color:"#fff"}}>⟐ Connetti Google</button>
-          : <button onClick={loadData} style={{...S.btn,background:"#1e293b",color:"#60a5fa"}}>↻ Sync</button>
-        }
+        <button onClick={loadData} style={{...S.btn,background:"#1e293b",color:"#60a5fa"}}>↻ Sync</button>
         <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff"}}>
           + Pagamento
         </button>
@@ -1977,6 +2096,10 @@ function App() {
               </div>
             )}
           </div>
+        )}
+
+        {tab==="migrazione"&&(
+          <MigrazioneTab docs={docs} authed={authed} notify={notify} onComplete={loadData}/>
         )}
 
       {showPay&&<PayModal docs={docs} onSave={handleSavePay} onClose={()=>setShowPay(false)} user={authed} onLogout={handleLogout}/>}
