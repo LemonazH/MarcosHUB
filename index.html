@@ -109,11 +109,11 @@ const d1API = {
   async updateDocumento(id, fields) {
     return this.call(`/api/documenti/${id}`, "PUT", { ...fields, utente: this.user });
   },
-  async getPagamenti()    { return this.call("/api/pagamenti"); },
-  async postPagamento(body) { return this.call("/api/pagamenti", "POST", body); },
+  async getIncassi()       { return this.call("/api/incassi"); },
+  async postIncasso(body)  { return this.call("/api/incassi", "POST", body); },
   async getAssegni()      { return this.call("/api/assegni"); },
-  async updateAssegno(id, stato_titolo) {
-    return this.call(`/api/assegni/${id}`, "PUT", { stato_titolo, utente: this.user });
+  async updateAssegno(id, stato) {
+    return this.call(`/api/assegni/${id}`, "PUT", { stato, utente: this.user });
   },
   async getRiconciliazioni() { return this.call("/api/riconciliazioni"); },
   async postRiconciliazione(body) { return this.call("/api/riconciliazioni", "POST", body); },
@@ -1358,7 +1358,7 @@ function App() {
     try {
       const [docs_raw, incs_raw, ass_raw, rico_raw] = await Promise.all([
         d1API.getDocumenti(),
-        d1API.getPagamenti(),
+        d1API.getIncassi(),
         d1API.getAssegni(),
         d1API.getRiconciliazioni(),
       ]);
@@ -1517,10 +1517,18 @@ function App() {
         importo: amount, fatture_pagate: fveNums, nc_scalate: nacNums||"",
       } : null;
 
-      const res = await d1API.postPagamento({
-        metodo: method, data_ricezione: date,
-        importo_totale: amount, note: notes,
-        utente: authed, allocazioni, assegno,
+      const res = await d1API.postIncasso({
+        metodo: method==="ASSEGNO"?"Assegno":"Bonifico",
+        data_incasso: date,
+        importo_totale: amount,
+        codice_cliente: cid,
+        ragione_sociale: cliente,
+        n_assegno: nAssegno||null,
+        data_titolo: dataTitolo||null,
+        note: notes,
+        utente: authed,
+        allocazioni,
+        assegno,
       });
 
       // Aggiorna stato locale
@@ -1541,7 +1549,7 @@ function App() {
         return d;
       });
       setRiconciliazioni(p=>[...p,{
-        id: String(res.pagamento_id), data:date, accredito:amount,
+        id: String(res.incasso_id), data:date, accredito:amount,
         descrizione:notes, fatture:allDocs.map(f=>f[COL.numeroDocumento]), tipo:"Pagamento",
       }]);
       if(assegno)
