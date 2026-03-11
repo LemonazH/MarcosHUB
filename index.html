@@ -1272,7 +1272,7 @@ function App() {
         [COL.codiceCliente]:     row.codice_cliente,
         [COL.ragioneSociale]:    row.ragione_sociale,
         [COL.importoDocumento]:  String(row.importo_totale||0),
-        [COL.dataPagPrevista]:   row.data_pagamento_prevista,
+        [COL.dataPagamento]:     row.data_pagamento_prevista,
         [COL.giorniDilazione]:   row.giorni_dilazione,
         [COL.dataAcc1]:          row.data_accredito_1,
         [COL.pagamento1]:        row.pagamento_1,
@@ -1293,9 +1293,9 @@ function App() {
       // Normalizza assegni
       setAssegni((ass_raw||[]).map(r=>({
         "CLIENTE": r.cliente, "N TITOLO": r.n_titolo,
-        "DATA TITOLO": r.data_titolo, "IMPORTO TITOLO": r.importo_titolo,
+        "DATA TITOLO": r.data_titolo, "IMPORTO TITOLO": r.importo,
         "FATTURE PAGATE": r.fatture_pagate, "NC SCALATE": r.nc_scalate,
-        "STATO TITOLO": r.stato_titolo, _id: r.id,
+        "STATO TITOLO": r.stato, _id: r.id,
       })));
       // Normalizza riconciliazioni
       const ricoMap = {};
