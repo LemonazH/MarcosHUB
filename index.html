@@ -1195,19 +1195,6 @@ function App() {
   const [loginPass, setLoginPass] = useState("");
   const [loginErr, setLoginErr] = useState("");
 
-  const handleLogin = async () => {
-    try {
-      const res = await d1API.auth(loginUser, loginPass);
-      if(res.ok){
-        sessionStorage.setItem("cf_user", loginUser);
-        d1API.user = loginUser;
-        setAuthed(loginUser); setLoginErr("");
-        // Carica subito i dati reali senza aspettare il useEffect
-        setTimeout(() => loadData(), 50);
-      } else { setLoginErr("Utente o password non corretti"); }
-    } catch(e) { setLoginErr("Errore connessione: " + e.message); }
-  };
-
   const handleLogout = () => { sessionStorage.removeItem("cf_user"); d1API.user=null; setAuthed(""); };
 
   // ── APP HOOKS (devono stare SEMPRE prima di qualsiasi return) ──
@@ -1318,13 +1305,23 @@ function App() {
   },[]);
 
   // Auto-carica dati quando l'utente effettua il login
+  const handleLogin = async () => {
+    try {
+      const res = await d1API.auth(loginUser, loginPass);
+      if(res.ok){
+        sessionStorage.setItem("cf_user", loginUser);
+        d1API.user = loginUser;
+        setAuthed(loginUser); setLoginErr("");
+        loadData(); // loadData è definita sopra, funziona correttamente
+      } else { setLoginErr("Utente o password non corretti"); }
+    } catch(e) { setLoginErr("Errore connessione: " + e.message); }
+  };
+
   useEffect(()=>{
-    if(authed && d1API.user){
-      setDemo(false);
-      setAuth(true);
-      loadData();
-    }
-  },[authed, loadData]);
+    // Carica dati al primo render se già autenticato (refresh pagina)
+    if(authed && d1API.user) loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
 
   if(!authed) return (
     <div style={{minHeight:"100vh",background:"#070c18",display:"flex",alignItems:"center",justifyContent:"center"}}>
