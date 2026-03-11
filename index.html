@@ -126,6 +126,15 @@ const d1API = {
 // Alias per compatibilità — non usato nella nuova versione
 const sheetsAPI = d1API;
 
+// Colore stato assegno
+const assStatoColor = s => {
+  if (!s) return "#475569";
+  const u = s.toUpperCase();
+  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "#4ade80";   // verde — lavoro terminato
+  if (u.includes("ARCHIVIO"))  return "#fb923c";                           // arancione — transitorio
+  return "#94a3b8";                                                         // grigio — altro
+};
+
 // Formatta lista numeri doc come "29 - 127 - 158"
 const fmtDocList = (str) => {
   if (!str || !str.trim()) return "—";
@@ -331,28 +340,31 @@ function EditCell({value, onSave, numeric, display, color}) {
 function CashChart({assegni}) {
   const [hover, setHover] = React.useState(null);
 
-  const parseDate = v => {
+  const parseDateKey = v => {
     if(!v) return null;
     const s = String(v).trim();
-    const it = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if(it) return new Date(it[3], it[2]-1, it[1]);
+    // ISO: 2026-03-25
     const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if(iso) return new Date(iso[1], iso[2]-1, iso[3]);
+    if(iso) return s.slice(0,10);
+    // IT: 25/03/2026
+    const it = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
     return null;
   };
 
-  const today = new Date(); today.setHours(0,0,0,0);
-  const cutoff = new Date(today); cutoff.setDate(cutoff.getDate()+60);
+  const todayKey = new Date().toISOString().slice(0,10);
+  const cutoffDate = new Date(); cutoffDate.setDate(cutoffDate.getDate()+90);
+  const cutoffKey = cutoffDate.toISOString().slice(0,10);
 
-  // Raggruppa assegni per giorno
+  // Raggruppa SOLO assegni IN ARCHIVIO per data titolo esatta
   const byDay = {};
   (assegni||[]).forEach(a => {
-    const dt = parseDate(a["DATA TITOLO"]);
-    if(!dt) return;
-    dt.setHours(0,0,0,0);
-    if(dt < today || dt > cutoff) return;
-    const k = dt.toISOString().slice(0,10);
-    if(!byDay[k]) byDay[k] = {date:dt, total:0, items:[]};
+    const stato = (a["STATO TITOLO"]||"").toUpperCase();
+    if(!stato.includes("ARCHIVIO")) return; // solo IN ARCHIVIO (da incassare)
+    const k = parseDateKey(a["DATA TITOLO"]);
+    if(!k) return;
+    if(k < todayKey || k > cutoffKey) return;
+    if(!byDay[k]) byDay[k] = {total:0, items:[]};
     byDay[k].total += parseNum(a["IMPORTO TITOLO"]);
     byDay[k].items.push(a);
   });
@@ -361,34 +373,27 @@ function CashChart({assegni}) {
 
   if(!entries.length) return (
     <div style={{color:"#475569",textAlign:"center",padding:40,fontSize:12}}>
-      Nessun assegno in scadenza nei prossimi 60 giorni
+      Nessun assegno IN ARCHIVIO nei prossimi 90 giorni
     </div>
   );
 
-  const W=700, H=220, P={t:20,r:20,b:44,l:68};
+  const W=700, H=230, P={t:28,r:20,b:44,l:72};
   const iW=W-P.l-P.r, iH=H-P.t-P.b;
-  const maxVal = Math.max(...entries.map(([,v])=>v.total));
+  const maxVal = Math.max(...entries.map(([,v])=>v.total), 1);
   const n = entries.length;
-  const barW = Math.max(8, Math.min(32, (iW/n)*0.65));
-  const gap = iW/n;
+  const barW = Math.max(10, Math.min(40, Math.floor((iW/Math.max(n,1))*0.7)));
+  const gap = iW/Math.max(n,1);
   const xOf = i => P.l + i*gap + gap/2;
-  const yOf = v => P.t + iH - (v/maxVal)*iH;
-  const fmtDay = k => { const d=new Date(k); return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}`; };
-  const step = Math.max(1, Math.ceil(n/10));
-
-  // Tooltip position: flip if near right edge
-  const tooltipX = (i) => {
-    const x = xOf(i);
-    return x > W*0.6 ? x - 230 : x + 14;
-  };
+  const fmtDay = k => `${k.slice(8,10)}/${k.slice(5,7)}`;
+  const step = Math.max(1, Math.ceil(n/8));
 
   return (
     <div style={{position:"relative", userSelect:"none"}}>
       <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible"}}>
         <defs>
           <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#22c55e"/>
-            <stop offset="100%" stopColor="#15803d"/>
+            <stop offset="0%" stopColor="#22c55e" stopOpacity="1"/>
+            <stop offset="100%" stopColor="#15803d" stopOpacity="0.8"/>
           </linearGradient>
           <linearGradient id="barHov" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="#4ade80"/>
@@ -396,83 +401,97 @@ function CashChart({assegni}) {
           </linearGradient>
         </defs>
 
-        {/* Griglia */}
+        {/* Griglia orizzontale */}
         {[0,.25,.5,.75,1].map(r=>{
-          const y=P.t+iH*r, val=maxVal*(1-r);
+          const y = P.t + iH*r;
+          const val = maxVal*(1-r);
           return <g key={r}>
-            <line x1={P.l} x2={W-P.r} y1={y} y2={y} stroke="#1e293b" strokeWidth={1} strokeDasharray="3,3"/>
-            <text x={P.l-8} y={y+4} textAnchor="end" fill="#475569" fontSize={10} fontFamily="IBM Plex Mono">
-              {val>=1000?`${(val/1000).toFixed(1)}k`:val.toFixed(0)}
+            <line x1={P.l} x2={W-P.r} y1={y} y2={y}
+              stroke="#1e293b" strokeWidth={1} strokeDasharray="3,3"/>
+            <text x={P.l-6} y={y+4} textAnchor="end" fill="#475569" fontSize={9} fontFamily="IBM Plex Mono">
+              {val>=1000?`${(val/1000).toFixed(0)}k`:Math.round(val)}
             </text>
           </g>;
         })}
 
-        {/* Barre */}
+        {/* Barre — una per data, altezza = somma esatta */}
         {entries.map(([k,v],i)=>{
-          const x=xOf(i)-barW/2, h=(v.total/maxVal)*iH, y=P.t+iH-h;
-          const isHov=hover===i;
-          const isToday=k===today.toISOString().slice(0,10);
+          const h = Math.max(2, (v.total/maxVal)*iH);
+          const x = xOf(i) - barW/2;
+          const y = P.t + iH - h;
+          const isHov = hover===i;
+          const isToday = k===todayKey;
+          const nAss = v.items.length;
           return <g key={k}
             onMouseEnter={()=>setHover(i)}
             onMouseLeave={()=>setHover(null)}
             style={{cursor:"pointer"}}>
-            {/* Ombra hover */}
-            {isHov&&<rect x={x-3} y={y-3} width={barW+6} height={h+6} rx={6}
-              fill="#22c55e" opacity={0.15}/>}
-            <rect x={x} y={y} width={barW} height={h} rx={4}
-              fill={isToday?"url(#barHov)":isHov?"url(#barHov)":"url(#barGrad)"}
-              opacity={isHov?1:0.85}/>
-            {/* Valore sopra barra se hover */}
-            {isHov&&<text x={x+barW/2} y={y-7} textAnchor="middle" fill="#4ade80"
-              fontSize={10} fontFamily="IBM Plex Mono" fontWeight="bold">
+            {/* highlight sfondo hover */}
+            {isHov&&<rect x={x-4} y={P.t} width={barW+8} height={iH}
+              rx={4} fill="#22c55e" opacity={0.06}/>}
+            {/* barra principale */}
+            <rect x={x} y={y} width={barW} height={h} rx={3}
+              fill={isHov?"url(#barHov)":"url(#barGrad)"}
+              opacity={isHov?1:0.82}/>
+            {/* numero assegni sopra barra */}
+            {nAss>1&&<text x={x+barW/2} y={y-4} textAnchor="middle"
+              fill="#94a3b8" fontSize={8} fontFamily="IBM Plex Mono">
+              x{nAss}
+            </text>}
+            {/* importo sopra barra (solo hover) */}
+            {isHov&&<text x={x+barW/2} y={y-(nAss>1?14:5)} textAnchor="middle"
+              fill="#4ade80" fontSize={9} fontFamily="IBM Plex Mono" fontWeight="bold">
               {eur(v.total)}
             </text>}
-            {/* Label asse X */}
-            {i%step===0&&<text x={x+barW/2} y={H-P.b+14} textAnchor="middle"
-              fill={isToday?"#6366f1":"#64748b"} fontSize={9} fontFamily="IBM Plex Mono"
+            {/* label data asse X */}
+            {(i%step===0||n<=12)&&<text x={x+barW/2} y={H-P.b+13} textAnchor="middle"
+              fill={isToday?"#818cf8":"#64748b"} fontSize={8} fontFamily="IBM Plex Mono"
               fontWeight={isToday?"bold":"normal"}>
               {fmtDay(k)}
             </text>}
           </g>;
         })}
 
-        {/* Linea oggi */}
-        {entries.findIndex(([k])=>k>=today.toISOString().slice(0,10))===0&&
-          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#6366f1" strokeWidth={1.5} strokeDasharray="4,3"/>}
+        {/* Cornice */}
+        <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#1e293b" strokeWidth={1}/>
+        <line x1={P.l} x2={W-P.r} y1={P.t+iH} y2={P.t+iH} stroke="#1e293b" strokeWidth={1}/>
       </svg>
 
-      {/* Tooltip HTML (più flessibile dell'SVG per contenuti lunghi) */}
+      {/* Tooltip HTML con dettaglio assegni */}
       {hover!==null&&(()=>{
-        const [k,v]=entries[hover];
-        const x=tooltipX(hover);
+        const [k,v] = entries[hover];
+        const xi = xOf(hover);
+        const left = xi > W*0.55 ? `calc(${(xi/W)*100}% - 240px)` : `calc(${(xi/W)*100}% + 12px)`;
         return (
           <div style={{
-            position:"absolute", top:0, left:`${(x/W)*100}%`,
-            background:"#0f172a", border:"1px solid #22c55e33",
-            borderRadius:10, padding:"12px 14px", minWidth:210, maxWidth:250,
-            zIndex:100, pointerEvents:"none", boxShadow:"0 8px 32px #00000066"
+            position:"absolute", top:0, left,
+            background:"#0a0f1e", border:"1px solid #22c55e44",
+            borderRadius:10, padding:"12px 14px", minWidth:220, maxWidth:260,
+            zIndex:100, pointerEvents:"none", boxShadow:"0 8px 32px #00000088"
           }}>
-            <div style={{color:"#22c55e",fontWeight:700,fontSize:12,marginBottom:6,
+            <div style={{color:"#4ade80",fontWeight:700,fontSize:12,marginBottom:4,
               fontFamily:"'IBM Plex Mono',monospace"}}>
-              📅 {fmtDay(k)} — {eur(v.total)}
+              📅 {fmtDay(k)} &nbsp;—&nbsp; {eur(v.total)}
             </div>
-            <div style={{color:"#475569",fontSize:10,marginBottom:8}}>
-              {v.items.length} assegno{v.items.length>1?"i":""}
+            <div style={{color:"#64748b",fontSize:10,marginBottom:8}}>
+              {v.items.length} assegn{v.items.length===1?"o":"i"} in archivio
             </div>
-            {v.items.map((a,i)=>(
-              <div key={i} style={{borderTop:"1px solid #1e293b",paddingTop:6,marginTop:6}}>
-                <div style={{color:"#e2e8f0",fontSize:11,fontWeight:600}}>{a["CLIENTE"]}</div>
-                <div style={{color:"#38bdf8",fontSize:10,fontFamily:"'IBM Plex Mono',monospace"}}>
-                  {a["N TITOLO"]}
+            {v.items.map((a,j)=>(
+              <div key={j} style={{borderTop:"1px solid #1e293b",paddingTop:5,marginTop:5}}>
+                <div style={{color:"#e2e8f0",fontSize:11,fontWeight:600,
+                  overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {a["CLIENTE"]}
                 </div>
-                <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
-                  <span style={{color:"#4ade80",fontSize:11,fontWeight:700}}>{eur(a["IMPORTO TITOLO"])}</span>
-                  {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:10}}>
-                    Fatt: {a["FATTURE PAGATE"]}
-                  </span>}
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:2}}>
+                  <span style={{color:"#38bdf8",fontSize:10,fontFamily:"'IBM Plex Mono',monospace"}}>
+                    {a["N TITOLO"]}
+                  </span>
+                  <span style={{color:"#4ade80",fontSize:11,fontWeight:700}}>
+                    {eur(a["IMPORTO TITOLO"])}
+                  </span>
                 </div>
-                {a["NC SCALATE"]&&<div style={{color:"#c084fc",fontSize:10,marginTop:2}}>
-                  NC: {a["NC SCALATE"]}
+                {a["FATTURE PAGATE"]&&<div style={{color:"#64748b",fontSize:9,marginTop:2}}>
+                  Fatt: {fmtDocList(a["FATTURE PAGATE"])}
                 </div>}
               </div>
             ))}
@@ -480,11 +499,10 @@ function CashChart({assegni}) {
         );
       })()}
 
-      {/* Footer */}
-      <div style={{display:"flex",gap:20,justifyContent:"center",marginTop:8,fontSize:11,color:"#475569"}}>
-        <span><span style={{color:"#22c55e"}}>■</span> Incasso per giorno</span>
-        <span>Totale atteso: <strong style={{color:"#4ade80"}}>{eur(entries.reduce((s,[,v])=>s+v.total,0))}</strong></span>
-        <span>{entries.length} giorni con incassi</span>
+      <div style={{display:"flex",gap:20,justifyContent:"center",marginTop:6,fontSize:11,color:"#475569"}}>
+        <span><span style={{color:"#22c55e"}}>■</span> Assegni IN ARCHIVIO</span>
+        <span>Totale: <strong style={{color:"#4ade80"}}>{eur(entries.reduce((s,[,v])=>s+v.total,0))}</strong></span>
+        <span>{entries.reduce((s,[,v])=>s+v.items.length,0)} assegni · {entries.length} date</span>
       </div>
     </div>
   );
@@ -1609,7 +1627,7 @@ function App() {
       }]);
       if(assegno)
         setAssegni(p=>[...p,{"CLIENTE":cliente,"N TITOLO":nAssegno,"DATA TITOLO":dataTitolo,
-          "IMPORTO TITOLO":amount,"FATTURE PAGATE":fveNums,"NC SCALATE":nacNums||"","STATO TITOLO":"IN PORTAFOGLIO"}]);
+          "IMPORTO TITOLO":amount,"FATTURE PAGATE":fveNums,"NC SCALATE":nacNums||"","STATO TITOLO":"IN ARCHIVIO"}]);
       notify("Pagamento registrato ✓","success");
     } catch(e){ notify("Errore: "+e.message,"error"); }
   };
@@ -1802,7 +1820,7 @@ function App() {
             </div>
             <div style={{background:"#0a0f1e",border:"1px solid #1e293b",borderRadius:14,overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed"}}>
                   <thead>
                     <tr style={{background:"#0f172a",borderBottom:"2px solid #1e293b"}}>
                       <DocSortTh label="Tipo"           colKey={COL.tipoDocumento}/>
@@ -1891,12 +1909,12 @@ function App() {
                     return (
                     <tr key={inc["ID Incasso"]||i} className="row-hover"
                       style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
-                      <td style={{padding:"10px 13px",color:"#60a5fa",fontFamily:"'IBM Plex Mono',monospace",fontSize:11}}>{inc["ID Incasso"]||"—"}</td>
+                      <td style={{padding:"10px 13px",color:"#60a5fa",fontFamily:"'IBM Plex Mono',monospace",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#94a3b8"}}><EditCell value={inc["Data Ricezione"]||""} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#e2e8f0"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#64748b"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#94a3b8",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#4ade80",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#e2e8f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#64748b",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                     </tr>
                     );
                   })}
@@ -1938,13 +1956,13 @@ function App() {
                     return (
                       <tr key={i} className="row-hover"
                         style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
-                        <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#38bdf8",fontFamily:"'IBM Plex Mono',monospace"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#94a3b8"}}><EditCell value={a["DATA TITOLO"]||""} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#4ade80" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#64748b",fontSize:11}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
-                        <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11}}>{fmtDocList(a["NC SCALATE"])}</td>
-                        <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} color={a["STATO TITOLO"]==="IN PORTAFOGLIO"?"#4ade80":a["STATO TITOLO"]==="INCASSATO"?"#60a5fa":"#f59e0b"} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#38bdf8",fontFamily:"'IBM Plex Mono',monospace",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#94a3b8",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#4ade80",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#4ade80" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#64748b",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
+                        <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
+                        <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} color={assStatoColor(a["STATO TITOLO"])} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
                       </tr>
                     );
                   })}
