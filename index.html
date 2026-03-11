@@ -1244,6 +1244,8 @@ function App() {
   const IncSortTh = makeSortTh(incSortKey, incSortDir, toggleIncSort);
   const AssSortTh = makeSortTh(assSortKey, assSortDir, toggleAssSort);
 
+  const notify=(msg,type="info")=>setToast({msg,type});
+
   const loadData=useCallback(async()=>{
     setLoading(true);
     try {
@@ -1357,9 +1359,6 @@ function App() {
       </div>
     </div>
   );
-
-  // ── APP ──
-  const notify=(msg,type="info")=>setToast({msg,type});
 
   // handleSignIn rimosso (D1 non richiede Google sign-in)
 
