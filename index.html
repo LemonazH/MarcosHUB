@@ -126,10 +126,13 @@ const d1API = {
 // Alias per compatibilità — non usato nella nuova versione
 const sheetsAPI = d1API;
 
-// Formatta lista numeri doc come "xx - xx - xxx"
+// Formatta lista numeri doc come "29 - 127 - 158"
 const fmtDocList = (str) => {
-  if (!str) return "—";
-  return str.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean).join(" - ");
+  if (!str || !str.trim()) return "—";
+  // Split solo su virgola o punto e virgola, NON su spazi (per non rompere "AB - 90564")
+  const parts = str.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) return str.trim() || "—";
+  return parts.join(" - ");
 };
 
 /* ──────────────────────────────────────────────
@@ -296,26 +299,28 @@ function Badge({label}) {
     fontSize:11,fontWeight:600,letterSpacing:.4}}>{label}</span>;
 }
 
-function EditCell({value,onSave,numeric}) {
+function EditCell({value, onSave, numeric, display, color}) {
   const [ed,setEd]=useState(false);
   const [v,setV]=useState(value);
   const ref=useRef();
+  useEffect(()=>{ setV(value); },[value]);
   useEffect(()=>{ if(ed&&ref.current) ref.current.focus(); },[ed]);
-  const commit=()=>{ setEd(false); if(v!==value) onSave(v); };
+  const commit=()=>{ setEd(false); if(String(v)!==String(value)) onSave(v); };
   if(ed) return (
     <input ref={ref} value={v} type={numeric?"number":"text"}
       onChange={e=>setV(e.target.value)}
       onBlur={commit}
       onKeyDown={e=>{ if(e.key==="Enter")commit(); if(e.key==="Escape"){setV(value);setEd(false);} }}
-      style={{...S.input,padding:"3px 7px",width:"100%",fontSize:12}} />
+      style={{...S.input,padding:"3px 7px",width:"100%",fontSize:12,color:color||"inherit"}} />
   );
+  const shown = display !== undefined ? display : (value||"—");
   return (
     <span onDoubleClick={()=>setEd(true)} title="Doppio click per modificare"
       style={{cursor:"text",display:"block",padding:"2px 3px",borderRadius:4,
-              transition:"background .15s"}}
+              color:color||"inherit",transition:"background .15s"}}
       onMouseEnter={e=>e.target.style.background="#1e293b"}
       onMouseLeave={e=>e.target.style.background="transparent"}>
-      {value||"—"}
+      {shown}
     </span>
   );
 }
@@ -1397,7 +1402,7 @@ function App() {
         "ID Incasso":     r.id,
         "Metodo":         r.metodo,
         "Data Ricezione": r.data_incasso,
-        "Importo Totale": r.importo_totale,
+        "Importo Totale": r.importo_totale ? Math.round(r.importo_totale * 100) / 100 : 0,
         "Cliente":        r.ragione_sociale,
         "N Assegno":      r.n_assegno,
         "Note":           r.note,
@@ -1887,11 +1892,11 @@ function App() {
                     <tr key={inc["ID Incasso"]||i} className="row-hover"
                       style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
                       <td style={{padding:"10px 13px",color:"#60a5fa",fontFamily:"'IBM Plex Mono',monospace",fontSize:11}}>{inc["ID Incasso"]||"—"}</td>
-                      <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#94a3b8"}}><EditCell value={inc["Data Ricezione"]||""} onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
-                      <td style={{padding:"10px 13px",textAlign:"right"}}><EditCell value={inc["Importo Totale"]||""} numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#e2e8f0"}}><EditCell value={inc["Cliente"]||""} onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#64748b"}}><EditCell value={inc["Note"]||""} onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
+                      <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#94a3b8"}}><EditCell value={inc["Data Ricezione"]||""} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#e2e8f0"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#64748b"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                     </tr>
                     );
                   })}
@@ -1933,13 +1938,13 @@ function App() {
                     return (
                       <tr key={i} className="row-hover"
                         style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
-                        <td style={{padding:"9px 13px"}}><EditCell value={a["CLIENTE"]||""} onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
-                        <td style={{padding:"9px 13px",fontFamily:"'IBM Plex Mono',monospace"}}><EditCell value={a["N TITOLO"]||""} onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px"}}><EditCell value={a["DATA TITOLO"]||""} onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",textAlign:"right"}}><EditCell value={a["IMPORTO TITOLO"]||""} numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#38bdf8",fontFamily:"'IBM Plex Mono',monospace"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#94a3b8"}}><EditCell value={a["DATA TITOLO"]||""} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#4ade80",fontWeight:700,textAlign:"right"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#4ade80" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"#64748b",fontSize:11}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11}}>{fmtDocList(a["NC SCALATE"])}</td>
-                        <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} color={a["STATO TITOLO"]==="IN PORTAFOGLIO"?"#4ade80":a["STATO TITOLO"]==="INCASSATO"?"#60a5fa":"#f59e0b"} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
                       </tr>
                     );
                   })}
