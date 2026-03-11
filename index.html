@@ -552,7 +552,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
   const fveSel = rows.filter(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE");
   const nacSel = rows.filter(r=>r.checked&&r.doc[COL.tipoDocumento]==="NAC");
   const totFve = fveSel.reduce((s,r)=>s+r.importoAllocato,0);
-  const totNac = nacSel.reduce((s,r)=>s+r.importoAllocato,0);
+  const totNac = nacSel.reduce((s,r)=>s+Math.abs(r.importoAllocato),0);
   const netto = totFve - totNac;
 
   const toggleRow = i => setRows(p=>{
@@ -592,7 +592,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     };
 
     await onSave({
-      method: tipo==="assegno"?"Assegno":"Bonifico",
+      method: tipo==="assegno"?"ASSEGNO":"BONIFICO",
       amount: netto,
       cid, date: dataEff, notes: noteBase,
       nAssegno: tipo==="assegno"?nAssegno:"",
@@ -1512,9 +1512,9 @@ function App() {
         descrizione: notes,
       }));
       // Prepara assegno se presente
-      const assegno = (method==="Assegno" && nAssegno) ? {
+      const assegno = (method==="ASSEGNO" && nAssegno) ? {
         cliente, n_titolo: nAssegno, data_titolo: dataTitolo,
-        importo_titolo: amount, fatture_pagate: fveNums, nc_scalate: nacNums||"",
+        importo: amount, fatture_pagate: fveNums, nc_scalate: nacNums||"",
       } : null;
 
       const res = await d1API.postPagamento({
