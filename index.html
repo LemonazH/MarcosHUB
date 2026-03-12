@@ -1968,88 +1968,74 @@ function App() {
   };
 
   const handleConfirmReco = async () => {
+    // recoSel = { assegno_id: importo_string, ... }
     if(!accrediti.length || Object.keys(recoSel).length===0) return;
-    // Usa array unificato
-    const tuttiAccrediti = accrediti;
-    const totaleAccrediti = tuttiAccrediti.reduce((s,a)=>s+a.avere, 0);
-    const causaleMulti = tuttiAccrediti.map(a=>a.desc||"").filter(Boolean).join(" | ");
     setRecoSaving(true);
     try {
-      const dataAccredito = selAccredito.data;
-
-      // Costruisci lista dettaglio per il Worker (una chiamata sola)
+      const accredito    = accrediti[0];
+      const dataAccredito = accredito.data;
+      const totaleAccredito = accredito.avere;
+      // Assegni selezionati
+      const assegniSel = assegni.filter(a=>String(a._id) in recoSel);
+      // Costruisci dettaglio: per ogni assegno, includi tutti i documenti collegati
       const dettaglio = [];
-      const aggiornamenti = []; // aggiornamenti locali da applicare dopo
-
-      for(const [numDoc, importoAllocato] of Object.entries(recoSel)) {
-        const imp = parseNum(importoAllocato);
-        if(!imp || imp === 0) continue;
-        const docIdx = docs.findIndex(d=>d[COL.numeroDocumento]===numDoc);
-        if(docIdx<0) continue;
-        const doc = docs[docIdx];
-        if(!doc._id) continue;
-
-        const nuovoSaldo = Math.max(0, parseNum(doc[COL.saldoResiduo]) - Math.abs(imp));
-        const nuovoStato = nuovoSaldo < 0.01 ? "PAGATO" : "APERTO";
-
-        // Slot libero per data/pagamento
-        const slots=[{dc:COL.dataAcc1,pc:COL.pagamento1},{dc:COL.dataAcc2,pc:COL.pagamento2},{dc:COL.dataAcc3,pc:COL.pagamento3},{dc:COL.dataAcc4,pc:COL.pagamento4}];
-        const slot = slots.find(s=>!doc[s.dc]||doc[s.dc]==="") || slots[3];
-
-        // Aggiorna slot su D1
-        await d1API.updateDocumento(doc._id, {
-          [COL_D1_MAP[slot.dc]]: dataAccredito,
-          [COL_D1_MAP[slot.pc]]: Math.abs(imp),
-          saldo_residuo: nuovoSaldo,
-          stato: nuovoStato,
-          utente: authed,
-        });
-
-        dettaglio.push({
-          documento_id: doc._id,
-          importo: Math.abs(imp),
-          tipo: doc[COL.tipoDocumento] || "FVE",
-        });
-
-        aggiornamenti.push({ docIdx, slot, nuovoSaldo, nuovoStato });
+      const aggiornamenti = [];
+      for(const ass of assegniSel) {
+        const docsCollegati = (ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"")
+          .split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
+        for(const numDoc of docsCollegati) {
+          const docIdx = docs.findIndex(d=>d[COL.numeroDocumento]===numDoc);
+          if(docIdx<0) continue;
+          const doc = docs[docIdx];
+          if(!doc._id) continue;
+          const saldo = parseNum(doc[COL.saldoResiduo]);
+          // Solo documenti DA INCASSARE o APERTO
+          const stato = (doc[COL.stato]||"").toUpperCase();
+          if(!["DA INCASSARE","APERTO"].includes(stato)) continue;
+          dettaglio.push({
+            documento_id: doc._id,
+            importo: saldo,
+            tipo: doc[COL.tipoDocumento] || "FVE",
+          });
+          aggiornamenti.push({ docIdx, saldo });
+        }
       }
-
-      if(dettaglio.length === 0) { notify("Nessun documento valido selezionato","error"); setRecoSaving(false); return; }
-
-      // Una sola chiamata POST /api/riconciliazioni
+      if(dettaglio.length === 0) {
+        notify("Nessun documento collegato agli assegni selezionati","error");
+        setRecoSaving(false); return;
+      }
+      // Causale: numeri assegni
+      const causale = assegniSel.map(a=>a["N TITOLO"]).join(" + ");
+      const descAdd  = assegniSel.map(a=>`${a["CLIENTE"]} — ${a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||""}`).join(" | ");
+      // POST riconciliazione
       await d1API.postRiconciliazione({
         data_accredito: dataAccredito,
-        importo: totaleAccrediti,
-        causale: causaleMulti || selAccredito.desc || "",
-        descrizione_aggiuntiva: tuttiAccrediti.map(a=>a.descAdd||"").filter(Boolean).join(" | "),
+        importo: totaleAccredito,
+        causale: accredito.desc ? `${accredito.desc} [${causale}]` : causale,
+        descrizione_aggiuntiva: descAdd,
         utente: authed,
         dettaglio,
       });
-
-      // Aggiorna stato locale documenti
+      // Aggiorna stato locale documenti → CHIUSO
       setDocs(p => {
         const d = [...p];
-        for(const {docIdx, slot, nuovoSaldo, nuovoStato} of aggiornamenti) {
+        for(const {docIdx} of aggiornamenti) {
           d[docIdx] = {...d[docIdx],
-            [slot.dc]: dataAccredito,
-            [slot.pc]: String(Math.abs(parseNum(Object.entries(recoSel).find(([k])=>docs[docIdx][COL.numeroDocumento]===k)?.[1]||0))),
-            [COL.saldoResiduo]: String(nuovoSaldo.toFixed(2)),
-            [COL.stato]: nuovoStato,
+            [COL.saldoResiduo]: "0",
+            [COL.stato]: "CHIUSO",
           };
         }
         return d;
       });
-
-      // Segna accredito come riconciliato
-      // Marca tutti gli accrediti come riconciliati
-      const idxRiconciliati = new Set(accrediti.map(a=>a.idx));
-      setBankRows(p => p.map(r => idxRiconciliati.has(r.idx) ? {...r, riconciliato:true} : r));
+      // Marca accredito come riconciliato nel file banca
+      setBankRows(p => p.map(r => r.idx===accredito.idx ? {...r, riconciliato:true} : r));
       setAccrediti([]);
       setRecoSel({});
-      notify(`Riconciliazione salvata ✓ — ${dettaglio.length} documento${dettaglio.length>1?"i":""}`, "success");
+      setRecoSearch("");
+      notify(`✓ Riconciliato — ${assegniSel.length} assegn${assegniSel.length>1?"i":"o"}, ${dettaglio.length} document${dettaglio.length>1?"i":"o"} chiusi`, "success");
     } catch(err) {
       notify("Errore: "+err.message, "error");
-      console.error("handleConfirmReco error:", err);
+      console.error("handleConfirmReco:", err);
     }
     setRecoSaving(false);
   };
@@ -2668,33 +2654,44 @@ function App() {
                                     <button
                                       onClick={e=>{
                                         e.stopPropagation();
-                                        const fakeRow = {
-                                          idx: `manual-${a._id}`,
-                                          data: toISO(a["DATA TITOLO"]),
-                                          avere: parseNum(a["IMPORTO TITOLO"]),
-                                          dare: 0,
-                                          desc: `ASSEGNO ${a["N TITOLO"]} — ${a["CLIENTE"]}`,
-                                          descAdd: `Fatture: ${fmtDocList(docs)}`,
-                                          tipo: "assegno",
-                                          riconciliato: false,
-                                        };
-                                        setAccrediti(p=>{
-                                          // Se già presente, rimuovilo (toggle)
-                                          if(p.find(x=>x.idx===fakeRow.idx)) return p.filter(x=>x.idx!==fakeRow.idx);
-                                          // Altrimenti aggiungilo
-                                          if(p.length===0) setRecoSel({}); // reset selezione fatture al primo
-                                          return [...p, fakeRow];
-                                        });
+                                        const aid = String(a._id);
+                                        if(!accrediti.length) {
+                                          // Nessun accredito bancario selezionato — usa questo assegno come accredito
+                                          setAccrediti([{
+                                            idx: `manual-${aid}`,
+                                            data: toISO(a["DATA TITOLO"]),
+                                            avere: parseNum(a["IMPORTO TITOLO"]),
+                                            dare: 0,
+                                            desc: `ASSEGNO ${a["N TITOLO"]} — ${a["CLIENTE"]}`,
+                                            descAdd: `Fatture: ${fmtDocList(docs)}`,
+                                            tipo: "assegno",
+                                            riconciliato: false,
+                                          }]);
+                                          setRecoSel({[aid]: String(parseNum(a["IMPORTO TITOLO"]))});
+                                        } else {
+                                          // Accredito già selezionato — toggle dell'assegno in recoSel
+                                          setRecoSel(p=>{
+                                            const n={...p};
+                                            if(aid in n) delete n[aid];
+                                            else n[aid]=String(parseNum(a["IMPORTO TITOLO"]));
+                                            return n;
+                                          });
+                                        }
                                         window.scrollTo({top:0,behavior:"smooth"});
                                       }}
-                                      style={{background: accrediti.find(x=>x.idx===`manual-${a._id}`)
-                                        ? "linear-gradient(135deg,#7f1d1d,#ef4444)"
-                                        : accrediti.length>0
-                                          ? "linear-gradient(135deg,#d97706,#f59e0b)"
-                                          : "linear-gradient(135deg,#059669,#10b981)",
+                                      style={{
+                                        background: String(a._id) in recoSel
+                                          ? "linear-gradient(135deg,#7f1d1d,#ef4444)"
+                                          : accrediti.length>0
+                                            ? "linear-gradient(135deg,#1e40af,#3b82f6)"
+                                            : "linear-gradient(135deg,#059669,#10b981)",
                                         color:"#fff",border:"none",borderRadius:7,
                                         padding:"6px 14px",cursor:"pointer",fontSize:11,fontWeight:700}}>
-                                      {accrediti.find(x=>x.idx===`manual-${a._id}`) ? "✕ Rimuovi" : accrediti.length>0 ? "＋ Aggiungi" : "↑ Seleziona"}
+                                      {String(a._id) in recoSel
+                                        ? "✕ Rimuovi"
+                                        : accrediti.length>0
+                                          ? "☑ Abbina"
+                                          : "↑ Usa come accredito"}
                                     </button>
                                   </div>
                                 </div>
@@ -2714,292 +2711,191 @@ function App() {
             <div style={{position:"sticky",top:20}}>
               {accrediti.length>0?(
                 <div style={{background:"#0a0f1e",border:"1px solid #1e3a5f",borderRadius:14,padding:18}}>
-                  {/* Header — lista assegni selezionati */}
-                  <div style={{background:"#0f1f35",borderRadius:10,padding:"12px 14px",marginBottom:16}}>
-                    {(()=>{
-                      const totAcc = accrediti.reduce((s,a)=>s+a.avere,0);
-                      return <>
-                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-                          <span style={{color: accrediti.length>1?"#fb923c":"#60a5fa",fontSize:11,fontWeight:700}}>
-                            {accrediti.length>1 ? `📋 ${accrediti.length} assegni` : "Accredito selezionato"}
-                          </span>
-                          <button onClick={()=>{setAccrediti([]);setRecoSel({});}}
-                            style={{background:"none",border:"none",color:"#475569",cursor:"pointer",fontSize:11}}>
-                            ✕ Pulisci
-                          </button>
+
+                  {/* ── 1. ACCREDITO BANCARIO SELEZIONATO ── */}
+                  <div style={{background:"#0f1f35",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                      <div>
+                        <div style={{color:"#60a5fa",fontSize:10,fontWeight:700,marginBottom:3}}>
+                          🏦 ACCREDITO BANCARIO
                         </div>
                         <div style={{color:"#4ade80",fontSize:22,fontWeight:800,
-                          fontFamily:"'IBM Plex Mono',monospace",marginBottom:6}}>
-                          +{eur(totAcc)}
+                          fontFamily:"'IBM Plex Mono',monospace"}}>
+                          +{eur(accrediti[0].avere)}
                         </div>
-                        {accrediti.map((a,i)=>(
-                          <div key={a.idx} style={{display:"flex",justifyContent:"space-between",
-                            alignItems:"center",padding:"4px 8px",marginBottom:3,
-                            background:"#0a1628",borderRadius:5}}>
-                            <div style={{flex:1,minWidth:0}}>
-                              <div style={{color:"#38bdf8",fontSize:9,fontFamily:"'IBM Plex Mono',monospace",
-                                whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                                {a.desc||a.data||"—"}
-                              </div>
-                              <div style={{color:"#475569",fontSize:8}}>📅 {toIT(a.data)}</div>
-                            </div>
-                            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0,marginLeft:8}}>
-                              <span style={{color:"#4ade80",fontSize:11,fontWeight:700,
-                                fontFamily:"'IBM Plex Mono',monospace"}}>{eur(a.avere)}</span>
-                              <button onClick={()=>setAccrediti(p=>p.filter((_,j)=>j!==i))}
-                                style={{background:"#1e293b",border:"none",color:"#ef4444",
-                                  borderRadius:4,padding:"0 5px",cursor:"pointer",fontSize:11,lineHeight:"16px"}}>✕</button>
-                            </div>
-                          </div>
-                        ))}
-                      </>;
-                    })()}
+                        <div style={{color:"#94a3b8",fontSize:10,marginTop:2}}>
+                          📅 {toIT(accrediti[0].data)}
+                        </div>
+                        {accrediti[0].desc&&<div style={{color:"#38bdf8",fontSize:9,marginTop:4,
+                          fontFamily:"'IBM Plex Mono',monospace",lineHeight:1.4}}>
+                          {accrediti[0].desc}
+                        </div>}
+                      </div>
+                      <button onClick={()=>{setAccrediti([]);setRecoSel({});setRecoSearch("");}}
+                        style={{background:"none",border:"none",color:"#475569",
+                          cursor:"pointer",fontSize:13,padding:0}}>✕</button>
+                    </div>
                   </div>
 
-                  {/* ── Pannello assegni IN ARCHIVIO ── */}
+                  {/* ── 2. ASSEGNI DA ABBINARE ── */}
                   {(()=>{
-                    const dataAccreditoISO = toISO(accrediti[0]?.data);
-                    const tuttiArchivio = assegni.filter(a =>
-                      (a["STATO TITOLO"]||"").toUpperCase().includes("ARCHIVIO")
-                    );
-                    const stessaData = tuttiArchivio.filter(a =>
-                      toISO(a["DATA TITOLO"]) === dataAccreditoISO
-                    );
-                    const altriArchivio = tuttiArchivio.filter(a =>
-                      toISO(a["DATA TITOLO"]) !== dataAccreditoISO
-                    ).sort((a,b)=>toISO(a["DATA TITOLO"]).localeCompare(toISO(b["DATA TITOLO"])));
-                    if(!tuttiArchivio.length) return null;
-                    return (
-                      <div style={{background:"#0a1220",border:"1px solid #1e3a5f",
-                        borderRadius:10,padding:"10px 12px",marginBottom:12}}>
+                    const totAcc = accrediti[0].avere;
+                    // Assegni selezionati (da recoSel — usiamo gli id assegno)
+                    const assSelIds = new Set(Object.keys(recoSel));
+                    const totAssegni = assegni
+                      .filter(a=>assSelIds.has(String(a._id)))
+                      .reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
+                    const diff = totAcc - totAssegni;
+                    const isDone = Math.abs(diff)<0.01;
 
-                        {/* Header */}
-                        <div style={{color:"#fb923c",fontSize:10,fontWeight:700,
-                          marginBottom: stessaData.length||assShowAltri ? 8 : 0,
-                          display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span>📋 Assegni IN ARCHIVIO</span>
-                          <span style={{color:"#475569",fontWeight:400,fontSize:9}}>
-                            {tuttiArchivio.length} totali
-                          </span>
+                    return (
+                      <>
+                        {/* Riepilogo abbinamento */}
+                        <div style={{
+                          background: isDone?"#071a0e":assSelIds.size>0?"#1a1000":"#0a0f1e",
+                          border:`1px solid ${isDone?"#22c55e":assSelIds.size>0?"#d97706":"#1e293b"}`,
+                          borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11}}>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                            <span style={{color:"#475569"}}>Accredito banca:</span>
+                            <span style={{color:"#4ade80",fontWeight:700,fontFamily:"'IBM Plex Mono',monospace"}}>
+                              +{eur(totAcc)}
+                            </span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+                            <span style={{color:"#475569"}}>Assegni abbinati ({assSelIds.size}):</span>
+                            <span style={{color:"#f1f5f9",fontWeight:700,fontFamily:"'IBM Plex Mono',monospace"}}>
+                              {eur(totAssegni)}
+                            </span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",
+                            paddingTop:4,borderTop:"1px solid #1e293b"}}>
+                            <span style={{color:"#475569"}}>Differenza:</span>
+                            <span style={{fontWeight:800,fontFamily:"'IBM Plex Mono',monospace",
+                              color:isDone?"#22c55e":diff<0?"#ef4444":"#fb923c"}}>
+                              {isDone?"✓ pareggio":diff>0?`scoperto ${eur(diff)}`:`eccedente ${eur(-diff)}`}
+                            </span>
+                          </div>
                         </div>
 
-                        {/* Assegni con stessa data — sempre visibili */}
-                        {stessaData.length>0&&(
-                          <>
-                            <div style={{color:"#4ade80",fontSize:9,fontWeight:700,
-                              marginBottom:5,textTransform:"uppercase",letterSpacing:0.5}}>
-                              ✓ Stessa data ({dataAccreditoISO})
-                            </div>
-                            {stessaData.map((a,j)=>(
-                              <div key={j} style={{
-                                background:"#0a1e10",border:"1px solid #16a34a44",
-                                borderRadius:7,padding:"6px 9px",marginBottom:5}}>
-                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                                  <div style={{flex:1,minWidth:0}}>
-                                    <div style={{color:"#e2e8f0",fontSize:10,fontWeight:600,
-                                      whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                                      {a["CLIENTE"]}
-                                    </div>
-                                    <div style={{color:"#38bdf8",fontSize:9,fontFamily:"'IBM Plex Mono',monospace"}}>
-                                      {a["N TITOLO"]}
-                                    </div>
-                                  </div>
-                                  <span style={{color:"#4ade80",fontSize:12,fontWeight:800,
-                                    fontFamily:"'IBM Plex Mono',monospace",whiteSpace:"nowrap",marginLeft:8}}>
-                                    {eur(a["IMPORTO TITOLO"])}
-                                  </span>
-                                </div>
-                                {(a["FATTURE PAGATE"]||a["NC SCALATE"])&&(
-                                  <div style={{display:"flex",gap:8,marginTop:3,flexWrap:"wrap"}}>
-                                    {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>Fatt: {fmtDocList(a["FATTURE PAGATE"])}</span>}
-                                    {a["NC SCALATE"]&&<span style={{color:"#c084fc",fontSize:9}}>NC: {fmtDocList(a["NC SCALATE"])}</span>}
-                                  </div>
-                                )}
+                        {/* Ricerca assegni */}
+                        <input value={recoSearch} onChange={e=>setRecoSearch(e.target.value)}
+                          placeholder="🔍 Cerca per cliente, n° assegno o fattura..."
+                          style={{...S.input,marginBottom:8,fontSize:11}}/>
+
+                        {/* Lista assegni */}
+                        <div style={{maxHeight:360,overflowY:"auto",marginBottom:12}}>
+                          {(()=>{
+                            const q = recoSearch.toLowerCase();
+                            const lista = assegni
+                              .filter(a=>{
+                                if(q && !a["CLIENTE"]?.toLowerCase().includes(q) &&
+                                   !a["N TITOLO"]?.toLowerCase().includes(q) &&
+                                   !(a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||"").toLowerCase().includes(q)) return false;
+                                return true;
+                              })
+                              .sort((a,b)=>{
+                                // Prima: assegni con data vicina all'accredito bancario
+                                const da = toISO(a["DATA TITOLO"])||"";
+                                const db = toISO(b["DATA TITOLO"])||"";
+                                const dataAcc = accrediti[0].data||"";
+                                const diffA = Math.abs(new Date(da)-new Date(dataAcc));
+                                const diffB = Math.abs(new Date(db)-new Date(dataAcc));
+                                if(diffA!==diffB) return diffA-diffB;
+                                return 0;
+                              });
+
+                            if(!lista.length) return (
+                              <div style={{padding:20,textAlign:"center",color:"#334155",fontSize:11}}>
+                                Nessun assegno trovato
                               </div>
-                            ))}
-                            <div style={{display:"flex",justifyContent:"space-between",
-                              padding:"4px 2px",marginBottom:altriArchivio.length?8:0}}>
-                              <span style={{color:"#475569",fontSize:9}}>Totale stessa data</span>
-                              <span style={{color:"#4ade80",fontSize:11,fontWeight:800,
-                                fontFamily:"'IBM Plex Mono',monospace"}}>
-                                {eur(stessaData.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}
-                              </span>
-                            </div>
-                          </>
-                        )}
+                            );
 
-                        {stessaData.length===0&&(
-                          <div style={{color:"#475569",fontSize:9,marginBottom:8,fontStyle:"italic"}}>
-                            Nessun assegno con data {dataAccreditoISO}
-                          </div>
-                        )}
-
-                        {/* Altri assegni — collassabili */}
-                        {altriArchivio.length>0&&(
-                          <>
-                            <button onClick={()=>setAssShowAltri(p=>!p)}
-                              style={{width:"100%",background:"#0f172a",border:"1px solid #1e293b",
-                                borderRadius:6,padding:"5px 8px",color:"#64748b",fontSize:9,
-                                cursor:"pointer",textAlign:"left",display:"flex",
-                                justifyContent:"space-between"}}>
-                              <span>Altri assegni IN ARCHIVIO ({altriArchivio.length})</span>
-                              <span>{assShowAltri?"▲":"▼"}</span>
-                            </button>
-                            {assShowAltri&&(
-                              <div style={{marginTop:6,maxHeight:200,overflowY:"auto"}}>
-                                {altriArchivio.map((a,j)=>(
-                                  <div key={j} style={{
-                                    borderBottom:"1px solid #0f172a",
-                                    padding:"5px 2px",
-                                    display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                            return lista.map((a,i)=>{
+                              const aid = String(a._id);
+                              const checked = assSelIds.has(aid);
+                              const imp = parseNum(a["IMPORTO TITOLO"]);
+                              const docs2 = a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||"";
+                              const statoColor = a["STATO TITOLO"]==="IN ARCHIVIO"?"#fb923c":"#4ade80";
+                              const nearDate = toISO(a["DATA TITOLO"])===accrediti[0].data;
+                              return (
+                                <div key={i}
+                                  onClick={()=>setRecoSel(p=>{
+                                    const n={...p};
+                                    if(aid in n) delete n[aid];
+                                    else n[aid]=String(imp);
+                                    return n;
+                                  })}
+                                  style={{
+                                    padding:"9px 11px",marginBottom:6,borderRadius:8,cursor:"pointer",
+                                    border:`1px solid ${checked?"#3b82f6":nearDate?"#d9770644":"#1e293b"}`,
+                                    background:checked?"#0b1f3a":nearDate?"#1a1000":"transparent",
+                                    transition:"background .12s",
+                                  }}>
+                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                                     <div style={{flex:1,minWidth:0}}>
-                                      <div style={{color:"#94a3b8",fontSize:10,
-                                        whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
-                                        {a["CLIENTE"]}
+                                      <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
+                                        <span style={{color:checked?"#60a5fa":"#94a3b8",fontSize:12,fontWeight:700}}>
+                                          {checked?"☑":"☐"}
+                                        </span>
+                                        <span style={{color:"#e2e8f0",fontSize:11,fontWeight:600,
+                                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:160}}>
+                                          {a["CLIENTE"]}
+                                        </span>
+                                        <span style={{background:"#0a1628",color:statoColor,
+                                          fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,whiteSpace:"nowrap"}}>
+                                          {a["STATO TITOLO"]}
+                                        </span>
+                                        {nearDate&&!checked&&<span style={{color:"#fbbf24",fontSize:8,
+                                          background:"#1c1400",padding:"1px 5px",borderRadius:3}}>
+                                          stessa data
+                                        </span>}
                                       </div>
-                                      <div style={{display:"flex",gap:6}}>
-                                        <span style={{color:"#475569",fontSize:8,fontFamily:"'IBM Plex Mono',monospace"}}>{a["N TITOLO"]}</span>
-                                        <span style={{color:"#334155",fontSize:8}}>{toIT(a["DATA TITOLO"])}</span>
+                                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                                        <span style={{color:"#38bdf8",fontSize:9,fontFamily:"'IBM Plex Mono',monospace"}}>
+                                          {a["N TITOLO"]}
+                                        </span>
+                                        <span style={{color:"#475569",fontSize:9}}>
+                                          {toIT(a["DATA TITOLO"])}
+                                        </span>
+                                      </div>
+                                      {docs2&&<div style={{color:"#64748b",fontSize:9,marginTop:2}}>
+                                        Fatt: <span style={{color:checked?"#94a3b8":"#475569"}}>
+                                          {fmtDocList(docs2)}
+                                        </span>
+                                      </div>}
+                                    </div>
+                                    <div style={{flexShrink:0,marginLeft:10,textAlign:"right"}}>
+                                      <div style={{color:checked?"#4ade80":"#f1f5f9",fontSize:13,fontWeight:800,
+                                        fontFamily:"'IBM Plex Mono',monospace"}}>
+                                        {eur(imp)}
                                       </div>
                                     </div>
-                                    <span style={{color:"#fb923c",fontSize:10,fontWeight:700,
-                                      fontFamily:"'IBM Plex Mono',monospace",whiteSpace:"nowrap",marginLeft:6}}>
-                                      {eur(a["IMPORTO TITOLO"])}
-                                    </span>
                                   </div>
-                                ))}
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </>
                     );
                   })()}
 
-                  {/* Totale allocato */}
-                  {Object.keys(recoSel).length>0&&(()=>{
-                    const tot = Object.values(recoSel).reduce((s,v)=>s+parseNum(v),0); // NAC sono negativi
-                    const totAcc = accrediti.reduce((s,a)=>s+a.avere,0);
-                    const diff = totAcc - tot;
-                    return (
-                      <div style={{background: Math.abs(diff)<0.01?"#0a1a0a":"#1a0f00",
-                        border:`1px solid ${Math.abs(diff)<0.01?"#22c55e":"#fb923c"}`,
-                        borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11}}>
-                        <div style={{display:"flex",justifyContent:"space-between"}}>
-                          <span style={{color:"#475569"}}>Accredito:</span>
-                          <span style={{color:"#4ade80",fontWeight:700}}>+{eur(totAcc)}</span>
-                        </div>
-                        <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
-                          <span style={{color:"#475569"}}>Allocato fatture:</span>
-                          <span style={{color:"#f1f5f9",fontWeight:700}}>{eur(tot)}</span>
-                        </div>
-                        <div style={{display:"flex",justifyContent:"space-between",
-                          marginTop:3,paddingTop:3,borderTop:"1px solid #1e293b"}}>
-                          <span style={{color:"#475569"}}>Residuo:</span>
-                          <span style={{color:Math.abs(diff)<0.01?"#22c55e":diff<0?"#ef4444":"#fb923c",fontWeight:700}}>
-                            {diff<0?"ECCEDE "+eur(-diff):eur(diff)} {Math.abs(diff)<0.01?"✓":""}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Ricerca fatture */}
-                  <input value={recoSearch} onChange={e=>setRecoSearch(e.target.value)}
-                    placeholder="🔍 Cerca cliente o numero doc..."
-                    style={{...S.input,marginBottom:10,fontSize:11}}/>
-
-                  {/* Lista fatture abbinabili */}
-                  <div style={{maxHeight:320,overflowY:"auto",marginBottom:12}}>
-                    {(()=>{
-                    const totAcc = accrediti.reduce((s,a)=>s+a.avere,0);
-                    const allOpen = docs.filter(d=>["APERTO","DA INCASSARE"].includes(d[COL.stato]?.toUpperCase()))
-                      .filter(d=>!recoSearch||
-                        d[COL.ragioneSociale]?.toLowerCase().includes(recoSearch.toLowerCase())||
-                        d[COL.numeroDocumento]?.includes(recoSearch));
-                    const fves = allOpen.filter(d=>d[COL.tipoDocumento]==="FVE")
-                      .sort((a,b)=>Math.abs(parseNum(a[COL.saldoResiduo])-totAcc)-Math.abs(parseNum(b[COL.saldoResiduo])-totAcc))
-                      .slice(0,20);
-                    const nacs = allOpen.filter(d=>d[COL.tipoDocumento]==="NAC");
-
-                    const renderDocRow = (doc, prefix) => {
-                      const num = doc[COL.numeroDocumento];
-                      const checked = num in recoSel;
-                      const saldo = parseNum(doc[COL.saldoResiduo]);
-                      const isNac = doc[COL.tipoDocumento]==="NAC";
-                      const match = !isNac && Math.abs(saldo-totAcc)<0.01;
-                      return (
-                        <div key={`${prefix}-${num}`} style={{
-                          border:`1px solid ${checked?(isNac?"#a855f7":"#3b82f6"):match?"#22c55e33":isNac?"#581c8733":"#1e293b"}`,
-                          background:checked?(isNac?"#1a0f2e":"#0f1f35"):match?"#0a1a10":isNac?"#0f0a1a":"transparent",
-                          borderRadius:8,padding:"8px 10px",marginBottom:6,cursor:"pointer",
-                        }}
-                        onClick={()=>{
-                          setRecoSel(p=>{
-                            const n={...p};
-                            if(num in n) delete n[num];
-                            else n[num]=isNac?String(-Math.abs(saldo)):String(saldo);
-                            return n;
-                          });
-                        }}>
-                          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                            <div>
-                              <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                                <span style={{color:checked?(isNac?"#c084fc":"#60a5fa"):(isNac?"#a855f7":"#94a3b8"),
-                                  fontSize:11,fontWeight:700}}>
-                                  {checked?"☑":"☐"} {num}
-                                </span>
-                                {match&&<span style={{color:"#22c55e",fontSize:9,background:"#0a2a15",padding:"1px 5px",borderRadius:4}}>importo esatto</span>}
-                                {isNac&&<span style={{color:"#c084fc",fontSize:9,background:"#2a1040",padding:"1px 5px",borderRadius:4}}>NAC</span>}
-                              </div>
-                              <div style={{color:"#475569",fontSize:10,marginTop:2}}>{doc[COL.ragioneSociale]}</div>
-                            </div>
-                            <div style={{textAlign:"right"}}>
-                              <div style={{color:isNac?"#c084fc":"#f1f5f9",fontSize:12,fontWeight:700}}>
-                                {isNac?"-":""}{eur(saldo)}
-                              </div>
-                              {checked&&(
-                                <input
-                                  value={recoSel[num]||""}
-                                  onChange={e=>{e.stopPropagation();setRecoSel(p=>({...p,[num]:e.target.value}));}}
-                                  onClick={e=>e.stopPropagation()}
-                                  style={{width:80,background:"#0a0f1e",border:`1px solid ${isNac?"#a855f7":"#3b82f6"}`,
-                                    borderRadius:5,padding:"2px 6px",color:isNac?"#c084fc":"#60a5fa",
-                                    fontSize:11,textAlign:"right",marginTop:3}}/>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    };
-
-                    return <>
-                      {fves.length>0&&<div style={{color:"#475569",fontSize:10,fontWeight:700,
-                        marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Fatture (FVE)</div>}
-                      {fves.map(doc=>renderDocRow(doc,"fve"))}
-                      {nacs.length>0&&<>
-                        <div style={{color:"#a855f7",fontSize:10,fontWeight:700,
-                          margin:"10px 0 6px",textTransform:"uppercase",letterSpacing:1}}>
-                          ◈ Note di Credito (NAC) — scalano dall'accredito
-                        </div>
-                        {nacs.map(doc=>renderDocRow(doc,"nac"))}
-                      </>}
-                    </>;
-                  })()}
-                  </div>
-
-                  {/* Bottoni */}
+                  {/* ── 3. CONFERMA ── */}
                   <button onClick={handleConfirmReco}
                     disabled={recoSaving||Object.keys(recoSel).length===0}
-                    style={{width:"100%",background:Object.keys(recoSel).length>0?
-                      "linear-gradient(135deg,#059669,#10b981)":"#1e293b",
+                    style={{width:"100%",
+                      background:Object.keys(recoSel).length>0
+                        ?"linear-gradient(135deg,#059669,#10b981)":"#1e293b",
                       color:Object.keys(recoSel).length>0?"#fff":"#475569",
                       border:"none",borderRadius:10,padding:"12px",fontSize:13,fontWeight:700,
                       cursor:Object.keys(recoSel).length>0?"pointer":"not-allowed",
                       fontFamily:"'IBM Plex Mono',monospace",marginBottom:8}}>
-                    {recoSaving?"Salvataggio...":"✓ Conferma Riconciliazione"}
+                    {recoSaving?"Salvataggio...":
+                      Object.keys(recoSel).length>0
+                        ?`✓ Conferma — ${Object.keys(recoSel).length} assegn${Object.keys(recoSel).length>1?"i":"o"}`
+                        :"Seleziona almeno un assegno"}
                   </button>
-                  <button onClick={()=>{setSelAccredito(null);setRecoSel({});}}
+                  <button onClick={()=>{setAccrediti([]);setRecoSel({});setRecoSearch("");}}
                     style={{width:"100%",background:"transparent",border:"1px solid #1e293b",
                       color:"#475569",borderRadius:10,padding:"8px",fontSize:12,cursor:"pointer"}}>
                     Annulla
@@ -3009,7 +2905,10 @@ function App() {
                 <div style={{background:"#0a0f1e",border:"1px dashed #1e293b",borderRadius:14,
                   padding:40,textAlign:"center",color:"#334155"}}>
                   <div style={{fontSize:28,marginBottom:10}}>←</div>
-                  <div style={{fontSize:12}}>Seleziona un accredito dalla lista per abbinarlo alle fatture</div>
+                  <div style={{fontSize:12,lineHeight:1.6}}>
+                    Seleziona un accredito dal file banca<br/>
+                    oppure un assegno dalla lista manuale
+                  </div>
                 </div>
               )}
             </div>
