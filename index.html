@@ -1448,6 +1448,7 @@ function App() {
   const [selAccredito,setSelAccredito]=useState(null); // accredito selezionato
   const [recoSearch,setRecoSearch]=useState(""); // ricerca fatture nel pannello
   const [storicoPopup,setStoricoPopup]=useState(null); // riconciliazione aperta in popup
+  const [assShowAltri,setAssShowAltri]=useState(false); // espandi altri assegni in riconciliazione
   const [recoSel,setRecoSel]=useState({}); // {numDoc: importoAllocato}
   const [recoSaving,setRecoSaving]=useState(false);
   const [tab,setTab]=useState("dashboard");
@@ -2424,7 +2425,6 @@ function App() {
                     const altriArchivio = tuttiArchivio.filter(a =>
                       normDate(a["DATA TITOLO"]) !== dataAccreditoISO
                     ).sort((a,b)=>normDate(a["DATA TITOLO"]).localeCompare(normDate(b["DATA TITOLO"])));
-                    const [assShowAltri, setAssShowAltri] = React.useState(false);
                     if(!tuttiArchivio.length) return null;
                     return (
                       <div style={{background:"#0a1220",border:"1px solid #1e3a5f",
