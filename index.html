@@ -1447,6 +1447,7 @@ function App() {
   const [riconciliazioni,setRiconciliazioni]=useState([]); // righe accrediti dal file banca
   const [selAccredito,setSelAccredito]=useState(null); // accredito selezionato
   const [recoSearch,setRecoSearch]=useState(""); // ricerca fatture nel pannello
+  const [storicoPopup,setStoricoPopup]=useState(null); // riconciliazione aperta in popup
   const [recoSel,setRecoSel]=useState({}); // {numDoc: importoAllocato}
   const [recoSaving,setRecoSaving]=useState(false);
   const [tab,setTab]=useState("dashboard");
@@ -2335,11 +2336,27 @@ function App() {
                               +{eur(row.avere)}
                             </span>
                           </div>
-                          {/* Riga 2: Causale ABI (codice breve) */}
-                          {row.desc&&<div style={{color:"#38bdf8",fontSize:9,marginBottom:2,
-                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-                            fontFamily:"'IBM Plex Mono',monospace"}}>
-                            {row.desc}
+                          {/* Riga 2: Causale ABI + badge tipo */}
+                          {row.desc&&<div style={{display:"flex",gap:5,alignItems:"center",marginBottom:2}}>
+                            <span style={{color:"#38bdf8",fontSize:9,
+                              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
+                              fontFamily:"'IBM Plex Mono',monospace",flex:1}}>
+                              {row.desc}
+                            </span>
+                            {(()=>{
+                              const d = (row.desc+row.descAdd).toLowerCase();
+                              if(d.includes("versamento")&&(d.includes("assegn")||d.includes("titol")))
+                                return <span style={{background:"#1c1400",border:"1px solid #d97706",borderRadius:3,padding:"0px 5px",color:"#fbbf24",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>📋 ASSEGNI</span>;
+                              if(d.includes("accredito")&&(d.includes("beu")||d.includes("bonifico ist")))
+                                return <span style={{background:"#0a1f2e",border:"1px solid #0284c7",borderRadius:3,padding:"0px 5px",color:"#38bdf8",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>⚡ BEU</span>;
+                              if(d.includes("accredito")&&d.includes("bonifico"))
+                                return <span style={{background:"#0a1f0a",border:"1px solid #16a34a",borderRadius:3,padding:"0px 5px",color:"#4ade80",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>↙ BONIF.</span>;
+                              if(d.includes("versamento")&&d.includes("contanti"))
+                                return <span style={{background:"#1a0f2e",border:"1px solid #7c3aed",borderRadius:3,padding:"0px 5px",color:"#a78bfa",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>💵 CONTANTI</span>;
+                              if(d.includes("rid")||d.includes("sdd")||d.includes("addebito diretto"))
+                                return <span style={{background:"#1a0a0a",border:"1px solid #dc2626",borderRadius:3,padding:"0px 5px",color:"#f87171",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>🔄 RID/SDD</span>;
+                              return null;
+                            })()}
                           </div>}
                           {/* Riga 3: Descrizione aggiuntiva (la più utile per identificare) */}
                           {row.descAdd&&<div style={{
@@ -2389,8 +2406,18 @@ function App() {
 
                   {/* ── Assegni con stessa data accredito ── */}
                   {selAccredito&&(()=>{
+                    // Normalizza data accredito in ISO YYYY-MM-DD
+                    const normDate = v => {
+                      if(!v) return "";
+                      const s = String(v).trim();
+                      if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+                      const it = s.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{4})/);
+                      if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
+                      return s;
+                    };
+                    const dataAccreditoISO = normDate(selAccredito.data);
                     const stessaData = assegni.filter(a =>
-                      a["DATA TITOLO"]===selAccredito.data &&
+                      normDate(a["DATA TITOLO"])===dataAccreditoISO &&
                       (a["STATO TITOLO"]||"").toUpperCase().includes("ARCHIVIO")
                     );
                     if(!stessaData.length) return null;
@@ -2623,7 +2650,8 @@ function App() {
                       const id = r.id || r["ID INCASSO"] || r["ID"] || "—";
                       const tipo = r.tipo || (id.startsWith("RIC-")?"Banca":"Pagamento");
                       return (
-                      <tr key={i} style={{borderBottom:"1px solid #0f172a"}} className="row-hover">
+                      <tr key={i} style={{borderBottom:"1px solid #0f172a",cursor:"pointer"}} className="row-hover"
+                        onClick={()=>setStoricoPopup({r, fatture, tipo, data, desc, accredito, id})}>
                         <td style={{padding:"10px 14px"}}>
                           <div style={{color:"#475569",fontSize:9,fontFamily:"'IBM Plex Mono',monospace",marginBottom:2}}>{id}</div>
                           <span style={{background:tipo==="Banca"?"#0f1f35":"#0a2a1a",
@@ -2664,6 +2692,145 @@ function App() {
           <MigrazioneTab docs={docs} authed={authed} notify={notify} onComplete={loadData}/>
         )}
       </main>
+
+      {/* ── POPUP DETTAGLIO RICONCILIAZIONE ── */}
+      {storicoPopup&&(()=>{
+        const {r, fatture, tipo, data, desc, accredito, id} = storicoPopup;
+        // Incrocia fatture con documenti e assegni
+        const docCollegati = fatture.map(f=>{
+          const d = docs.find(d=>d[COL.numeroDocumento]===f||String(d._id)===f);
+          return d ? {...d, _numRef:f} : null;
+        }).filter(Boolean);
+        const assCollegati = (() => {
+          // Cerca assegni che hanno quella data o che contengono quei numeri nelle fatture pagate
+          const byData = assegni.filter(a=>{
+            const normA = String(a["DATA TITOLO"]||"").slice(0,10);
+            return normA===String(data||"").slice(0,10);
+          });
+          const byFatt = assegni.filter(a=>{
+            const fp = String(a["FATTURE PAGATE"]||"");
+            return fatture.some(f=>fp.includes(f));
+          });
+          const all = [...byData,...byFatt];
+          return all.filter((a,i,arr)=>arr.findIndex(b=>b["N TITOLO"]===a["N TITOLO"])===i);
+        })();
+        return (
+          <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:500,
+            display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+            onClick={()=>setStoricoPopup(null)}>
+            <div style={{background:"#0a0f1e",border:"1px solid #1e3a5f",borderRadius:16,
+              width:"100%",maxWidth:680,maxHeight:"85vh",display:"flex",flexDirection:"column",
+              boxShadow:"0 24px 80px #00000099"}}
+              onClick={e=>e.stopPropagation()}>
+
+              {/* Header */}
+              <div style={{padding:"16px 20px",borderBottom:"1px solid #1e293b",
+                display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div>
+                  <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                    <span style={{color:"#475569",fontSize:10,fontFamily:"'IBM Plex Mono',monospace"}}>{id}</span>
+                    <span style={{background:tipo==="Banca"?"#0f1f35":"#0a2a1a",
+                      border:`1px solid ${tipo==="Banca"?"#1e3a5f":"#22c55e33"}`,
+                      borderRadius:4,padding:"1px 6px",
+                      color:tipo==="Banca"?"#60a5fa":"#4ade80",fontSize:9}}>{tipo}</span>
+                  </div>
+                  <div style={{color:"#4ade80",fontSize:20,fontWeight:800,
+                    fontFamily:"'IBM Plex Mono',monospace"}}>{accredito?eur(accredito):"—"}</div>
+                  <div style={{color:"#94a3b8",fontSize:11,marginTop:2}}>📅 {data}</div>
+                  {desc&&desc!=="—"&&<div style={{color:"#64748b",fontSize:10,marginTop:4,
+                    maxWidth:400,lineHeight:1.4}}>{desc}</div>}
+                </div>
+                <button onClick={()=>setStoricoPopup(null)}
+                  style={{background:"#1e293b",border:"none",color:"#94a3b8",
+                    borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
+              </div>
+
+              <div style={{overflowY:"auto",flex:1,padding:"16px 20px"}}>
+
+                {/* Documenti/Fatture abbinate */}
+                {(docCollegati.length>0||fatture.length>0)&&(
+                  <div style={{marginBottom:16}}>
+                    <div style={{color:"#475569",fontSize:10,fontWeight:700,
+                      textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>
+                      📄 Documenti abbinati ({fatture.length})
+                    </div>
+                    {fatture.map((f,j)=>{
+                      const doc = docCollegati.find(d=>d._numRef===f);
+                      return (
+                        <div key={j} style={{background:doc?"#0b1628":"#0a0a0a",
+                          border:`1px solid ${doc?"#1e3a5f":"#1e293b"}`,
+                          borderRadius:8,padding:"8px 12px",marginBottom:6,
+                          display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <div>
+                            <span style={{color:"#60a5fa",fontWeight:700,fontSize:12,
+                              fontFamily:"'IBM Plex Mono',monospace"}}>
+                              {f}
+                            </span>
+                            {doc&&<div style={{color:"#94a3b8",fontSize:10,marginTop:2}}>
+                              {doc[COL.ragioneSociale]} · {doc[COL.tipoDocumento]}
+                            </div>}
+                          </div>
+                          {doc&&<div style={{textAlign:"right"}}>
+                            <div style={{color: doc[COL.stato]==="PAGATO"?"#4ade80":"#fb923c",
+                              fontSize:11,fontWeight:700}}>{doc[COL.stato]}</div>
+                            <div style={{color:"#64748b",fontSize:10}}>
+                              saldo: {eur(doc[COL.saldoResiduo])}
+                            </div>
+                          </div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Assegni collegati */}
+                {assCollegati.length>0&&(
+                  <div>
+                    <div style={{color:"#fb923c",fontSize:10,fontWeight:700,
+                      textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>
+                      📋 Assegni correlati ({assCollegati.length})
+                    </div>
+                    {assCollegati.map((a,j)=>(
+                      <div key={j} style={{background:"#0e1620",border:"1px solid #1e3a5f",
+                        borderRadius:8,padding:"10px 12px",marginBottom:6}}>
+                        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                          <div>
+                            <div style={{color:"#e2e8f0",fontSize:12,fontWeight:700}}>{a["CLIENTE"]}</div>
+                            <div style={{color:"#38bdf8",fontSize:10,
+                              fontFamily:"'IBM Plex Mono',monospace",marginTop:1}}>{a["N TITOLO"]}</div>
+                          </div>
+                          <div style={{textAlign:"right"}}>
+                            <div style={{color:"#4ade80",fontSize:13,fontWeight:800,
+                              fontFamily:"'IBM Plex Mono',monospace"}}>{eur(a["IMPORTO TITOLO"])}</div>
+                            <div style={{color:assStatoColor(a["STATO TITOLO"]),fontSize:9,marginTop:1}}>
+                              {a["STATO TITOLO"]}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                          <span style={{color:"#64748b",fontSize:9}}>Data: {a["DATA TITOLO"]}</span>
+                          {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>
+                            Fatt: {fmtDocList(a["FATTURE PAGATE"])}
+                          </span>}
+                          {a["NC SCALATE"]&&<span style={{color:"#c084fc",fontSize:9}}>
+                            NC: {fmtDocList(a["NC SCALATE"])}
+                          </span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {docCollegati.length===0&&assCollegati.length===0&&(
+                  <div style={{textAlign:"center",color:"#334155",padding:30,fontSize:12}}>
+                    Nessun documento o assegno trovato per questa riconciliazione
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {showPay&&<PayModal docs={docs} onSave={handleSavePay} onClose={()=>setShowPay(false)} user={authed} onLogout={handleLogout}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
