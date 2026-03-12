@@ -1521,6 +1521,13 @@ function App() {
   const [recoSearch,setRecoSearch]=useState(""); // ricerca fatture nel pannello
   const [storicoPopup,setStoricoPopup]=useState(null); // riconciliazione aperta in popup
   const [assShowAltri,setAssShowAltri]=useState(false); // espandi altri assegni in riconciliazione
+  // ── Pannello assegni manuale ──
+  const [assManData,setAssManData]=useState(()=>new Date().toISOString().slice(0,10)); // data selezionata
+  const [assManDa,setAssManDa]=useState("");    // filtro data da
+  const [assManA,setAssManA]=useState("");      // filtro data a
+  const [assManStato,setAssManStato]=useState("TUTTI"); // filtro stato
+  const [assManSearch,setAssManSearch]=useState(""); // ricerca cliente/numero
+  const [assManSel,setAssManSel]=useState(null); // assegno selezionato per dettaglio
   const [recoSel,setRecoSel]=useState({}); // {numDoc: importoAllocato}
   const [recoSaving,setRecoSaving]=useState(false);
   const [tab,setTab]=useState("dashboard");
@@ -1607,8 +1614,11 @@ function App() {
       setAssegni((ass_raw||[]).map(r=>({
         "CLIENTE": r.cliente, "N TITOLO": r.n_titolo,
         "DATA TITOLO": r.data_titolo, "IMPORTO TITOLO": r.importo,
-        "FATTURE PAGATE": r.fatture_pagate, "NC SCALATE": r.nc_scalate,
-        "STATO TITOLO": r.stato, _id: r.id,
+        "FATTURE PAGATE": r.fatture_pagate || r.documenti_collegati || "",
+        "NC SCALATE": r.nc_scalate,
+        "STATO TITOLO": r.stato,
+        "DOCUMENTI COLLEGATI": r.documenti_collegati || r.fatture_pagate || "",
+        _id: r.id,
       })));
       // Normalizza riconciliazioni
       const ricoMap = {};
@@ -2461,6 +2471,226 @@ function App() {
                   <div style={{fontSize:13}}>Carica un file Excel della banca per iniziare la riconciliazione</div>
                 </div>
               )}
+
+              {/* ══ PANNELLO ASSEGNI MANUALE ══ */}
+              <div style={{marginTop:18,background:"#0a0f1e",border:"1px solid #1e3a5f",borderRadius:14,overflow:"hidden"}}>
+                {/* Header */}
+                <div style={{padding:"12px 18px",borderBottom:"1px solid #1e293b",
+                  display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
+                  <span style={{color:"#fb923c",fontSize:12,fontWeight:700,letterSpacing:.5}}>
+                    📋 ASSEGNI — RICERCA MANUALE
+                  </span>
+                  <span style={{color:"#475569",fontSize:10}}>
+                    {assegni.length} totali nel sistema
+                  </span>
+                </div>
+
+                {/* Filtri */}
+                <div style={{padding:"12px 18px",borderBottom:"1px solid #0f172a",
+                  display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+
+                  {/* Data Da */}
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    <label style={{color:"#475569",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Dal</label>
+                    <input type="date" value={assManDa} onChange={e=>setAssManDa(e.target.value)}
+                      style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:6,
+                        padding:"5px 8px",color:"#94a3b8",fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}/>
+                  </div>
+
+                  {/* Data A */}
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    <label style={{color:"#475569",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Al</label>
+                    <input type="date" value={assManA} onChange={e=>setAssManA(e.target.value)}
+                      style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:6,
+                        padding:"5px 8px",color:"#94a3b8",fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}/>
+                  </div>
+
+                  {/* Stato */}
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                    <label style={{color:"#475569",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Stato</label>
+                    <select value={assManStato} onChange={e=>setAssManStato(e.target.value)}
+                      style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:6,
+                        padding:"5px 8px",color:"#94a3b8",fontSize:11,fontFamily:"'IBM Plex Mono',monospace"}}>
+                      {["TUTTI","IN ARCHIVIO","CONSEGNATO A PINO"].map(s=>(
+                        <option key={s} value={s}>{s}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ricerca cliente/n.titolo */}
+                  <div style={{display:"flex",flexDirection:"column",gap:4,flex:1,minWidth:140}}>
+                    <label style={{color:"#475569",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Cerca</label>
+                    <input type="text" value={assManSearch} onChange={e=>setAssManSearch(e.target.value)}
+                      placeholder="cliente o n° assegno..."
+                      style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:6,
+                        padding:"5px 8px",color:"#e2e8f0",fontSize:11,width:"100%"}}/>
+                  </div>
+
+                  {/* Reset */}
+                  <button onClick={()=>{setAssManDa("");setAssManA("");setAssManStato("TUTTI");setAssManSearch("");}}
+                    style={{background:"#0f172a",border:"1px solid #1e293b",borderRadius:6,
+                      padding:"5px 10px",color:"#475569",fontSize:10,cursor:"pointer",alignSelf:"flex-end"}}>
+                    ✕ Reset
+                  </button>
+                </div>
+
+                {/* Lista assegni filtrata */}
+                {(()=>{
+                  const s = assManSearch.toLowerCase();
+                  const filtered = assegni.filter(a => {
+                    const dt = toISO(a["DATA TITOLO"]) || "";
+                    if(assManDa && dt < assManDa) return false;
+                    if(assManA  && dt > assManA)  return false;
+                    if(assManStato!=="TUTTI" && a["STATO TITOLO"]!==assManStato) return false;
+                    if(s && !a["CLIENTE"]?.toLowerCase().includes(s) &&
+                       !a["N TITOLO"]?.toLowerCase().includes(s) &&
+                       !(a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||"").toLowerCase().includes(s)) return false;
+                    return true;
+                  }).sort((a,b)=>toISO(a["DATA TITOLO"]).localeCompare(toISO(b["DATA TITOLO"])));
+
+                  if(!filtered.length) return (
+                    <div style={{padding:30,textAlign:"center",color:"#334155",fontSize:12}}>
+                      Nessun assegno trovato con i filtri impostati
+                    </div>
+                  );
+
+                  const totale = filtered.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
+
+                  return (
+                    <div>
+                      {/* Totale */}
+                      <div style={{padding:"8px 18px",background:"#050d1a",
+                        display:"flex",justifyContent:"space-between",fontSize:11}}>
+                        <span style={{color:"#475569"}}>{filtered.length} assegni filtrati</span>
+                        <span style={{color:"#4ade80",fontWeight:800,fontFamily:"'IBM Plex Mono',monospace"}}>
+                          {eur(totale)}
+                        </span>
+                      </div>
+
+                      {/* Righe */}
+                      <div style={{maxHeight:420,overflowY:"auto"}}>
+                        {filtered.map((a,i)=>{
+                          const isSel = assManSel?._id === a._id;
+                          const statoC = assStatoColor(a["STATO TITOLO"]);
+                          const docs = a["DOCUMENTI COLLEGATI"] || a["FATTURE PAGATE"] || "";
+                          return (
+                            <div key={i}
+                              onClick={()=>setAssManSel(isSel?null:a)}
+                              style={{
+                                padding:"10px 18px",
+                                borderBottom:"1px solid #0a1220",
+                                cursor:"pointer",
+                                background: isSel?"#0f1f10":"transparent",
+                                borderLeft: isSel?"3px solid #4ade80":"3px solid transparent",
+                                transition:"background .15s",
+                              }}
+                              onMouseEnter={e=>{ if(!isSel) e.currentTarget.style.background="#0a1220"; }}
+                              onMouseLeave={e=>{ if(!isSel) e.currentTarget.style.background="transparent"; }}
+                            >
+                              {/* Riga principale */}
+                              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                <div style={{flex:1,minWidth:0}}>
+                                  <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
+                                    <span style={{color:"#e2e8f0",fontSize:12,fontWeight:600,
+                                      whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:200}}>
+                                      {a["CLIENTE"]}
+                                    </span>
+                                    <span style={{
+                                      background: a["STATO TITOLO"]==="IN ARCHIVIO"?"#2d1f0a":"#0f2010",
+                                      color:statoC,
+                                      fontSize:9,padding:"1px 6px",borderRadius:4,fontWeight:700,
+                                      whiteSpace:"nowrap"
+                                    }}>
+                                      {a["STATO TITOLO"]}
+                                    </span>
+                                  </div>
+                                  <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                                    <span style={{color:"#38bdf8",fontSize:10,fontFamily:"'IBM Plex Mono',monospace"}}>
+                                      {a["N TITOLO"]}
+                                    </span>
+                                    <span style={{color:"#475569",fontSize:10}}>
+                                      📅 {toIT(a["DATA TITOLO"])}
+                                    </span>
+                                    {docs&&(
+                                      <span style={{color:"#64748b",fontSize:9}}>
+                                        Fatt: <span style={{color:"#94a3b8"}}>{fmtDocList(docs)}</span>
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                                <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                                  <div style={{color:"#4ade80",fontSize:13,fontWeight:800,
+                                    fontFamily:"'IBM Plex Mono',monospace"}}>
+                                    {eur(a["IMPORTO TITOLO"])}
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Dettaglio espanso */}
+                              {isSel&&(
+                                <div style={{marginTop:10,padding:"10px 12px",
+                                  background:"#050d1a",borderRadius:8,
+                                  border:"1px solid #1e293b"}}>
+                                  <div style={{color:"#60a5fa",fontSize:10,fontWeight:700,marginBottom:8}}>
+                                    📄 Dettaglio assegno
+                                  </div>
+                                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 16px",fontSize:10}}>
+                                    <div><span style={{color:"#475569"}}>Cliente: </span>
+                                      <span style={{color:"#e2e8f0"}}>{a["CLIENTE"]}</span></div>
+                                    <div><span style={{color:"#475569"}}>N° Titolo: </span>
+                                      <span style={{color:"#38bdf8",fontFamily:"'IBM Plex Mono',monospace"}}>{a["N TITOLO"]}</span></div>
+                                    <div><span style={{color:"#475569"}}>Data titolo: </span>
+                                      <span style={{color:"#94a3b8"}}>{toIT(a["DATA TITOLO"])}</span></div>
+                                    <div><span style={{color:"#475569"}}>Importo: </span>
+                                      <span style={{color:"#4ade80",fontWeight:800,fontFamily:"'IBM Plex Mono',monospace"}}>{eur(a["IMPORTO TITOLO"])}</span></div>
+                                    <div><span style={{color:"#475569"}}>Stato: </span>
+                                      <span style={{color:statoC,fontWeight:700}}>{a["STATO TITOLO"]}</span></div>
+                                    {docs&&<div style={{gridColumn:"1/-1"}}><span style={{color:"#475569"}}>Fatture/Doc: </span>
+                                      <span style={{color:"#c084fc",fontFamily:"'IBM Plex Mono',monospace"}}>{fmtDocList(docs)}</span></div>}
+                                    {a["NC SCALATE"]&&<div style={{gridColumn:"1/-1"}}><span style={{color:"#475569"}}>NC scalate: </span>
+                                      <span style={{color:"#c084fc"}}>{fmtDocList(a["NC SCALATE"])}</span></div>}
+                                  </div>
+
+                                  {/* Link rapido: imposta come accredito manuale */}
+                                  <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #1e293b",
+                                    display:"flex",justifyContent:"flex-end"}}>
+                                    <button
+                                      onClick={e=>{
+                                        e.stopPropagation();
+                                        // Crea un accredito virtuale con i dati di questo assegno
+                                        const fakeRow = {
+                                          idx: `manual-${a._id}`,
+                                          data: toISO(a["DATA TITOLO"]),
+                                          avere: parseNum(a["IMPORTO TITOLO"]),
+                                          dare: 0,
+                                          desc: `ASSEGNO ${a["N TITOLO"]} — ${a["CLIENTE"]}`,
+                                          descAdd: `Fatture: ${fmtDocList(docs)}`,
+                                          tipo: "assegno",
+                                          riconciliato: false,
+                                        };
+                                        setSelAccredito(fakeRow);
+                                        setRecoSel({});
+                                        setRecoSearch("");
+                                        // Scroll up per vedere il pannello
+                                        window.scrollTo({top:0,behavior:"smooth"});
+                                      }}
+                                      style={{background:"linear-gradient(135deg,#059669,#10b981)",
+                                        color:"#fff",border:"none",borderRadius:7,
+                                        padding:"6px 14px",cursor:"pointer",fontSize:11,fontWeight:700}}>
+                                      ↑ Usa come accredito →
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
             </div>
 
             {/* COLONNA DESTRA — Pannello abbinamento */}
