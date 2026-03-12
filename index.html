@@ -1882,44 +1882,79 @@ function App() {
     setRecoSaving(true);
     try {
       const dataAccredito = selAccredito.data;
+
+      // Costruisci lista dettaglio per il Worker (una chiamata sola)
+      const dettaglio = [];
+      const aggiornamenti = []; // aggiornamenti locali da applicare dopo
+
       for(const [numDoc, importoAllocato] of Object.entries(recoSel)) {
-        if(!importoAllocato || parseNum(importoAllocato)<=0) continue;
+        const imp = parseNum(importoAllocato);
+        if(!imp || imp === 0) continue;
         const docIdx = docs.findIndex(d=>d[COL.numeroDocumento]===numDoc);
         if(docIdx<0) continue;
         const doc = docs[docIdx];
-        const nuovoSaldo = Math.max(0, parseNum(doc[COL.saldoResiduo]) - parseNum(importoAllocato));
+        if(!doc._id) continue;
+
+        const nuovoSaldo = Math.max(0, parseNum(doc[COL.saldoResiduo]) - Math.abs(imp));
         const nuovoStato = nuovoSaldo < 0.01 ? "PAGATO" : "APERTO";
-        // Trova primo slot libero
+
+        // Slot libero per data/pagamento
         const slots=[{dc:COL.dataAcc1,pc:COL.pagamento1},{dc:COL.dataAcc2,pc:COL.pagamento2},{dc:COL.dataAcc3,pc:COL.pagamento3},{dc:COL.dataAcc4,pc:COL.pagamento4}];
         const slot = slots.find(s=>!doc[s.dc]||doc[s.dc]==="") || slots[3];
-        // Aggiorna su D1
-        if(doc._id) {
-          await d1API.updateDocumento(doc._id, {
-            [COL_D1_MAP[slot.dc]]: dataAccredito,
-            [COL_D1_MAP[slot.pc]]: parseNum(importoAllocato),
-            saldo_residuo: nuovoSaldo,
-            stato: nuovoStato,
-            utente: authed,
-          });
-          await d1API.postRiconciliazione({
-            numero_documento: numDoc,
-            importo: parseNum(importoAllocato),
-            data: dataAccredito,
-            descrizione: selAccredito.desc||"",
-          });
-        }
-        // Aggiorna in memoria
-        setDocs(p=>{
-          const d=[...p];
-          d[docIdx]={...d[docIdx],[slot.dc]:dataAccredito,[slot.pc]:String(parseNum(importoAllocato)),[COL.saldoResiduo]:String(nuovoSaldo.toFixed(2)),[COL.stato]:nuovoStato};
-          return d;
+
+        // Aggiorna slot su D1
+        await d1API.updateDocumento(doc._id, {
+          [COL_D1_MAP[slot.dc]]: dataAccredito,
+          [COL_D1_MAP[slot.pc]]: Math.abs(imp),
+          saldo_residuo: nuovoSaldo,
+          stato: nuovoStato,
+          utente: authed,
         });
+
+        dettaglio.push({
+          documento_id: doc._id,
+          importo: Math.abs(imp),
+          tipo: doc[COL.tipoDocumento] || "FVE",
+        });
+
+        aggiornamenti.push({ docIdx, slot, nuovoSaldo, nuovoStato });
       }
-      setBankRows(p=>p.map(r=>r.idx===selAccredito.idx?{...r,riconciliato:true}:r));
-      setRiconciliazioni(p=>[...p,{id:`RIC-${Date.now()}`,data:selAccredito.data,accredito:selAccredito.avere,descrizione:selAccredito.descAdd||selAccredito.desc,fatture:Object.keys(recoSel),tipo:"Banca"}]);
-      setSelAccredito(null); setRecoSel({});
-      notify("Riconciliazione salvata ✓","success");
-    } catch(err){ notify("Errore: "+err.message,"error"); }
+
+      if(dettaglio.length === 0) { notify("Nessun documento valido selezionato","error"); setRecoSaving(false); return; }
+
+      // Una sola chiamata POST /api/riconciliazioni
+      await d1API.postRiconciliazione({
+        data_accredito: dataAccredito,
+        importo: selAccredito.avere,
+        causale: selAccredito.desc || "",
+        descrizione_aggiuntiva: selAccredito.descAdd || "",
+        utente: authed,
+        dettaglio,
+      });
+
+      // Aggiorna stato locale documenti
+      setDocs(p => {
+        const d = [...p];
+        for(const {docIdx, slot, nuovoSaldo, nuovoStato} of aggiornamenti) {
+          d[docIdx] = {...d[docIdx],
+            [slot.dc]: dataAccredito,
+            [slot.pc]: String(Math.abs(parseNum(Object.entries(recoSel).find(([k])=>docs[docIdx][COL.numeroDocumento]===k)?.[1]||0))),
+            [COL.saldoResiduo]: String(nuovoSaldo.toFixed(2)),
+            [COL.stato]: nuovoStato,
+          };
+        }
+        return d;
+      });
+
+      // Segna accredito come riconciliato
+      setBankRows(p => p.map(r => r.idx===selAccredito.idx ? {...r, riconciliato:true} : r));
+      setSelAccredito(null);
+      setRecoSel({});
+      notify(`Riconciliazione salvata ✓ — ${dettaglio.length} documento${dettaglio.length>1?"i":""}`, "success");
+    } catch(err) {
+      notify("Errore: "+err.message, "error");
+      console.error("handleConfirmReco error:", err);
+    }
     setRecoSaving(false);
   };
 
@@ -2372,14 +2407,14 @@ function App() {
                       .slice(0,20);
                     const nacs = allOpen.filter(d=>d[COL.tipoDocumento]==="NAC");
 
-                    const DocRow = ({doc}) => {
+                    const renderDocRow = (doc, prefix) => {
                       const num = doc[COL.numeroDocumento];
                       const checked = num in recoSel;
                       const saldo = parseNum(doc[COL.saldoResiduo]);
                       const isNac = doc[COL.tipoDocumento]==="NAC";
                       const match = !isNac && Math.abs(saldo-selAccredito.avere)<0.01;
                       return (
-                        <div key={num} style={{
+                        <div key={`${prefix}-${num}`} style={{
                           border:`1px solid ${checked?(isNac?"#a855f7":"#3b82f6"):match?"#22c55e33":isNac?"#581c8733":"#1e293b"}`,
                           background:checked?(isNac?"#1a0f2e":"#0f1f35"):match?"#0a1a10":isNac?"#0f0a1a":"transparent",
                           borderRadius:8,padding:"8px 10px",marginBottom:6,cursor:"pointer",
@@ -2388,7 +2423,6 @@ function App() {
                           setRecoSel(p=>{
                             const n={...p};
                             if(num in n) delete n[num];
-                            // NAC: importo negativo (scala dall'accredito)
                             else n[num]=isNac?String(-Math.abs(saldo)):String(saldo);
                             return n;
                           });
@@ -2427,13 +2461,13 @@ function App() {
                     return <>
                       {fves.length>0&&<div style={{color:"#475569",fontSize:10,fontWeight:700,
                         marginBottom:6,textTransform:"uppercase",letterSpacing:1}}>Fatture (FVE)</div>}
-                      {fves.map(doc=><DocRow key={doc[COL.numeroDocumento]} doc={doc}/>)}
+                      {fves.map(doc=>renderDocRow(doc,"fve"))}
                       {nacs.length>0&&<>
                         <div style={{color:"#a855f7",fontSize:10,fontWeight:700,
                           margin:"10px 0 6px",textTransform:"uppercase",letterSpacing:1}}>
                           ◈ Note di Credito (NAC) — scalano dall'accredito
                         </div>
-                        {nacs.map(doc=><DocRow key={doc[COL.numeroDocumento]} doc={doc}/>)}
+                        {nacs.map(doc=>renderDocRow(doc,"nac"))}
                       </>}
                     </>;
                   })()}
