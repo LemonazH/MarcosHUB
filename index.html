@@ -2404,9 +2404,8 @@ function App() {
                     </div>}
                   </div>
 
-                  {/* ── Assegni con stessa data accredito ── */}
-                  {selAccredito&&(()=>{
-                    // Normalizza data accredito in ISO YYYY-MM-DD
+                  {/* ── Pannello assegni IN ARCHIVIO ── */}
+                  {(()=>{
                     const normDate = v => {
                       if(!v) return "";
                       const s = String(v).trim();
@@ -2416,59 +2415,120 @@ function App() {
                       return s;
                     };
                     const dataAccreditoISO = normDate(selAccredito.data);
-                    const stessaData = assegni.filter(a =>
-                      normDate(a["DATA TITOLO"])===dataAccreditoISO &&
+                    const tuttiArchivio = assegni.filter(a =>
                       (a["STATO TITOLO"]||"").toUpperCase().includes("ARCHIVIO")
                     );
-                    if(!stessaData.length) return null;
+                    const stessaData = tuttiArchivio.filter(a =>
+                      normDate(a["DATA TITOLO"]) === dataAccreditoISO
+                    );
+                    const altriArchivio = tuttiArchivio.filter(a =>
+                      normDate(a["DATA TITOLO"]) !== dataAccreditoISO
+                    ).sort((a,b)=>normDate(a["DATA TITOLO"]).localeCompare(normDate(b["DATA TITOLO"])));
+                    const [assShowAltri, setAssShowAltri] = React.useState(false);
+                    if(!tuttiArchivio.length) return null;
                     return (
-                      <div style={{background:"#0a1628",border:"1px solid #1e3a5f",
+                      <div style={{background:"#0a1220",border:"1px solid #1e3a5f",
                         borderRadius:10,padding:"10px 12px",marginBottom:12}}>
+
+                        {/* Header */}
                         <div style={{color:"#fb923c",fontSize:10,fontWeight:700,
-                          marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
-                          📋 {stessaData.length} assegno{stessaData.length>1?"i":""} in scadenza oggi
-                          <span style={{color:"#475569",fontWeight:400}}>({selAccredito.data})</span>
-                        </div>
-                        {stessaData.map((a,j)=>(
-                          <div key={j} style={{borderTop:j>0?"1px solid #1e293b":"none",
-                            paddingTop:j>0?6:0,marginTop:j>0?6:0}}>
-                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                              <div>
-                                <div style={{color:"#e2e8f0",fontSize:10,fontWeight:600,
-                                  whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:140}}>
-                                  {a["CLIENTE"]}
-                                </div>
-                                <div style={{color:"#38bdf8",fontSize:9,
-                                  fontFamily:"'IBM Plex Mono',monospace"}}>
-                                  {a["N TITOLO"]}
-                                </div>
-                              </div>
-                              <span style={{color:"#4ade80",fontSize:11,
-                                fontWeight:800,fontFamily:"'IBM Plex Mono',monospace",
-                                whiteSpace:"nowrap"}}>
-                                {eur(a["IMPORTO TITOLO"])}
-                              </span>
-                            </div>
-                            {(a["FATTURE PAGATE"]||a["NC SCALATE"])&&(
-                              <div style={{display:"flex",gap:8,marginTop:3,flexWrap:"wrap"}}>
-                                {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>
-                                  Fatt: {fmtDocList(a["FATTURE PAGATE"])}
-                                </span>}
-                                {a["NC SCALATE"]&&<span style={{color:"#c084fc",fontSize:9}}>
-                                  NC: {fmtDocList(a["NC SCALATE"])}
-                                </span>}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                        <div style={{borderTop:"1px solid #1e3a5f",marginTop:8,paddingTop:6,
+                          marginBottom: stessaData.length||assShowAltri ? 8 : 0,
                           display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                          <span style={{color:"#64748b",fontSize:9}}>Totale assegni</span>
-                          <span style={{color:"#fb923c",fontSize:12,fontWeight:800,
-                            fontFamily:"'IBM Plex Mono',monospace"}}>
-                            {eur(stessaData.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}
+                          <span>📋 Assegni IN ARCHIVIO</span>
+                          <span style={{color:"#475569",fontWeight:400,fontSize:9}}>
+                            {tuttiArchivio.length} totali
                           </span>
                         </div>
+
+                        {/* Assegni con stessa data — sempre visibili */}
+                        {stessaData.length>0&&(
+                          <>
+                            <div style={{color:"#4ade80",fontSize:9,fontWeight:700,
+                              marginBottom:5,textTransform:"uppercase",letterSpacing:0.5}}>
+                              ✓ Stessa data ({dataAccreditoISO})
+                            </div>
+                            {stessaData.map((a,j)=>(
+                              <div key={j} style={{
+                                background:"#0a1e10",border:"1px solid #16a34a44",
+                                borderRadius:7,padding:"6px 9px",marginBottom:5}}>
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  <div style={{flex:1,minWidth:0}}>
+                                    <div style={{color:"#e2e8f0",fontSize:10,fontWeight:600,
+                                      whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                      {a["CLIENTE"]}
+                                    </div>
+                                    <div style={{color:"#38bdf8",fontSize:9,fontFamily:"'IBM Plex Mono',monospace"}}>
+                                      {a["N TITOLO"]}
+                                    </div>
+                                  </div>
+                                  <span style={{color:"#4ade80",fontSize:12,fontWeight:800,
+                                    fontFamily:"'IBM Plex Mono',monospace",whiteSpace:"nowrap",marginLeft:8}}>
+                                    {eur(a["IMPORTO TITOLO"])}
+                                  </span>
+                                </div>
+                                {(a["FATTURE PAGATE"]||a["NC SCALATE"])&&(
+                                  <div style={{display:"flex",gap:8,marginTop:3,flexWrap:"wrap"}}>
+                                    {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>Fatt: {fmtDocList(a["FATTURE PAGATE"])}</span>}
+                                    {a["NC SCALATE"]&&<span style={{color:"#c084fc",fontSize:9}}>NC: {fmtDocList(a["NC SCALATE"])}</span>}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                            <div style={{display:"flex",justifyContent:"space-between",
+                              padding:"4px 2px",marginBottom:altriArchivio.length?8:0}}>
+                              <span style={{color:"#475569",fontSize:9}}>Totale stessa data</span>
+                              <span style={{color:"#4ade80",fontSize:11,fontWeight:800,
+                                fontFamily:"'IBM Plex Mono',monospace"}}>
+                                {eur(stessaData.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}
+                              </span>
+                            </div>
+                          </>
+                        )}
+
+                        {stessaData.length===0&&(
+                          <div style={{color:"#475569",fontSize:9,marginBottom:8,fontStyle:"italic"}}>
+                            Nessun assegno con data {dataAccreditoISO}
+                          </div>
+                        )}
+
+                        {/* Altri assegni — collassabili */}
+                        {altriArchivio.length>0&&(
+                          <>
+                            <button onClick={()=>setAssShowAltri(p=>!p)}
+                              style={{width:"100%",background:"#0f172a",border:"1px solid #1e293b",
+                                borderRadius:6,padding:"5px 8px",color:"#64748b",fontSize:9,
+                                cursor:"pointer",textAlign:"left",display:"flex",
+                                justifyContent:"space-between"}}>
+                              <span>Altri assegni IN ARCHIVIO ({altriArchivio.length})</span>
+                              <span>{assShowAltri?"▲":"▼"}</span>
+                            </button>
+                            {assShowAltri&&(
+                              <div style={{marginTop:6,maxHeight:200,overflowY:"auto"}}>
+                                {altriArchivio.map((a,j)=>(
+                                  <div key={j} style={{
+                                    borderBottom:"1px solid #0f172a",
+                                    padding:"5px 2px",
+                                    display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                    <div style={{flex:1,minWidth:0}}>
+                                      <div style={{color:"#94a3b8",fontSize:10,
+                                        whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                                        {a["CLIENTE"]}
+                                      </div>
+                                      <div style={{display:"flex",gap:6}}>
+                                        <span style={{color:"#475569",fontSize:8,fontFamily:"'IBM Plex Mono',monospace"}}>{a["N TITOLO"]}</span>
+                                        <span style={{color:"#334155",fontSize:8}}>{normDate(a["DATA TITOLO"])}</span>
+                                      </div>
+                                    </div>
+                                    <span style={{color:"#fb923c",fontSize:10,fontWeight:700,
+                                      fontFamily:"'IBM Plex Mono',monospace",whiteSpace:"nowrap",marginLeft:6}}>
+                                      {eur(a["IMPORTO TITOLO"])}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     );
                   })()}
