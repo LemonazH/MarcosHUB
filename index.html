@@ -86,19 +86,45 @@ const WORKER_URL = "https://creditflow-api.m-torinese99.workers.dev";
 
 /* ── D1 API — sostituisce completamente sheetsAPI ── */
 const d1API = {
-  user: null,
+  user:  null,
+  token: null,
 
   async call(path, method="GET", body=null) {
-    const opts = { method, headers: { "Content-Type": "application/json" } };
+    const headers = { "Content-Type": "application/json" };
+    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
+    const opts = { method, headers };
     if (body) opts.body = JSON.stringify({ ...body, utente: this.user });
     const r = await fetch(`${WORKER_URL}${path}`, opts);
+    if (r.status === 401) {
+      // Sessione scaduta — forza logout
+      this.clear();
+      sessionStorage.removeItem("cf_token");
+      sessionStorage.removeItem("cf_user");
+      window.location.reload();
+      return;
+    }
     const data = await r.json();
     if (!r.ok) throw new Error(data.error || "Errore API");
     return data;
   },
 
+  clear() { this.user = null; this.token = null; },
+
   async auth(username, password) {
-    return this.call("/api/auth", "POST", { username, password });
+    const data = await fetch(`${WORKER_URL}/api/auth`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+    }).then(r => r.json());
+    if (data.error) throw new Error(data.error);
+    this.user  = data.username;
+    this.token = data.token;
+    return data;
+  },
+
+  async logout() {
+    try { await this.call("/api/auth/logout", "POST"); } catch(_) {}
+    this.clear();
   },
 
   async getDashboard()    { return this.call("/api/dashboard"); },
@@ -111,15 +137,13 @@ const d1API = {
   },
   async getIncassi()       { return this.call("/api/incassi"); },
   async postIncasso(body)  { return this.call("/api/incassi", "POST", body); },
-  async getAssegni()      { return this.call("/api/assegni"); },
-  async updateAssegno(id, stato) {
-    return this.call(`/api/assegni/${id}`, "PUT", { stato, utente: this.user });
+  async getAssegni()       { return this.call("/api/assegni"); },
+  async updateAssegno(id, fields) {
+    return this.call(`/api/assegni/${id}`, "PUT", { ...fields, utente: this.user });
   },
   async getRiconciliazioni() { return this.call("/api/riconciliazioni"); },
   async postRiconciliazione(body) { return this.call("/api/riconciliazioni", "POST", body); },
   async getAudit(docId)   { return this.call(`/api/audit/documenti/${docId}`); },
-
-  // Migrazione dati da Google Sheets
   async migrate(table, rows) { return this.call("/api/migrate", "POST", { table, rows }); },
 };
 
@@ -1447,14 +1471,20 @@ function App() {
   // ── LOGIN ──
   const [authed, setAuthed] = useState(()=>{
     const u = sessionStorage.getItem("cf_user");
-    if(u){ d1API.user=u; }
+    const t = sessionStorage.getItem("cf_token");
+    if(u && t){ d1API.user=u; d1API.token=t; }
     return u||"";
   });
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginErr, setLoginErr] = useState("");
 
-  const handleLogout = () => { sessionStorage.removeItem("cf_user"); d1API.user=null; setAuthed(""); };
+  const handleLogout = async () => {
+    await d1API.logout();
+    sessionStorage.removeItem("cf_user");
+    sessionStorage.removeItem("cf_token");
+    setAuthed("");
+  };
 
   // ── APP HOOKS (devono stare SEMPRE prima di qualsiasi return) ──
   const [auth,setAuth]=useState(false);
@@ -1581,9 +1611,10 @@ function App() {
     try {
       const res = await d1API.auth(loginUser, loginPass);
       if(res.ok){
-        sessionStorage.setItem("cf_user", loginUser);
-        d1API.user = loginUser;
-        setAuthed(loginUser); setLoginErr("");
+        sessionStorage.setItem("cf_user", res.username);
+        sessionStorage.setItem("cf_token", res.token);
+        // d1API già ha user e token settati da auth()
+        setAuthed(res.username); setLoginErr("");
         loadData(); // loadData è definita sopra, funziona correttamente
       } else { setLoginErr("Utente o password non corretti"); }
     } catch(e) { setLoginErr("Errore connessione: " + e.message); }
@@ -2021,6 +2052,12 @@ function App() {
         <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff"}}>
           + Pagamento
         </button>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginLeft:8,paddingLeft:12,borderLeft:"1px solid #1e293b"}}>
+          <span style={{color:"#475569",fontSize:11}}>👤 {authed}</span>
+          <button onClick={handleLogout} style={{background:"#0f172a",border:"1px solid #1e293b",
+            color:"#64748b",borderRadius:8,padding:"5px 12px",cursor:"pointer",fontSize:11}}>
+            Esci</button>
+        </div>
       </div>
     </header>
   );
