@@ -204,7 +204,27 @@ const parseNum = s => {
   return parseFloat(str) || 0;
 };
 const eur = n => new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(parseNum(n));
-const dFmt = s => { if(!s) return "—"; const d=new Date(s); return isNaN(d)?s:d.toLocaleDateString("it-IT"); };
+// Converti qualsiasi formato data → gg/mm/aaaa (display)
+const toISO = v => {
+  if(!v) return "";
+  const s = String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);           // già ISO
+  const it = s.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{4})/);
+  if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
+  if(typeof v==="number"&&v>40000) {                                   // seriale Excel
+    const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);
+    return isNaN(d)?"":d.toISOString().slice(0,10);
+  }
+  return s;
+};
+const toIT = v => {
+  if(!v) return "—";
+  const iso = toISO(v);
+  if(!iso) return String(v);
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+};
+const dFmt = toIT; // alias per compatibilità
 const ageDays = s => (Date.now()-new Date(s))/(86400000);
 const isOver  = s => ageDays(s)>90;
 const isWarn  = s => ageDays(s)>60 && ageDays(s)<=90;
@@ -1355,7 +1375,7 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
                           padding:"1px 6px",borderRadius:4,fontSize:10}}>{d.tipo_documento}</span>
                       </td>
                       <td style={{padding:"5px 10px",color:"#f1f5f9"}}>{d.numero_documento}</td>
-                      <td style={{padding:"5px 10px",color:"#94a3b8"}}>{d.data_documento}</td>
+                      <td style={{padding:"5px 10px",color:"#94a3b8"}}>{toIT(d.data_documento)}</td>
                       <td style={{padding:"5px 10px",color:"#f1f5f9",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.ragione_sociale}</td>
                       <td style={{padding:"5px 10px",color:d.importo_totale<0?"#f87171":"#4ade80",fontFamily:"'IBM Plex Mono',monospace"}}>
                         {new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(d.importo_totale)}
@@ -2132,7 +2152,7 @@ function App() {
                             <EditCell value={doc[COL.saldoResiduo]} numeric onSave={v=>handleEdit(origIdx,COL.saldoResiduo,v)}/>
                           </td>
                           <td style={{padding:"9px 11px",color:"#64748b",fontSize:11}}>
-                            {doc[COL.dataPagamento]||"—"}
+                            {toIT(doc[COL.dataPagamento])}
                           </td>
                           <td style={{padding:"9px 11px",color:"#38bdf8",fontSize:11}}>
                             <EditCell value={doc[COL.nAssegno]||""} onSave={v=>handleEdit(origIdx,COL.nAssegno,v)}/>
@@ -2199,7 +2219,7 @@ function App() {
                       style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
                       <td style={{padding:"10px 13px",color:"#60a5fa",fontFamily:"'IBM Plex Mono',monospace",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#94a3b8",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"#94a3b8",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
                       <td style={{padding:"10px 13px",color:"#4ade80",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
                       <td style={{padding:"10px 13px",color:"#e2e8f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
                       <td style={{padding:"10px 13px",color:"#64748b",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
@@ -2255,7 +2275,7 @@ function App() {
                         style={{borderBottom:"1px solid #0f172a",background:i%2===0?"#0a0f1e":"#08111a"}}>
                         <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
                         <td style={{padding:"9px 13px",color:"#38bdf8",fontFamily:"'IBM Plex Mono',monospace",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#94a3b8",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#94a3b8",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"#4ade80",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#4ade80" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"#64748b",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
@@ -2322,7 +2342,7 @@ function App() {
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                             <div style={{display:"flex",gap:8,alignItems:"center"}}>
                               <span style={{color:"#60a5fa",fontSize:11,fontFamily:"'IBM Plex Mono',monospace",fontWeight:700}}>
-                                {row.data}
+                                {toIT(row.data)}
                               </span>
                               {row.dare>0&&<span style={{color:"#ef4444",fontSize:9}}>
                                 dare: {eur(row.dare)}
@@ -2392,7 +2412,7 @@ function App() {
                     <div style={{color:"#60a5fa",fontSize:11,marginBottom:4}}>Accredito selezionato</div>
                     <div style={{color:"#4ade80",fontSize:20,fontWeight:800,
                       fontFamily:"'IBM Plex Mono',monospace"}}>+{eur(selAccredito.avere)}</div>
-                    <div style={{color:"#94a3b8",fontSize:11,marginTop:4}}>📅 {selAccredito.data}</div>
+                    <div style={{color:"#94a3b8",fontSize:11,marginTop:4}}>📅 {toIT(selAccredito.data)}</div>
                     {selAccredito.desc&&<div style={{color:"#60a5fa",fontSize:10,marginTop:4,
                       padding:"4px 8px",background:"#0a1628",borderRadius:4,
                       wordBreak:"break-word",lineHeight:1.4}}>
@@ -2407,24 +2427,16 @@ function App() {
 
                   {/* ── Pannello assegni IN ARCHIVIO ── */}
                   {(()=>{
-                    const normDate = v => {
-                      if(!v) return "";
-                      const s = String(v).trim();
-                      if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
-                      const it = s.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{4})/);
-                      if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
-                      return s;
-                    };
-                    const dataAccreditoISO = normDate(selAccredito.data);
+                    const dataAccreditoISO = toISO(selAccredito.data);
                     const tuttiArchivio = assegni.filter(a =>
                       (a["STATO TITOLO"]||"").toUpperCase().includes("ARCHIVIO")
                     );
                     const stessaData = tuttiArchivio.filter(a =>
-                      normDate(a["DATA TITOLO"]) === dataAccreditoISO
+                      toISO(a["DATA TITOLO"]) === dataAccreditoISO
                     );
                     const altriArchivio = tuttiArchivio.filter(a =>
-                      normDate(a["DATA TITOLO"]) !== dataAccreditoISO
-                    ).sort((a,b)=>normDate(a["DATA TITOLO"]).localeCompare(normDate(b["DATA TITOLO"])));
+                      toISO(a["DATA TITOLO"]) !== dataAccreditoISO
+                    ).sort((a,b)=>toISO(a["DATA TITOLO"]).localeCompare(toISO(b["DATA TITOLO"])));
                     if(!tuttiArchivio.length) return null;
                     return (
                       <div style={{background:"#0a1220",border:"1px solid #1e3a5f",
@@ -2516,7 +2528,7 @@ function App() {
                                       </div>
                                       <div style={{display:"flex",gap:6}}>
                                         <span style={{color:"#475569",fontSize:8,fontFamily:"'IBM Plex Mono',monospace"}}>{a["N TITOLO"]}</span>
-                                        <span style={{color:"#334155",fontSize:8}}>{normDate(a["DATA TITOLO"])}</span>
+                                        <span style={{color:"#334155",fontSize:8}}>{toIT(a["DATA TITOLO"])}</span>
                                       </div>
                                     </div>
                                     <span style={{color:"#fb923c",fontSize:10,fontWeight:700,
@@ -2721,7 +2733,7 @@ function App() {
                             {tipo}
                           </span>
                         </td>
-                        <td style={{padding:"10px 14px",color:"#94a3b8",fontSize:12}}>{data}</td>
+                        <td style={{padding:"10px 14px",color:"#94a3b8",fontSize:12}}>{toIT(data)}</td>
                         <td style={{padding:"10px 14px",color:"#4ade80",fontWeight:700,
                           fontFamily:"'IBM Plex Mono',monospace",fontSize:13}}>
                           {accredito?eur(accredito):"—"}
@@ -2796,7 +2808,7 @@ function App() {
                   </div>
                   <div style={{color:"#4ade80",fontSize:20,fontWeight:800,
                     fontFamily:"'IBM Plex Mono',monospace"}}>{accredito?eur(accredito):"—"}</div>
-                  <div style={{color:"#94a3b8",fontSize:11,marginTop:2}}>📅 {data}</div>
+                  <div style={{color:"#94a3b8",fontSize:11,marginTop:2}}>📅 {toIT(data)}</div>
                   {desc&&desc!=="—"&&<div style={{color:"#64748b",fontSize:10,marginTop:4,
                     maxWidth:400,lineHeight:1.4}}>{desc}</div>}
                 </div>
@@ -2868,7 +2880,7 @@ function App() {
                           </div>
                         </div>
                         <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                          <span style={{color:"#64748b",fontSize:9}}>Data: {a["DATA TITOLO"]}</span>
+                          <span style={{color:"#64748b",fontSize:9}}>Data: {toIT(a["DATA TITOLO"])}</span>
                           {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>
                             Fatt: {fmtDocList(a["FATTURE PAGATE"])}
                           </span>}
