@@ -344,6 +344,8 @@ function Badge({label}) {
     APERTO:{bg:"#1a3a2a",c:"#4ade80"},
     Chiuso:{bg:"#1e293b",c:"#64748b"},
     CHIUSO:{bg:"#1e293b",c:"#64748b"},
+    "DA INCASSARE":{bg:"#2d1f0a",c:"#fb923c"},
+    PARZIALE:{bg:"#2a2010",c:"#fbbf24"},
     Bonifico:{bg:"#1a2f4a",c:"#38bdf8"},
     "Assegno Postdatato":{bg:"#3a2a1a",c:"#fb923c"},
   };
@@ -397,8 +399,15 @@ function CashChart({assegni}) {
   };
 
   const todayKey = new Date().toISOString().slice(0,10);
+  const toleranceDays = 4;
+  const toleranceMs   = toleranceDays * 86400000;
+  const isInTolerance = k => {
+    const diff = new Date(k+"T00:00:00") - new Date(todayKey+"T00:00:00");
+    return diff < 0 && diff >= -toleranceMs;
+  };
   const cutoffDate = new Date(); cutoffDate.setDate(cutoffDate.getDate()+45);
   const cutoffKey = cutoffDate.toISOString().slice(0,10);
+  const barColor = k => isInTolerance(k) ? '#fb923c' : (k===todayKey ? '#60a5fa' : '#4ade80');
 
   // Raggruppa SOLO assegni IN ARCHIVIO per data titolo esatta
   const byDay = {};
@@ -472,6 +481,10 @@ function CashChart({assegni}) {
             <stop offset="0%"   stopColor="#4ade80"/>
             <stop offset="100%" stopColor="#16a34a"/>
           </linearGradient>
+          <linearGradient id="bGt" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stopColor="#fb923c" stopOpacity="0.9"/>
+            <stop offset="100%" stopColor="#7c2d12" stopOpacity="0.7"/>
+          </linearGradient>
           <filter id="glow">
             <feGaussianBlur stdDeviation="2" result="blur"/>
             <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
@@ -505,11 +518,15 @@ function CashChart({assegni}) {
               {isHov && <rect x={x - gap*0.15} y={P.t} width={barW + gap*0.3} height={iH}
                 rx={3} fill="#22c55e" opacity={0.07}/>}
 
-              {/* barra */}
-              <rect x={x} y={y} width={barW} height={h} rx={3}
-                fill={isHov ? "url(#bGh)" : "url(#bG)"}
-                filter={isHov ? "url(#glow)" : ""}
-                opacity={isHov ? 1 : 0.8}/>
+              {/* barra — arancione se in tolleranza (già passata ≤4gg fa) */}
+              {(() => {
+                const inTol = isInTolerance(k);
+                const grad  = isHov ? (inTol ? "url(#bGt)" : "url(#bGh)") : (inTol ? "url(#bGt)" : "url(#bG)");
+                return <rect x={x} y={y} width={barW} height={h} rx={3}
+                  fill={grad}
+                  filter={isHov ? "url(#glow)" : ""}
+                  opacity={isHov ? 1 : 0.8}/>;
+              })()}
 
               {/* pallino multi-assegno */}
               {nA > 1 && (
@@ -525,6 +542,10 @@ function CashChart({assegni}) {
               {/* linea oggi */}
               {isToday && <line x1={x+barW/2} x2={x+barW/2} y1={P.t} y2={P.t+iH}
                 stroke="#818cf8" strokeWidth={1} strokeDasharray="3,3" opacity={0.5}/>}
+
+              {/* indicatore tolleranza */}
+              {isInTolerance(k) && <line x1={x+barW/2} x2={x+barW/2} y1={y} y2={y+h}
+                stroke="#fbbf24" strokeWidth={1} strokeDasharray="2,2" opacity={0.6}/>}
 
               {/* label asse X */}
               {(i % labelStep === 0 || n <= 15) && (
@@ -1030,8 +1051,9 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   {rows.map((row,i)=>{
                     const isNac = row.doc[COL.tipoDocumento]==="NAC";
                     const saldo = parseNum(row.doc[COL.saldoResiduo]);
-                    const ov = isOver(row.doc[COL.dataDocumento]);
-                    const wr = isWarn(row.doc[COL.dataDocumento]);
+                    const statoDoc = row.doc[COL.stato]?.toUpperCase();
+                    const ov = statoDoc==="APERTO" && isOver(row.doc[COL.dataDocumento]);
+                    const wr = statoDoc==="APERTO" && isWarn(row.doc[COL.dataDocumento]);
                     return (
                       <tr key={i} style={{borderBottom:"1px solid #0a0f1e",cursor:"pointer",
                         background:isNac?(row.checked?"#1a0f2e":"#0f0a1a"):(row.checked?"#0a1628":"#070c18"),
@@ -1186,7 +1208,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               <div style={{background:"#0a1225",border:"1px solid #6366f133",borderRadius:8,
                 padding:"10px 14px",marginBottom:16,fontSize:11,color:"#94a3b8"}}>
                 🗂️ Verrà registrato nel <strong style={{color:"#a5b4fc"}}>Registro Assegni</strong>{" "}
-                con stato <strong style={{color:"#fbbf24"}}>IN ARCHIVIO</strong>
+                con stato <strong style={{color:"#fb923c"}}>IN ARCHIVIO</strong> e le fatture collegate andranno in <strong style={{color:"#fb923c"}}>DA INCASSARE</strong> fino alla riconciliazione bancaria
               </div>
             )}
 
@@ -2135,7 +2157,7 @@ function App() {
               <input value={search} onChange={e=>setSearch(e.target.value)}
                 placeholder="🔍 Cerca..." style={{...S.input,width:220}}/>
               <select value={fState} onChange={e=>setFState(e.target.value)} style={{...S.input,width:130}}>
-                {["Tutti","APERTO","CHIUSO"].map(o=><option key={o}>{o}</option>)}
+                {["Tutti","APERTO","DA INCASSARE","CHIUSO","PARZIALE"].map(o=><option key={o}>{o}</option>)}
               </select>
               <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:110}}>
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
@@ -2165,6 +2187,7 @@ function App() {
                     {docSorted.map((doc,i)=>{
                       const ov=doc[COL.stato]?.toUpperCase()==="APERTO"&&isOver(doc[COL.dataDocumento]);
                       const wn=doc[COL.stato]?.toUpperCase()==="APERTO"&&isWarn(doc[COL.dataDocumento]);
+                      const di=doc[COL.stato]==="DA INCASSARE";
                       const origIdx=docs.indexOf(doc);
                       const base=ov?"#0f0808":wn?"#0f0d06":i%2===0?"#0a0f1e":"#08111a";
                       return (
@@ -2199,7 +2222,7 @@ function App() {
                           </td>
                           {/* Stato — cliccabile se PAGATO per riaprire */}
                           <td style={{padding:"9px 11px"}}>
-                            {(doc[COL.stato]==="PAGATO"||doc[COL.stato]==="PARZIALE") ? (
+                            {(doc[COL.stato]==="PAGATO"||doc[COL.stato]==="PARZIALE"||doc[COL.stato]==="CHIUSO"||doc[COL.stato]==="DA INCASSARE") ? (
                               <span
                                 title="Clicca per riaprire il documento"
                                 onClick={async()=>{
@@ -2880,7 +2903,7 @@ function App() {
                             </div>}
                           </div>
                           {doc&&<div style={{textAlign:"right"}}>
-                            <div style={{color: doc[COL.stato]==="PAGATO"?"#4ade80":"#fb923c",
+                            <div style={{color: doc[COL.stato]==="CHIUSO"||doc[COL.stato]==="PAGATO"?"#4ade80":doc[COL.stato]==="DA INCASSARE"?"#fb923c":"#94a3b8",
                               fontSize:11,fontWeight:700}}>{doc[COL.stato]}</div>
                             <div style={{color:"#64748b",fontSize:10}}>
                               saldo: {eur(doc[COL.saldoResiduo])}
