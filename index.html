@@ -1907,8 +1907,8 @@ function App() {
     const colCausale = findCol("causale","descrizione causale","descri");
     const colDescAdd = findCol("aggiunt","descrizioni aggiunt","note aggiunt");
 
-    // Priorità data: Valuta > Contabile > generica
-    const colData = colDataV >= 0 ? colDataV : colDataC >= 0 ? colDataC : colDataGen;
+    // Priorità data: Contabile (col A) > Valuta (col B) > generica
+    const colData = colDataC >= 0 ? colDataC : colDataV >= 0 ? colDataV : colDataGen;
 
     console.log("Colonne:", {colData,colAvere,colDare,colImporto,colCausale,colDescAdd});
 
