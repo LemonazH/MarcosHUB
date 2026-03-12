@@ -2138,7 +2138,26 @@ function App() {
                           <td style={{padding:"9px 11px",color:"#64748b",fontSize:11,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                             <EditCell value={doc[COL.note]||""} onSave={v=>handleEdit(origIdx,COL.note,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px"}}><Badge label={doc[COL.stato]}/></td>
+                          {/* Stato — cliccabile se PAGATO per riaprire */}
+                          <td style={{padding:"9px 11px"}}>
+                            {(doc[COL.stato]==="PAGATO"||doc[COL.stato]==="PARZIALE") ? (
+                              <span
+                                title="Clicca per riaprire il documento"
+                                onClick={async()=>{
+                                  if(!window.confirm(`Riaprire il documento ${doc[COL.numeroDocumento]}?\nLo stato tornerà APERTO e il saldo verrà ripristinato all'importo originale.`)) return;
+                                  const imp = parseNum(doc[COL.importoDocumento]);
+                                  await handleEdit(origIdx, COL.saldoResiduo, String(imp));
+                                  await handleEdit(origIdx, COL.stato, "APERTO");
+                                  notify("Documento riaperto ✓","success");
+                                }}
+                                style={{cursor:"pointer",display:"inline-block"}}>
+                                <Badge label={doc[COL.stato]}/>
+                                <span style={{display:"block",fontSize:8,color:"#475569",textAlign:"center",marginTop:1}}>clicca x riaprire</span>
+                              </span>
+                            ) : (
+                              <Badge label={doc[COL.stato]}/>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -2367,6 +2386,65 @@ function App() {
                       {selAccredito.descAdd}
                     </div>}
                   </div>
+
+                  {/* ── Assegni con stessa data accredito ── */}
+                  {selAccredito&&(()=>{
+                    const stessaData = assegni.filter(a =>
+                      a["DATA TITOLO"]===selAccredito.data &&
+                      (a["STATO TITOLO"]||"").toUpperCase().includes("ARCHIVIO")
+                    );
+                    if(!stessaData.length) return null;
+                    return (
+                      <div style={{background:"#0a1628",border:"1px solid #1e3a5f",
+                        borderRadius:10,padding:"10px 12px",marginBottom:12}}>
+                        <div style={{color:"#fb923c",fontSize:10,fontWeight:700,
+                          marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                          📋 {stessaData.length} assegno{stessaData.length>1?"i":""} in scadenza oggi
+                          <span style={{color:"#475569",fontWeight:400}}>({selAccredito.data})</span>
+                        </div>
+                        {stessaData.map((a,j)=>(
+                          <div key={j} style={{borderTop:j>0?"1px solid #1e293b":"none",
+                            paddingTop:j>0?6:0,marginTop:j>0?6:0}}>
+                            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                              <div>
+                                <div style={{color:"#e2e8f0",fontSize:10,fontWeight:600,
+                                  whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:140}}>
+                                  {a["CLIENTE"]}
+                                </div>
+                                <div style={{color:"#38bdf8",fontSize:9,
+                                  fontFamily:"'IBM Plex Mono',monospace"}}>
+                                  {a["N TITOLO"]}
+                                </div>
+                              </div>
+                              <span style={{color:"#4ade80",fontSize:11,
+                                fontWeight:800,fontFamily:"'IBM Plex Mono',monospace",
+                                whiteSpace:"nowrap"}}>
+                                {eur(a["IMPORTO TITOLO"])}
+                              </span>
+                            </div>
+                            {(a["FATTURE PAGATE"]||a["NC SCALATE"])&&(
+                              <div style={{display:"flex",gap:8,marginTop:3,flexWrap:"wrap"}}>
+                                {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>
+                                  Fatt: {fmtDocList(a["FATTURE PAGATE"])}
+                                </span>}
+                                {a["NC SCALATE"]&&<span style={{color:"#c084fc",fontSize:9}}>
+                                  NC: {fmtDocList(a["NC SCALATE"])}
+                                </span>}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                        <div style={{borderTop:"1px solid #1e3a5f",marginTop:8,paddingTop:6,
+                          display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                          <span style={{color:"#64748b",fontSize:9}}>Totale assegni</span>
+                          <span style={{color:"#fb923c",fontSize:12,fontWeight:800,
+                            fontFamily:"'IBM Plex Mono',monospace"}}>
+                            {eur(stessaData.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {/* Totale allocato */}
                   {Object.keys(recoSel).length>0&&(()=>{
