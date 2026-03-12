@@ -1497,6 +1497,7 @@ function App() {
     if(u && t){ d1API.user=u; d1API.token=t; }
     return u||"";
   });
+  const isAdmin = sessionStorage.getItem("cf_ruolo")==="admin" || authed==="Marco";
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginErr, setLoginErr] = useState("");
@@ -1646,6 +1647,7 @@ function App() {
       if(res.ok){
         sessionStorage.setItem("cf_user", res.username);
         sessionStorage.setItem("cf_token", res.token);
+        sessionStorage.setItem("cf_ruolo", res.ruolo||"operatore");
         // d1API già ha user e token settati da auth()
         setAuthed(res.username); setLoginErr("");
         loadData(); // loadData è definita sopra, funziona correttamente
@@ -2907,13 +2909,18 @@ function App() {
                         border:`1px solid ${Math.abs(diff)<0.01?"#22c55e":"#fb923c"}`,
                         borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11}}>
                         <div style={{display:"flex",justifyContent:"space-between"}}>
-                          <span style={{color:"#475569"}}>Allocato:</span>
-                          <span style={{color:"#f1f5f9",fontWeight:700}}>{eur(tot)}</span>
+                          <span style={{color:"#475569"}}>Accredito:</span>
+                          <span style={{color:"#4ade80",fontWeight:700}}>+{eur(totAcc)}</span>
                         </div>
                         <div style={{display:"flex",justifyContent:"space-between",marginTop:3}}>
+                          <span style={{color:"#475569"}}>Allocato fatture:</span>
+                          <span style={{color:"#f1f5f9",fontWeight:700}}>{eur(tot)}</span>
+                        </div>
+                        <div style={{display:"flex",justifyContent:"space-between",
+                          marginTop:3,paddingTop:3,borderTop:"1px solid #1e293b"}}>
                           <span style={{color:"#475569"}}>Residuo:</span>
-                          <span style={{color:Math.abs(diff)<0.01?"#22c55e":"#fb923c",fontWeight:700}}>
-                            {eur(Math.abs(diff))} {Math.abs(diff)<0.01?"✓":""}
+                          <span style={{color:Math.abs(diff)<0.01?"#22c55e":diff<0?"#ef4444":"#fb923c",fontWeight:700}}>
+                            {diff<0?"ECCEDE "+eur(-diff):eur(diff)} {Math.abs(diff)<0.01?"✓":""}
                           </span>
                         </div>
                       </div>
@@ -2928,12 +2935,13 @@ function App() {
                   {/* Lista fatture abbinabili */}
                   <div style={{maxHeight:320,overflowY:"auto",marginBottom:12}}>
                     {(()=>{
-                    const allOpen = docs.filter(d=>d[COL.stato]?.toUpperCase()==="APERTO")
+                    const totAcc = [selAccredito,...selAccrediti].reduce((s,a)=>s+a.avere,0);
+                    const allOpen = docs.filter(d=>["APERTO","DA INCASSARE"].includes(d[COL.stato]?.toUpperCase()))
                       .filter(d=>!recoSearch||
                         d[COL.ragioneSociale]?.toLowerCase().includes(recoSearch.toLowerCase())||
                         d[COL.numeroDocumento]?.includes(recoSearch));
                     const fves = allOpen.filter(d=>d[COL.tipoDocumento]==="FVE")
-                      .sort((a,b)=>Math.abs(parseNum(a[COL.saldoResiduo])-selAccredito.avere)-Math.abs(parseNum(b[COL.saldoResiduo])-selAccredito.avere))
+                      .sort((a,b)=>Math.abs(parseNum(a[COL.saldoResiduo])-totAcc)-Math.abs(parseNum(b[COL.saldoResiduo])-totAcc))
                       .slice(0,20);
                     const nacs = allOpen.filter(d=>d[COL.tipoDocumento]==="NAC");
 
@@ -2942,7 +2950,7 @@ function App() {
                       const checked = num in recoSel;
                       const saldo = parseNum(doc[COL.saldoResiduo]);
                       const isNac = doc[COL.tipoDocumento]==="NAC";
-                      const match = !isNac && Math.abs(saldo-selAccredito.avere)<0.01;
+                      const match = !isNac && Math.abs(saldo-totAcc)<0.01;
                       return (
                         <div key={`${prefix}-${num}`} style={{
                           border:`1px solid ${checked?(isNac?"#a855f7":"#3b82f6"):match?"#22c55e33":isNac?"#581c8733":"#1e293b"}`,
@@ -3163,9 +3171,28 @@ function App() {
                   {desc&&desc!=="—"&&<div style={{color:"#64748b",fontSize:10,marginTop:4,
                     maxWidth:400,lineHeight:1.4}}>{desc}</div>}
                 </div>
-                <button onClick={()=>setStoricoPopup(null)}
-                  style={{background:"#1e293b",border:"none",color:"#94a3b8",
-                    borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  {isAdmin&&(
+                    <button onClick={async()=>{
+                      if(!window.confirm(`Eliminare la riconciliazione ${id}?\nI saldi dei documenti collegati verranno ripristinati.`)) return;
+                      try {
+                        const res = await d1API.deleteRiconciliazione(id);
+                        setStoricoPopup(null);
+                        setRiconciliazioni(p=>p.filter(r=>r.id!==id));
+                        notify(`Riconciliazione eliminata — ${res.ripristinati||0} documenti ripristinati.`,"success");
+                        loadData();
+                      } catch(e) { notify("Errore: "+e.message,"error"); }
+                    }}
+                    style={{background:"#1a0a0a",border:"1px solid #7f1d1d",color:"#ef4444",
+                      borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:700,
+                      display:"flex",alignItems:"center",gap:5}}>
+                      🗑 Elimina
+                    </button>
+                  )}
+                  <button onClick={()=>setStoricoPopup(null)}
+                    style={{background:"#1e293b",border:"none",color:"#94a3b8",
+                      borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
+                </div>
               </div>
 
               <div style={{overflowY:"auto",flex:1,padding:"16px 20px"}}>
