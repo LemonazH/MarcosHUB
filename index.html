@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CreditFlow — Gestione Crediti & Cash Flow</title>
+  <title>CreditFlow v3.1-sidebar — Gestione Crediti</title>
 
   <!-- ═══════════════════════════════════════════════════════
        ✏️  CONFIGURA QUI PRIMA DI APRIRE
@@ -2515,10 +2515,10 @@ function App() {
                 <div style={{color:"#22c55e",fontSize:12,textAlign:"center",padding:24,gridColumn:"1/-1"}}>
                   ✓ Nessun documento in scadenza critica
                 </div>
+          </div>
               )}
               </div>
             </div>
-          </div>
         )}
 
         {/* DOCUMENTI */}
@@ -2609,6 +2609,7 @@ function App() {
                               </span>
                             ) : (
                               <Badge label={doc[COL.stato]}/>
+          </div>
                             )}
                           </td>
                         </tr>
@@ -2618,7 +2619,6 @@ function App() {
                 </table>
               </div>
             </div>
-          </div>
         )}
 
         {/* INCASSI */}
@@ -3277,6 +3277,7 @@ function App() {
                 </div>
               )}
             </div>
+          </div>
           </div>
         )}
 
