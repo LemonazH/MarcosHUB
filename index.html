@@ -1004,6 +1004,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 
   // Dati assegno
   const [nAssegno,setNAssegno]=useState("");
+  const [importoAssegno,setImportoAssegno]=useState(""); // importo fisico scritto sull'assegno
   const [dataTitolo,setDataTitolo]=useState(""); // data scritta sul titolo
   const [dataIncasso,setDataIncasso]=useState(""); // primo giorno lavorativo >= dataTitolo
 
@@ -1090,8 +1091,10 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 
     const nacNums = nacSel.map(r=>r.doc[COL.numeroDocumento]).join(", ");
     const fveNums = fveSel.map(r=>r.doc[COL.numeroDocumento]).join(", ");
+    const impAss = tipo==="assegno"?(parseFloat(importoAssegno)||0):0;
+    const scartoNote = impAss>0&&Math.abs(impAss-netto)>0.005?` | ASS: ${eur(impAss)}`:"" ;
     const noteBase = tipo==="assegno"
-      ? `DA INCASSARE ${fmtIso(dataEff)}${nacNums?` | NAC: ${nacNums}`:""}`
+      ? `DA INCASSARE ${fmtIso(dataEff)}${nacNums?` | NAC: ${nacNums}`:""}${scartoNote}`
       : `DA INCASSARE BONIF ${fmtIso(dataEff)}${nacNums?` | NAC: ${nacNums}`:""}`;
 
     const pred = {
@@ -1107,6 +1110,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     await onSave({
       method: tipo==="assegno"?"ASSEGNO":"BONIFICO",
       amount: netto,
+      importoAssegno: tipo==="assegno"?(parseFloat(importoAssegno)||0):0,
       cid, date: dataEff, notes: noteBase,
       nAssegno: tipo==="assegno"?nAssegno:"",
       dataTitolo: tipo==="assegno"?dataTitolo:"",
@@ -1122,8 +1126,8 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     padding:"9px 12px",color:"var(--text-1)",fontSize:13,fontFamily:"var(--font)",
     width:"100%",outline:"none"};
   const card = (active,accent="#6366f1") => ({
-    border:`2px solid ${active?accent:"#e2e8f0"}`,borderRadius:12,padding:"18px 20px",
-    cursor:"pointer",background:active?`${accent}11`:"var(--raised)",
+    border:`2px solid ${active?accent:"var(--border)"}`,borderRadius:12,padding:"18px 20px",
+    cursor:"pointer",background:active?`${accent}18`:"var(--raised)",
     transition:"all .15s",textAlign:"center",flex:1,
   });
 
@@ -1142,7 +1146,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             <div style={{color:"var(--text-1)",fontSize:15,fontWeight:700}}>⟁ Registra Incasso</div>
             <div style={{display:"flex",gap:16,marginTop:6}}>
               {["Tipo & Cliente","Abbina Documenti","Conferma"].map((lbl,i)=>(
-                <span key={i} style={{fontSize:10,color:step===i+1?"#6366f1":"var(--bg)",
+                <span key={i} style={{fontSize:10,color:step===i+1?"var(--accent)":"var(--text-3)",
                   fontWeight:step===i+1?700:400}}>
                   {step===i+1?"● ":""}{i+1}. {lbl}
                 </span>
@@ -1184,7 +1188,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 <div style={{color:"var(--text-2)",fontSize:11,marginBottom:12,fontWeight:700,letterSpacing:1}}>
                   DATI ASSEGNO
                 </div>
-                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
                   <div>
                     <label style={{color:"var(--text-2)",fontSize:11,display:"block",marginBottom:5}}>
                       Numero Assegno
@@ -1202,6 +1206,17 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                         setDataIncasso(primoGiornoLavorativo(e.target.value));
                       }}
                       style={inp}/>
+                  </div>
+                  <div>
+                    <label style={{color:"var(--text-2)",fontSize:11,display:"block",marginBottom:5}}>
+                      Importo Assegno <span style={{color:"var(--warn)",fontSize:9}}>€</span>
+                    </label>
+                    <input type="number" value={importoAssegno}
+                      onChange={e=>setImportoAssegno(e.target.value)}
+                      placeholder="0,00" step="0.01" min="0"
+                      style={{...inp,fontFamily:"var(--mono)",fontWeight:600,
+                        color:importoAssegno?"var(--success)":"var(--text-3)",
+                        border:importoAssegno?"1px solid var(--success)":"1px solid var(--border)"}}/>
                   </div>
                 </div>
                 {dataTitolo&&(
@@ -1273,7 +1288,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                       maxHeight:200,overflowY:"auto",boxShadow:"0 8px 24px #000a"}}>
                       {filteredClients.slice(0,10).map(c=>(
                         <div key={c.id} onClick={()=>selectClient(c.id,c.name)}
-                          style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid #f4f6ff"}}
+                          style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid var(--border-2)"}}
                           className="row-hover">
                           <div style={{color:"var(--text-1)",fontSize:12}}>{c.name}</div>
                           <div style={{color:"var(--text-2)",fontSize:10}}>cod. {c.id}</div>
@@ -1298,9 +1313,9 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               <button
                 disabled={!tipo||!cid||(tipo==="assegno"&&!dataIncasso)||(tipo==="bonifico"&&!dataBonifico)}
                 onClick={()=>setStep(2)}
-                style={{background:tipo&&cid?"linear-gradient(135deg,#4f46e5,#7c3aed)":"#e2e8f0",
+                style={{background:tipo&&cid?"var(--accent)":"var(--raised)",
                   border:"none",borderRadius:"var(--radius-s)",padding:"10px 24px",
-                  color:tipo&&cid?"#fff":"#475569",cursor:tipo&&cid?"pointer":"not-allowed",
+                  color:tipo&&cid?"#fff":"var(--text-3)",cursor:tipo&&cid?"pointer":"not-allowed",
                   fontSize:13,fontWeight:700}}>
                 Avanti → Abbina Documenti
               </button>
@@ -1313,7 +1328,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
           <>
             {/* Riepilogo testata */}
             <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,
-              padding:"12px 16px",marginBottom:18,display:"flex",gap:20,flexWrap:"wrap"}}>
+              padding:"12px 16px",marginBottom:18,display:"flex",gap:20,flexWrap:"wrap",alignItems:"center"}}>
               <div>
                 <div style={{color:"var(--text-2)",fontSize:10}}>Cliente</div>
                 <div style={{color:"var(--text-1)",fontSize:13,fontWeight:700}}>{clientName}</div>
@@ -1324,26 +1339,92 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   {tipo==="assegno"?`🏷️ Assegno ${nAssegno}`:"🏦 Bonifico"}
                 </div>
               </div>
+              {tipo==="assegno"&&parseFloat(importoAssegno)>0&&(
+                <div style={{background:"var(--raised)",borderRadius:"var(--radius-s)",padding:"6px 12px",
+                  border:"1px solid var(--border)"}}>
+                  <div style={{color:"var(--text-2)",fontSize:10}}>Importo assegno</div>
+                  <div style={{color:"var(--success)",fontSize:14,fontWeight:700,fontFamily:"var(--mono)"}}>
+                    {eur(parseFloat(importoAssegno))}
+                  </div>
+                </div>
+              )}
               <div>
                 <div style={{color:"var(--text-2)",fontSize:10}}>Data incasso previsto</div>
                 <div style={{color:"var(--success)",fontSize:13,fontWeight:700}}>{fmtIso(dataEff)}</div>
               </div>
             </div>
 
-            {/* Contatori live */}
-            <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:18}}>
-              {[
-                {lbl:"FVE selezionate",val:eur(totFve),c:"#4ade80"},
-                {lbl:"NAC scalate",val:eur(totNac),c:"#c084fc"},
-                {lbl:"Netto da incassare",val:eur(netto),c:"#38bdf8"},
-              ].map(({lbl,val,c})=>(
-                <div key={lbl} style={{background:"var(--bg)",border:"1px solid var(--border)",
-                  borderRadius:"var(--radius-s)",padding:"10px 14px",textAlign:"center"}}>
-                  <div style={{color:"var(--text-2)",fontSize:10,marginBottom:4}}>{lbl}</div>
-                  <div style={{color:c,fontSize:15,fontWeight:700}}>{val}</div>
-                </div>
-              ))}
-            </div>
+            {/* Widget importo assegno + contatori live */}
+            {(()=>{
+              const impAss = parseFloat(importoAssegno)||0;
+              const scarto = impAss>0 ? impAss - netto : 0;
+              const scartoPerc = impAss>0 ? (scarto/impAss)*100 : 0;
+              const overLimit = Math.abs(scartoPerc)>5; // >5% è anomalo
+              const scartoColor = scarto<-0.005 ? "var(--danger)" : scarto>0.005 ? "var(--warn)" : "var(--success)";
+              const barPct = impAss>0 ? Math.min(100,(netto/impAss)*100) : 0;
+              return (
+                <>
+                  {/* Barra confronto — solo se importo assegno inserito */}
+                  {impAss>0&&(
+                    <div style={{background:"var(--raised)",border:"1px solid var(--border)",
+                      borderRadius:"var(--radius-s)",padding:"12px 16px",marginBottom:14}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline",marginBottom:8}}>
+                        <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:".8px",textTransform:"uppercase"}}>
+                          Copertura assegno
+                        </span>
+                        <span style={{display:"flex",gap:16,alignItems:"baseline"}}>
+                          <span style={{color:"var(--text-2)",fontSize:10}}>
+                            Assegno: <span style={{color:"var(--text-1)",fontFamily:"var(--mono)",fontWeight:600}}>{eur(impAss)}</span>
+                          </span>
+                          <span style={{color:"var(--text-2)",fontSize:10}}>
+                            Netto selezione: <span style={{color:"#38bdf8",fontFamily:"var(--mono)",fontWeight:600}}>{eur(netto)}</span>
+                          </span>
+                        </span>
+                      </div>
+                      {/* Barra progresso */}
+                      <div style={{height:6,background:"var(--border)",borderRadius:3,marginBottom:8,overflow:"hidden"}}>
+                        <div style={{height:"100%",width:`${barPct}%`,
+                          background:overLimit?"var(--danger)":scarto<-0.005?"var(--danger)":scarto>0.005?"#38bdf8":"var(--success)",
+                          borderRadius:3,transition:"width .3s ease"}}/>
+                      </div>
+                      {/* Scarto */}
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <div style={{fontSize:10,color:scartoColor,fontWeight:600}}>
+                          {Math.abs(scarto)<0.005
+                            ? "✓ Corrisponde esattamente"
+                            : scarto>0
+                              ? `↑ Assegno eccede di ${eur(scarto)} (${scartoPerc.toFixed(1)}%) — arrotondamento`
+                              : `↓ Assegno non copre: mancano ${eur(Math.abs(scarto))}`
+                          }
+                        </div>
+                        {overLimit&&(
+                          <span style={{fontSize:9,color:"var(--warn)",background:"var(--warn-s)",
+                            padding:"2px 8px",borderRadius:20,fontWeight:600}}>
+                            scarto {'>'} 5% — verificare
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Contatori live */}
+                  <div style={{display:"grid",gridTemplateColumns:impAss>0?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:18}}>
+                    {[
+                      {lbl:"FVE selezionate",val:eur(totFve),c:"#4ade80"},
+                      {lbl:"NAC scalate",     val:eur(totNac),c:"#c084fc"},
+                      {lbl:"Netto",           val:eur(netto), c:"#38bdf8"},
+                      ...(impAss>0?[{lbl:"Assegno",val:eur(impAss),c:scartoColor}]:[]),
+                    ].map(({lbl,val,c:col})=>(
+                      <div key={lbl} style={{background:"var(--bg)",border:"1px solid var(--border)",
+                        borderRadius:"var(--radius-s)",padding:"10px 14px",textAlign:"center"}}>
+                        <div style={{color:"var(--text-2)",fontSize:10,marginBottom:4}}>{lbl}</div>
+                        <div style={{color:col,fontSize:15,fontWeight:700,fontFamily:"var(--mono)"}}>{val}</div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
 
             {/* Tabella partitario */}
             <div style={{border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",marginBottom:20}}>
@@ -1427,9 +1508,9 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               <button disabled={!rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")}
                 onClick={()=>setStep(3)}
                 style={{background:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")
-                  ?"linear-gradient(135deg,#059669,#10b981)":"#e2e8f0",
+                  ?"var(--success)":"var(--raised)",
                   border:"none",borderRadius:"var(--radius-s)",padding:"10px 24px",
-                  color:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")?"#fff":"#475569",
+                  color:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")?"#fff":"var(--text-3)",
                   cursor:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")?"pointer":"not-allowed",
                   fontSize:13,fontWeight:700}}>
                 Avanti → Conferma
@@ -1442,7 +1523,53 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
         {step===3&&(
           <>
             <div style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",
-              marginBottom:16,letterSpacing:1}}>◈ RIEPILOGO OPERAZIONE</div>
+              marginBottom:16}}>◈ RIEPILOGO OPERAZIONE</div>
+            {/* Riepilogo importo assegno e scarto — solo se tipo assegno e importo inserito */}
+            {tipo==="assegno"&&parseFloat(importoAssegno)>0&&(()=>{
+              const impAss = parseFloat(importoAssegno);
+              const scarto = impAss - netto;
+              const overLimit = Math.abs(scarto/impAss)*100 > 5;
+              return (
+                <div style={{background:"var(--raised)",border:`1px solid ${overLimit?"var(--warn)":"var(--border)"}`,
+                  borderRadius:"var(--radius-s)",padding:"12px 16px",marginBottom:16,
+                  display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{display:"flex",gap:24,alignItems:"center"}}>
+                    <div>
+                      <div style={{color:"var(--text-2)",fontSize:10,marginBottom:2}}>Importo assegno</div>
+                      <div style={{color:"var(--success)",fontFamily:"var(--mono)",fontSize:15,fontWeight:700}}>
+                        {eur(impAss)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{color:"var(--text-2)",fontSize:10,marginBottom:2}}>Netto documenti</div>
+                      <div style={{color:"#38bdf8",fontFamily:"var(--mono)",fontSize:15,fontWeight:700}}>
+                        {eur(netto)}
+                      </div>
+                    </div>
+                    {Math.abs(scarto)>0.005&&(
+                      <div>
+                        <div style={{color:"var(--text-2)",fontSize:10,marginBottom:2}}>Scarto</div>
+                        <div style={{color:overLimit?"var(--danger)":"var(--warn)",fontFamily:"var(--mono)",
+                          fontSize:15,fontWeight:700}}>
+                          {scarto>0?"+":""}{eur(scarto)}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{fontSize:10,color:overLimit?"var(--warn)":"var(--text-2)",
+                    background:overLimit?"var(--warn-s)":"var(--bg)",
+                    border:`1px solid ${overLimit?"var(--warn)":"var(--border)"}`,
+                    padding:"4px 10px",borderRadius:20,fontWeight:600}}>
+                    {Math.abs(scarto)<0.005
+                      ? "✓ Esatto"
+                      : overLimit
+                        ? `⚠ scarto ${((scarto/impAss)*100).toFixed(1)}%`
+                        : `arrotondamento ${((scarto/impAss)*100).toFixed(2)}%`
+                    }
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Card riepilogo */}
             <div style={{background:"var(--bg)",border:"1px solid var(--border)",
@@ -3437,7 +3564,7 @@ function App() {
                     disabled={recoSaving||Object.keys(recoSel).length===0}
                     style={{width:"100%",
                       background:Object.keys(recoSel).length>0
-                        ?"linear-gradient(135deg,#059669,#10b981)":"#e2e8f0",
+                        ?"var(--success)":"var(--raised)",
                       color:Object.keys(recoSel).length>0?"#fff":"#475569",
                       border:"none",borderRadius:10,padding:"12px",fontSize:13,fontWeight:700,
                       cursor:Object.keys(recoSel).length>0?"pointer":"not-allowed",
