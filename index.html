@@ -1509,15 +1509,13 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     const statoDoc = row.doc[COL.stato]?.toUpperCase();
                     const ov = statoDoc==="APERTO" && isOver(row.doc[COL.dataDocumento]);
                     const wr = statoDoc==="APERTO" && isWarn(row.doc[COL.dataDocumento]);
+                    const isAbbinata = !isNac && row.doc[COL.nAssegno];
+                    const bgRow = isNac
+                      ? (row.checked?"#1a0f2a":"var(--surface)")
+                      : isAbbinata
+                        ? "var(--surface)"
+                        : (row.checked?"#0a1f0f":"var(--raised)");
                     return (
-                      {(()=>{
-                        const isAbbinata = !isNac && row.doc[COL.nAssegno];
-                        const bgRow = isNac
-                          ? (row.checked?"#1a0f2a":"var(--surface)")
-                          : isAbbinata
-                            ? "var(--surface)"
-                            : (row.checked?"#0a1f0f":"var(--raised)");
-                        return (
                       <tr key={i} style={{borderBottom:"1px solid var(--border-2)",cursor:"pointer",
                         background:bgRow,
                         opacity:isAbbinata?0.45:row.checked?1:0.7}}
@@ -1562,8 +1560,6 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                           }
                         </td>
                       </tr>
-                        );
-                      })()}
                     );
                   })}
                 </tbody>
