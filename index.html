@@ -35,28 +35,29 @@
 
   <style>
     :root {
-      --bg:       #F7F7F9;
-      --surface:  #FFFFFF;
-      --border:   #E4E4EA;
-      --border-2: #EFEFF4;
-      --text-1:   #0F0F14;
-      --text-2:   #52525E;
-      --text-3:   #A1A1AE;
-      --accent:   #2563EB;
-      --accent-s: #EFF4FF;
-      --accent-t: rgba(37,99,235,.12);
-      --navy:     #0F172A;
-      --success:  #16A34A;
-      --warn:     #D97706;
-      --danger:   #DC2626;
-      --success-s:#F0FDF4;
-      --warn-s:   #FFFBEB;
-      --danger-s: #FEF2F2;
+      --bg:       #0E0E11;
+      --surface:  #16161A;
+      --raised:   #1C1C22;
+      --border:   #2A2A34;
+      --border-2: #222228;
+      --text-1:   #F0F0F4;
+      --text-2:   #9898A6;
+      --text-3:   #52525E;
+      --accent:   #3B82F6;
+      --accent-s: #1A2A44;
+      --accent-t: rgba(59,130,246,.15);
+      --navy:     #1E293B;
+      --success:  #22C55E;
+      --warn:     #F59E0B;
+      --danger:   #EF4444;
+      --success-s:#0A2010;
+      --warn-s:   #1C1500;
+      --danger-s: #200808;
       --radius:   10px;
       --radius-s: 6px;
-      --shadow:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
-      --shadow-m: 0 4px 16px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
-      --shadow-l: 0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+      --shadow:   0 1px 3px rgba(0,0,0,.3);
+      --shadow-m: 0 4px 16px rgba(0,0,0,.4);
+      --shadow-l: 0 16px 48px rgba(0,0,0,.5);
       --font:     'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
       --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
     }
@@ -73,56 +74,39 @@
     ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
+    ::-webkit-scrollbar-thumb:hover { background: #3E3E4A; }
 
-    /* ── Animazioni ── */
     @keyframes spin    { to { transform: rotate(360deg); } }
     @keyframes tabIn   { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
     @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
     @keyframes countUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
     @keyframes slideIn { from { transform:translateX(-16px); opacity:0; } to { transform:translateX(0); opacity:1; } }
 
-    /* ── Componenti ── */
     .tab-content { animation: tabIn .2s cubic-bezier(.4,0,.2,1) both; }
 
     .card {
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-2);
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
     }
 
-    .kpi-card {
-      transition: box-shadow .15s, transform .15s;
-      cursor: default;
-    }
-    .kpi-card:hover {
-      box-shadow: var(--shadow-m);
-      transform: translateY(-1px);
-    }
+    .kpi-card { transition: border-color .15s, transform .15s; cursor: default; }
+    .kpi-card:hover { border-color: var(--border) !important; transform: translateY(-1px); }
 
-    .nav-item {
-      transition: background .1s, color .1s;
-      border-radius: var(--radius-s);
-    }
-    .nav-item:hover {
-      background: var(--accent-s) !important;
-      color: var(--accent) !important;
-    }
+    .nav-item { transition: background .1s, color .1s; border-radius: var(--radius-s); }
+    .nav-item:hover { background: var(--raised) !important; color: var(--text-1) !important; }
 
-    .row-hover:hover { background: var(--bg) !important; }
+    .row-hover:hover { background: var(--raised) !important; }
 
     .glass-card {
       background: var(--surface);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border-2);
       border-radius: var(--radius);
-      box-shadow: var(--shadow);
     }
 
-    .btn-primary { transition: opacity .12s, transform .12s, box-shadow .12s; }
-    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: var(--shadow-m); }
+    .btn-primary { transition: opacity .12s, transform .12s; }
+    .btn-primary:hover { opacity: .85; transform: translateY(-1px); }
 
-    /* ── Tabelle ── */
     table { border-collapse: collapse; width: 100%; }
     th {
       font-weight: 600;
@@ -131,29 +115,29 @@
       text-transform: uppercase;
       color: var(--text-3);
       padding: 10px 14px;
-      background: var(--bg);
+      background: var(--raised);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
-    td { padding: 10px 14px; border-bottom: 1px solid var(--border-2); vertical-align: middle; }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border-2); vertical-align: middle; color: var(--text-1); }
 
-    /* ── Input / Select ── */
     input, select, textarea {
       font-family: var(--font);
       font-size: 13px;
       color: var(--text-1);
-      background: var(--surface);
+      background: var(--raised);
       border: 1px solid var(--border);
       border-radius: var(--radius-s);
       outline: none;
       transition: border-color .12s, box-shadow .12s;
     }
+    input::placeholder, textarea::placeholder { color: var(--text-3); }
     input:focus, select:focus, textarea:focus {
       border-color: var(--accent);
       box-shadow: 0 0 0 3px var(--accent-t);
     }
+    select option { background: var(--raised); color: var(--text-1); }
 
-    /* ── Badge ── */
     .badge {
       display: inline-flex;
       align-items: center;
@@ -163,6 +147,23 @@
       font-weight: 600;
       letter-spacing: .03em;
     }
+
+    /* Assegni hover tooltip */
+    .ass-row { position: relative; }
+    .ass-tooltip {
+      display: none;
+      position: absolute;
+      right: 0; top: 100%;
+      z-index: 99;
+      min-width: 230px;
+      background: var(--raised);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 13px;
+      box-shadow: var(--shadow-l);
+      pointer-events: none;
+    }
+    .ass-row:hover .ass-tooltip { display: block; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -570,8 +571,8 @@ function CashChart({assegni}) {
   const FilBtn = ({label,active,onClick,color}) => (
     React.createElement("button",{onClick,style:{
       background:active?(color||"var(--bg)"):"transparent",
-      border:`1px solid ${active?(color||"#3b82f6"):"#e2e8f0"}`,
-      color:active?"#f1f5f9":"#475569",
+      border:`1px solid ${active?(color||"#3b82f6"):"var(--border)"}`,
+      color:active?"var(--raised)":"var(--text-2)",
       borderRadius:6,padding:"4px 10px",cursor:"pointer",
       fontSize:10,fontWeight:active?700:400,
       fontFamily:"var(--mono)",transition:"all .12s",
@@ -583,7 +584,7 @@ function CashChart({assegni}) {
       <div style={{display:"flex",gap:3,background:"var(--bg)",border:"1px solid #0f1f35",borderRadius:"var(--radius-s)",padding:3}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
-            color={v==="IN ARCHIVIO"?"#78350f":v==="CONSEGNATO A PINO"?"var(--bg)":"#e2e8f0"}
+            color={v==="IN ARCHIVIO"?"#F59E0B":v==="CONSEGNATO A PINO"?"var(--bg)":"var(--border)"}
             onClick={()=>setStatoFil(v)}/>
         ))}
       </div>
@@ -691,7 +692,7 @@ function CashChart({assegni}) {
             {/* barra hover */}
             <linearGradient id="ccBh" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#4ade80"/>
-              <stop offset="100%" stopColor="#15803d" stopOpacity=".7"/>
+              <stop offset="100%" stopColor="#22C55E" stopOpacity=".7"/>
             </linearGradient>
             {/* barra tolleranza */}
             <linearGradient id="ccBt" x1="0" y1="0" x2="0" y2="1">
@@ -701,7 +702,7 @@ function CashChart({assegni}) {
             {/* barra tolleranza hover */}
             <linearGradient id="ccBth" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#fdba74"/>
-              <stop offset="100%" stopColor="#9a3412" stopOpacity=".7"/>
+              <stop offset="100%" stopColor="#F97316" stopOpacity=".7"/>
             </linearGradient>
             {/* barra pino (consegnato) */}
             <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
@@ -711,7 +712,7 @@ function CashChart({assegni}) {
             {/* barra pino hover */}
             <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#93c5fd"/>
-              <stop offset="100%" stopColor="#1d4ed8" stopOpacity=".7"/>
+              <stop offset="100%" stopColor="#3B82F6" stopOpacity=".7"/>
             </linearGradient>
           </defs>
 
@@ -748,7 +749,7 @@ function CashChart({assegni}) {
               <g key={k}>
                 {/* sfondo hover */}
                 {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH}
-                  fill="#ffffff" opacity={.025} rx={2}/>}
+                  fill="var(--text-1)" opacity={.025} rx={2}/>}
 
                 {/* linea oggi */}
                 {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH}
@@ -774,9 +775,9 @@ function CashChart({assegni}) {
                 {nA>1&&!isHov&&(
                   <g>
                     <circle cx={xOf(i)} cy={yTot-10} r={6}
-                      fill="var(--bg)" stroke="#e2e8f0" strokeWidth={1}/>
+                      fill="var(--bg)" stroke="var(--border)" strokeWidth={1}/>
                     <text x={xOf(i)} y={yTot-6.5} textAnchor="middle"
-                      fill="#475569" fontSize={6.5}
+                      fill="var(--text-2)" fontSize={6.5}
                       fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
                   </g>
                 )}
@@ -784,7 +785,7 @@ function CashChart({assegni}) {
                 {/* label asse X */}
                 {(i%labelStep===0||n<=15)&&(
                   <text x={xOf(i)} y={H-P.b+14} textAnchor="middle"
-                    fill={isToday?"#818cf8":isHov?"#94a3b8":"var(--bg)"}
+                    fill={isToday?"#818cf8":isHov?"var(--text-2)":"var(--bg)"}
                     fontSize={8.5} fontFamily="var(--mono)"
                     fontWeight={isToday||isHov?"bold":"normal"}>
                     {fmtDay(k)}
@@ -884,7 +885,7 @@ function CashChart({assegni}) {
                           fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,
                           background: inTol?"var(--danger-s)":"var(--success-s)",
                           color:inTol?"#fb923c":"#22c55e",
-                          border:`1px solid ${inTol?"#7c2d12":"var(--success-s)"}`,
+                          border:`1px solid ${inTol?"#F97316":"var(--success-s)"}`,
                         }}>
                           {a["STATO TITOLO"]||""}
                         </span>
@@ -903,7 +904,7 @@ function CashChart({assegni}) {
                           )}
                           {nc&&(
                             <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                              <span style={{color:"#4c1d95",fontSize:8,fontWeight:700}}>NC</span>
+                              <span style={{color:"#7C3AED",fontSize:8,fontWeight:700}}>NC</span>
                               <span style={{color:"#a78bfa",fontSize:9,
                                 fontFamily:"var(--font)"}}>
                                 {fmtDocList(nc)}
@@ -1346,7 +1347,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 
             {/* Tabella partitario */}
             <div style={{border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",marginBottom:20}}>
-              <div style={{padding:"10px 14px",background:"var(--bg)",borderBottom:"1px solid var(--border)",
+              <div style={{padding:"10px 14px",background:"var(--raised)",borderBottom:"1px solid var(--border)",
                 display:"flex",justifyContent:"space-between"}}>
                 <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ PARTITARIO APERTO</span>
                 <span style={{color:"var(--text-2)",fontSize:10}}>
@@ -1355,7 +1356,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               </div>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
-                  <tr style={{background:"var(--bg)",borderBottom:"1px solid var(--border)"}}>
+                  <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                     {["","Tipo","N° Doc","Data","Scadenza","Saldo","Importo"].map(h=>(
                       <th key={h} style={{padding:"8px 12px",textAlign:h==="Importo"||h==="Saldo"?"right":"left",
                         color:"var(--text-2)",fontWeight:600,fontSize:10}}>{h}</th>
@@ -2028,7 +2029,7 @@ function App() {
         </div>
         {loginErr&&(
           <div style={{color:"var(--danger)",fontSize:12,marginBottom:14,
-            background:"var(--danger-s)",border:"1px solid #FECACA",
+            background:"var(--danger-s)",border:"1px solid rgba(239,68,68,.3)",
             borderRadius:"var(--radius-s)",padding:"8px 12px"}}>{loginErr}</div>
         )}
         <button className="btn-primary" onClick={handleLogin}
@@ -2412,7 +2413,7 @@ function App() {
       <aside style={{
         width:224,flexShrink:0,
         background:"var(--surface)",
-        borderRight:"1px solid var(--border)",
+        borderRight:"1px solid var(--border-2)",
         display:"flex",flexDirection:"column",
         position:"sticky",top:0,height:"100vh",
         zIndex:50,
@@ -2567,52 +2568,141 @@ function App() {
             {/* Cash Flow */}
             <div className="glass-card" style={{borderRadius:"var(--radius)",padding:"18px 20px",marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",letterSpacing:.5}}>
-                  ◈ CASH FLOW — Scadenze assegni
-                </div>
+                <span style={{fontSize:9,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",color:"var(--text-2)"}}>
+                  Cash Flow — Scadenze assegni
+                </span>
               </div>
               <CashChart assegni={assegni}/>
             </div>
 
-            {/* Scadenziario critico */}
-            <div className="glass-card" style={{borderRadius:"var(--radius)",padding:"18px 20px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <div style={{color:"var(--danger)",fontSize:11,fontWeight:700,letterSpacing:.5}}>
-                  ⚠ SCADENZIARIO CRITICO
-                </div>
-                <span style={{color:"var(--text-2)",fontSize:9}}>
-                  {open.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO"&&(isOver(d[COL.dataDocumento])||isWarn(d[COL.dataDocumento]))).length} documenti
-                </span>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:8}}>
-              {open.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO"&&(isOver(d[COL.dataDocumento])||isWarn(d[COL.dataDocumento]))).slice(0,8).map((d,i)=>{
-                const ov=isOver(d[COL.dataDocumento]);
-                return (
-                  <div key={d[COL.numeroDocumento]} style={{
-                    display:"flex",justifyContent:"space-between",alignItems:"center",
-                    background:ov?"rgba(239,68,68,.07)":"rgba(251,146,60,.06)",
-                    border:`1px solid ${ov?"rgba(239,68,68,.2)":"rgba(251,146,60,.18)"}`,
-                    borderRadius:"var(--radius-s)",padding:"9px 13px",
-                    animation:`countUp .25s ease ${i*0.04}s both`,
-                  }}>
-                    <div>
-                      <div style={{color:ov?"#fca5a5":"#fdba74",fontSize:11,fontWeight:700}}>{d[COL.numeroDocumento]}</div>
-                      <div style={{color:"var(--text-2)",fontSize:9,marginTop:2}}>
-                        {d[COL.ragioneSociale]} · {dFmt(d[COL.dataDocumento])}
-                      </div>
+            {/* Assegni per ragione sociale */}
+            {(()=>{
+              // Raggruppa assegni per cliente
+              const grouped = {};
+              assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a.stato)).forEach(a=>{
+                if(!grouped[a.cliente]) grouped[a.cliente]={pino:[],arch:[]};
+                if(a.stato==="CONSEGNATO A PINO") grouped[a.cliente].pino.push(a);
+                else grouped[a.cliente].arch.push(a);
+              });
+              const clienti = Object.keys(grouped).sort();
+              const totAss = assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a.stato)).length;
+              const totImp = assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a.stato)).reduce((s,a)=>s+(parseFloat(a.importo)||0),0);
+              return (
+                <div className="glass-card" style={{borderRadius:"var(--radius)",padding:"16px 18px"}}>
+                  {/* Header */}
+                  <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
+                    <div style={{display:"flex",alignItems:"center",gap:14}}>
+                      <span style={{fontSize:9,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",color:"var(--text-2)"}}>
+                        Assegni per ragione sociale
+                      </span>
+                      <span style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:"#60A5FA"}}/>
+                        <span style={{fontSize:9,color:"var(--text-2)"}}>Cons. a Pino</span>
+                        <span style={{display:"inline-block",width:7,height:7,borderRadius:"50%",background:"#4ADE80",marginLeft:6}}/>
+                        <span style={{fontSize:9,color:"var(--text-2)"}}>In Archivio</span>
+                      </span>
                     </div>
-                    <div style={{color:ov?"#ef4444":"#fb923c",fontSize:12,fontWeight:800,
-                      fontFamily:"var(--font)"}}>{eur(d[COL.saldoResiduo])}</div>
+                    <span style={{fontFamily:"var(--mono)",fontSize:10,color:"var(--text-2)"}}>
+                      {totAss} ass · {eur(totImp)}
+                    </span>
                   </div>
-                );
-              })}
-              {open.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO"&&(isOver(d[COL.dataDocumento])||isWarn(d[COL.dataDocumento]))).length===0&&(
-                <div style={{color:"var(--success)",fontSize:12,textAlign:"center",padding:24,gridColumn:"1/-1"}}>
-                  ✓ Nessun documento in scadenza critica
+
+                  {/* Intestazione colonne */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 110px 120px 60px",
+                    padding:"0 10px 6px",marginBottom:4,borderBottom:"1px solid var(--border-2)"}}>
+                    {["Cliente","Stato","Importo","N°"].map((h,i)=>(
+                      <span key={h} style={{fontSize:8.5,fontWeight:600,letterSpacing:".5px",
+                        textTransform:"uppercase",color:"var(--text-3)",
+                        textAlign:i>0?"right":"left"}}>{h}</span>
+                    ))}
+                  </div>
+
+                  {/* Righe */}
+                  {clienti.length===0&&(
+                    <div style={{color:"var(--text-3)",fontSize:12,textAlign:"center",padding:"20px 0"}}>
+                      Nessun assegno presente
+                    </div>
+                  )}
+                  {clienti.map((cli,idx)=>{
+                    const g = grouped[cli];
+                    const totPino = g.pino.reduce((s,a)=>s+(parseFloat(a.importo)||0),0);
+                    const totArch = g.arch.reduce((s,a)=>s+(parseFloat(a.importo)||0),0);
+                    const totTot  = totPino+totArch;
+                    const dateAll = [...g.pino,...g.arch].map(a=>a.data_titolo||a.data_incasso_prevista||"").filter(Boolean).sort();
+                    const dMin = dateAll[0]||"";
+                    const dMax = dateAll[dateAll.length-1]||"";
+                    const fmt = d=>{ if(!d) return "—"; const p=d.split("-"); return p[1]+"/"+p[0].slice(2); };
+                    return (
+                      <div key={cli} className="ass-row" style={{
+                        display:"grid",gridTemplateColumns:"1fr 110px 120px 60px",
+                        padding:"8px 10px",borderRadius:"var(--radius-s)",marginBottom:2,
+                        cursor:"default",transition:"background .1s",
+                      }}
+                      onMouseEnter={e=>e.currentTarget.style.background="var(--raised)"}
+                      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+                        {/* Cliente */}
+                        <div>
+                          <div style={{fontSize:12,fontWeight:600,color:"var(--text-1)",
+                            whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cli}</div>
+                          <div style={{fontSize:9,color:"var(--text-3)",marginTop:1}}>
+                            {fmt(dMin)}{dMax&&dMax!==dMin?" → "+fmt(dMax):""}
+                          </div>
+                        </div>
+                        {/* Stato badges */}
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                          {g.pino.length>0&&<span style={{display:"inline-block",padding:"2px 7px",borderRadius:20,
+                            fontSize:8.5,fontWeight:600,background:"#1A2A44",color:"#60A5FA"}}>Cons. Pino</span>}
+                          {g.arch.length>0&&<span style={{display:"inline-block",padding:"2px 7px",borderRadius:20,
+                            fontSize:8.5,fontWeight:600,background:"#0A2010",color:"#4ADE80"}}>In Archivio</span>}
+                        </div>
+                        {/* Importi */}
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                          {g.pino.length>0&&<span style={{fontFamily:"var(--mono)",fontSize:11,color:"#60A5FA"}}>{eur(totPino)}</span>}
+                          {g.arch.length>0&&<span style={{fontFamily:"var(--mono)",fontSize:11,color:"#4ADE80"}}>{eur(totArch)}</span>}
+                        </div>
+                        {/* Conteggi */}
+                        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
+                          {g.pino.length>0&&<span style={{fontSize:10,color:"var(--text-2)"}}>{g.pino.length}</span>}
+                          {g.arch.length>0&&<span style={{fontSize:10,color:"var(--text-2)"}}>{g.arch.length}</span>}
+                        </div>
+                        {/* Tooltip hover */}
+                        <div className="ass-tooltip">
+                          <div style={{fontSize:10,fontWeight:600,color:"var(--text-1)",marginBottom:8,
+                            letterSpacing:".2px"}}>{cli}</div>
+                          {[
+                            g.pino.length>0&&["Consegnato a Pino", g.pino.length+" ass.", eur(totPino), "#60A5FA"],
+                            g.arch.length>0&&["In Archivio",       g.arch.length+" ass.", eur(totArch), "#4ADE80"],
+                          ].filter(Boolean).map(([lbl,n,imp,col])=>(
+                            <div key={lbl} style={{display:"flex",justifyContent:"space-between",
+                              alignItems:"center",padding:"4px 0",
+                              borderBottom:"1px solid var(--border-2)"}}>
+                              <span style={{fontSize:10,color:"var(--text-2)"}}>{lbl}</span>
+                              <span style={{display:"flex",gap:8,alignItems:"center"}}>
+                                <span style={{fontSize:9,color:"var(--text-3)"}}>{n}</span>
+                                <span style={{fontFamily:"var(--mono)",fontSize:10.5,color:col,fontWeight:500}}>{imp}</span>
+                              </span>
+                            </div>
+                          ))}
+                          <div style={{display:"flex",justifyContent:"space-between",
+                            alignItems:"center",paddingTop:6,marginTop:2}}>
+                            <span style={{fontSize:10,color:"var(--text-2)"}}>Scadenze</span>
+                            <span style={{fontSize:10,color:"var(--text-1)",fontFamily:"var(--mono)"}}>
+                              {fmt(dMin)}{dMax&&dMax!==dMin?" → "+fmt(dMax):""}
+                            </span>
+                          </div>
+                          <div style={{display:"flex",justifyContent:"space-between",
+                            alignItems:"center",paddingTop:6,borderTop:"1px solid var(--border)",marginTop:4}}>
+                            <span style={{fontSize:10,fontWeight:600,color:"var(--text-1)"}}>Totale</span>
+                            <span style={{fontFamily:"var(--mono)",fontSize:12,fontWeight:600,
+                              color:"var(--text-1)"}}>{eur(totTot)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              )}
-              </div>
-            </div>
+              );
+            })()}
           </div>
         )}
 
@@ -2629,14 +2719,14 @@ function App() {
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
               </select>
               <span style={{color:"var(--text-2)",fontSize:11,marginLeft:"auto"}}>
-                {filtered.length} doc • <span style={{color:"#6366f1"}}>doppio click = modifica</span>
+                {filtered.length} doc • <span style={{color:"var(--accent)"}}>doppio click = modifica</span>
               </span>
             </div>
-            <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+            <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:900}}>
                   <thead>
-                    <tr style={{background:"var(--bg)",borderBottom:"2px solid #e2e8f0"}}>
+                    <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                       <DocSortTh label="Tipo"           colKey={COL.tipoDocumento}/>
                       <DocSortTh label="N° Doc"         colKey={COL.numeroDocumento}/>
                       <DocSortTh label="Data"           colKey={COL.dataDocumento}/>
@@ -2725,10 +2815,10 @@ function App() {
                 + Nuovo Incasso
               </button>
             </div>
-            <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+            <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
-                  <tr style={{background:"var(--bg)",borderBottom:"2px solid #e2e8f0"}}>
+                  <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                     <IncSortTh label="ID Incasso" colKey="ID Incasso"/>
                     <IncSortTh label="Metodo"     colKey="Metodo"/>
                     <IncSortTh label="Data"       colKey="Data Ricezione"/>
@@ -2770,7 +2860,7 @@ function App() {
                 </div>
               </div>
             </div>
-            <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+            <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <colgroup>
@@ -2783,7 +2873,7 @@ function App() {
                     <col style={{width:"13%"}}/>{/* Stato */}
                   </colgroup>
                   <thead>
-                    <tr style={{background:"var(--bg)",borderBottom:"2px solid #e2e8f0"}}>
+                    <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                       <AssSortTh label="Cliente"       colKey="CLIENTE"/>
                       <AssSortTh label="N° Titolo"     colKey="N TITOLO"/>
                       <AssSortTh label="Data"          colKey="DATA TITOLO"/>
@@ -2846,7 +2936,7 @@ function App() {
 
               {/* Lista accrediti */}
               {bankRows.length>0&&(
-                <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+                <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
                   <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",
                     display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ ACCREDITI DAL FILE BANCA</span>
@@ -2922,7 +3012,7 @@ function App() {
               )}
 
               {bankRows.length===0&&(
-                <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",
+                <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",
                   padding:60,textAlign:"center",color:"var(--text-2)"}}>
                   <div style={{fontSize:32,marginBottom:12}}>🏦</div>
                   <div style={{fontSize:13}}>Carica un file Excel della banca per iniziare la riconciliazione</div>
@@ -3484,7 +3574,7 @@ function App() {
           return all.filter((a,i,arr)=>arr.findIndex(b=>b["N TITOLO"]===a["N TITOLO"])===i);
         })();
         return (
-          <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.4)",zIndex:500,
+          <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:500,
             display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
             onClick={()=>setStoricoPopup(null)}>
             <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,
