@@ -1014,6 +1014,11 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
   // Abbinamento fatture
   const [rows,setRows]=useState([]); // [{doc, checked, importoAllocato}]
   const [saving,setSaving]=useState(false);
+  // Note modificabili step 3
+  const [noteAssegno,setNoteAssegno]=useState("");       // nota sull'assegno in registro
+  const [noteDocOverride,setNoteDocOverride]=useState(null); // null = usa noteBase automatica, stringa = override
+  const [noteDocPerDoc,setNoteDocPerDoc]=useState({});   // {numDoc: nota personalizzata}
+  const [showNoteDoc,setShowNoteDoc]=useState(false);    // espandi sezione note per documento
 
   // ── Helpers
   const primoGiornoLavorativo = isoDate => {
@@ -1055,6 +1060,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 
   const selectClient = (id,name) => {
     setCid(id); setClientName(name); setClientSearch(name); setShowDropdown(false);
+    setNoteDocOverride(null); setNoteDocPerDoc({}); setNoteAssegno(""); setShowNoteDoc(false);
     // Carica partitario: FVE FIFO + NAC in fondo
     const fves = docs.filter(d=>d[COL.codiceCliente]===id&&d[COL.stato]?.toUpperCase()==="APERTO"&&d[COL.tipoDocumento]==="FVE")
       .sort((a,b)=>new Date(parseIso(a[COL.dataDocumento]))-new Date(parseIso(b[COL.dataDocumento])));
@@ -1078,6 +1084,45 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     r[i]={...r[i],importoAllocato:Math.min(Math.max(0,parseNum(val)),max),checked:true};
     return r;
   });
+
+  // ── PREDIZIONE AUTOMATICA
+  // Seleziona FVE non abbinate (senza n_assegno) in FIFO finché copre l'importo assegno,
+  // poi scala le NAC disponibili. Tolleranza: l'assegno può eccedere di <5%.
+  const applyPrediction = (targetRows, impAss) => {
+    if(!impAss || impAss<=0) return targetRows;
+    // Separa FVE libere (senza assegno già collegato) e NAC
+    const fveLibere = targetRows.filter(r=>r.doc[COL.tipoDocumento]==="FVE"&&!r.doc[COL.nAssegno]);
+    const fveOccupate = targetRows.filter(r=>r.doc[COL.tipoDocumento]==="FVE"&&r.doc[COL.nAssegno]);
+    const nacs = targetRows.filter(r=>r.doc[COL.tipoDocumento]==="NAC");
+
+    // 1. Calcola totale NAC disponibili
+    const totNacDisp = nacs.reduce((s,r)=>s+Math.abs(parseNum(r.doc[COL.saldoResiduo])),0);
+
+    // 2. FIFO sulle FVE libere finché budget copre
+    let budget = impAss + totNacDisp; // l'assegno copre netto = FVE - NAC
+    const newRows = targetRows.map(r=>({...r,checked:false,importoAllocato:parseNum(r.doc[COL.saldoResiduo])}));
+
+    for(let i=0;i<newRows.length;i++){
+      if(newRows[i].doc[COL.tipoDocumento]!=="FVE") continue;
+      if(newRows[i].doc[COL.nAssegno]) continue; // già abbinata
+      const saldo = parseNum(newRows[i].doc[COL.saldoResiduo]);
+      if(budget<=0.005) break;
+      if(saldo<=budget+impAss*0.05){ // tollera 5% eccesso
+        newRows[i]={...newRows[i],checked:true,importoAllocato:saldo};
+        budget-=saldo;
+      }
+    }
+    // 3. Seleziona tutte le NAC se ci sono FVE selezionate (scalano il netto)
+    const hasFve = newRows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE");
+    if(hasFve){
+      for(let i=0;i<newRows.length;i++){
+        if(newRows[i].doc[COL.tipoDocumento]==="NAC"){
+          newRows[i]={...newRows[i],checked:true,importoAllocato:Math.abs(parseNum(newRows[i].doc[COL.saldoResiduo]))};
+        }
+      }
+    }
+    return newRows;
+  };
 
   // Data incasso effettivo
   const dataEff = tipo==="assegno" ? dataIncasso : dataBonifico;
@@ -1107,11 +1152,14 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
       exact:[],
     };
 
+    const noteFinale = noteDocOverride!==null ? noteDocOverride : noteBase;
     await onSave({
       method: tipo==="assegno"?"ASSEGNO":"BONIFICO",
       amount: netto,
       importoAssegno: tipo==="assegno"?(parseFloat(importoAssegno)||0):0,
-      cid, date: dataEff, notes: noteBase,
+      cid, date: dataEff, notes: noteFinale,
+      noteAssegno: noteAssegno||"",
+      noteDocPerDoc,
       nAssegno: tipo==="assegno"?nAssegno:"",
       dataTitolo: tipo==="assegno"?dataTitolo:"",
       fveNums, nacNums,
@@ -1312,7 +1360,11 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 padding:"10px 20px",color:"var(--text-2)",cursor:"pointer",fontSize:13}}>Annulla</button>
               <button
                 disabled={!tipo||!cid||(tipo==="assegno"&&!dataIncasso)||(tipo==="bonifico"&&!dataBonifico)}
-                onClick={()=>setStep(2)}
+                onClick={()=>{
+                  const imp=parseFloat(importoAssegno)||0;
+                  if(tipo==="assegno"&&imp>0) setRows(r=>applyPrediction(r,imp));
+                  setStep(2);
+                }}
                 style={{background:tipo&&cid?"var(--accent)":"var(--raised)",
                   border:"none",borderRadius:"var(--radius-s)",padding:"10px 24px",
                   color:tipo&&cid?"#fff":"var(--text-3)",cursor:tipo&&cid?"pointer":"not-allowed",
@@ -1431,8 +1483,14 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               <div style={{padding:"10px 14px",background:"var(--raised)",borderBottom:"1px solid var(--border)",
                 display:"flex",justifyContent:"space-between"}}>
                 <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ PARTITARIO APERTO</span>
-                <span style={{color:"var(--text-2)",fontSize:10}}>
-                  FVE = verde • NAC = viola (scalano dal netto)
+                <span style={{color:"var(--text-2)",fontSize:10,display:"flex",gap:10,alignItems:"center"}}>
+                  <span>FVE = verde • NAC = viola</span>
+                  {rows.some(r=>r.checked&&!r.doc[COL.nAssegno])&&(
+                    <span style={{background:"var(--accent-s)",color:"var(--accent)",
+                      borderRadius:20,padding:"1px 8px",fontSize:9,fontWeight:700}}>
+                      ✦ {rows.filter(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE").length} pre-selezionate
+                    </span>
+                  )}
                 </span>
               </div>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
@@ -1452,10 +1510,20 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     const ov = statoDoc==="APERTO" && isOver(row.doc[COL.dataDocumento]);
                     const wr = statoDoc==="APERTO" && isWarn(row.doc[COL.dataDocumento]);
                     return (
-                      <tr key={i} style={{borderBottom:"1px solid #ffffff",cursor:"pointer",
-                        background:isNac?(row.checked?"var(--bg)":"var(--bg)"):(row.checked?"var(--border-2)":"var(--raised)"),
-                        opacity:row.checked?1:0.65}}
-                        onClick={()=>toggleRow(i)}>
+                      {(()=>{
+                        const isAbbinata = !isNac && row.doc[COL.nAssegno];
+                        const bgRow = isNac
+                          ? (row.checked?"#1a0f2a":"var(--surface)")
+                          : isAbbinata
+                            ? "var(--surface)"
+                            : (row.checked?"#0a1f0f":"var(--raised)");
+                        return (
+                      <tr key={i} style={{borderBottom:"1px solid var(--border-2)",cursor:"pointer",
+                        background:bgRow,
+                        opacity:isAbbinata?0.45:row.checked?1:0.7}}
+                        onClick={()=>!isAbbinata&&toggleRow(i)}
+                        title={isAbbinata?`Già abbinata all'assegno ${row.doc[COL.nAssegno]}`:""}
+                      >
                         <td style={{padding:"9px 12px",width:36,textAlign:"center"}}>
                           <input type="checkbox" checked={row.checked} onChange={()=>toggleRow(i)}
                             style={{width:15,height:15,accentColor:isNac?"#c084fc":"#6366f1",cursor:"pointer"}}
@@ -1494,6 +1562,8 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                           }
                         </td>
                       </tr>
+                        );
+                      })()}
                     );
                   })}
                 </tbody>
@@ -1505,6 +1575,14 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 borderRadius:"var(--radius-s)",padding:"10px 20px",color:"var(--text-2)",cursor:"pointer",fontSize:13}}>
                 ← Indietro
               </button>
+              {tipo==="assegno"&&parseFloat(importoAssegno)>0&&(
+                <button onClick={()=>setRows(r=>applyPrediction(r.map(x=>({...x,checked:false})),parseFloat(importoAssegno)))}
+                  style={{background:"var(--raised)",border:"1px solid var(--border)",
+                    borderRadius:"var(--radius-s)",padding:"10px 16px",color:"var(--text-2)",
+                    cursor:"pointer",fontSize:12,display:"flex",alignItems:"center",gap:6}}>
+                  ✦ Ri-predici
+                </button>
+              )}
               <button disabled={!rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")}
                 onClick={()=>setStep(3)}
                 style={{background:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")
@@ -1612,7 +1690,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 </div>
                 {fveSel.map((r,i)=>(
                   <div key={i} style={{display:"flex",justifyContent:"space-between",
-                    padding:"5px 0",borderBottom:"1px solid #f4f6ff",fontSize:12}}>
+                    padding:"5px 0",borderBottom:"1px solid var(--border-2)",fontSize:12}}>
                     <span style={{color:"var(--text-2)"}}>{r.doc[COL.numeroDocumento]} — {dFmt(r.doc[COL.dataDocumento])}</span>
                     <span style={{color:"var(--success)",fontWeight:700}}>{eur(r.importoAllocato)}</span>
                   </div>
@@ -1627,7 +1705,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   </div>
                   {nacSel.map((r,i)=>(
                     <div key={i} style={{display:"flex",justifyContent:"space-between",
-                      padding:"5px 0",borderBottom:"1px solid #f4f6ff",fontSize:12}}>
+                      padding:"5px 0",borderBottom:"1px solid var(--border-2)",fontSize:12}}>
                       <span style={{color:"#a855f7"}}>{r.doc[COL.numeroDocumento]}</span>
                       <span style={{color:"#c084fc",fontWeight:700}}>-{eur(r.importoAllocato)}</span>
                     </div>
@@ -1636,24 +1714,108 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               )}
             </div>
 
-            {/* Nota che verrà scritta */}
-            <div style={{background:"var(--success-s)",border:"1px solid #22c55e33",borderRadius:"var(--radius-s)",
-              padding:"10px 14px",marginBottom:16,fontSize:11}}>
-              <div style={{color:"var(--text-2)",marginBottom:4}}>📝 Nota che verrà scritta sul documento:</div>
-              <div style={{color:"var(--success)",fontFamily:"var(--font)"}}>
-                {tipo==="assegno"
-                  ? `DA INCASSARE ${fmtIso(dataEff)}${nacSel.length?` | NAC: ${nacSel.map(r=>r.doc[COL.numeroDocumento]).join(", ")}`:""}` 
-                  : `DA INCASSARE BONIF ${fmtIso(dataEff)}${nacSel.length?` | NAC: ${nacSel.map(r=>r.doc[COL.numeroDocumento]).join(", ")}`:""}`}
-              </div>
-            </div>
+            {/* ── NOTE MODIFICABILI ─────────────────────────── */}
+            {(()=>{
+              const nacNums3 = nacSel.map(r=>r.doc[COL.numeroDocumento]).join(", ");
+              const noteAuto = tipo==="assegno"
+                ? `DA INCASSARE ${fmtIso(dataEff)}${nacNums3?` | NAC: ${nacNums3}`:""}`
+                : `DA INCASSARE BONIF ${fmtIso(dataEff)}${nacNums3?` | NAC: ${nacNums3}`:""}`;
+              const noteVisibile = noteDocOverride!==null ? noteDocOverride : noteAuto;
+              return (
+                <>
+                  {/* A — Nota globale sui documenti */}
+                  <div style={{background:"var(--raised)",border:"1px solid var(--border)",
+                    borderRadius:"var(--radius-s)",padding:"14px 16px",marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                      <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,letterSpacing:".8px",textTransform:"uppercase"}}>
+                        📝 Nota sui documenti associati
+                      </div>
+                      {noteDocOverride!==null&&(
+                        <button onClick={()=>setNoteDocOverride(null)}
+                          style={{background:"transparent",border:"1px solid var(--border)",borderRadius:20,
+                            padding:"2px 10px",color:"var(--text-2)",cursor:"pointer",fontSize:10}}>
+                          ↺ Ripristina automatica
+                        </button>
+                      )}
+                    </div>
+                    <textarea value={noteVisibile}
+                      onChange={e=>setNoteDocOverride(e.target.value)}
+                      rows={2}
+                      style={{width:"100%",boxSizing:"border-box",
+                        background:"var(--bg)",border:"1px solid var(--border)",
+                        borderRadius:"var(--radius-s)",padding:"8px 12px",
+                        color:noteDocOverride!==null?"var(--text-1)":"var(--success)",
+                        fontSize:12,fontFamily:"var(--font)",resize:"vertical",outline:"none",
+                        borderColor:noteDocOverride!==null?"var(--accent)":"var(--border)"}}/>
+                    {noteDocOverride===null&&(
+                      <div style={{color:"var(--text-3)",fontSize:10,marginTop:4}}>
+                        Generata automaticamente — modifica per personalizzare
+                      </div>
+                    )}
+                  </div>
 
-            {tipo==="assegno"&&(
-              <div style={{background:"var(--bg)",border:"1px solid #6366f133",borderRadius:"var(--radius-s)",
-                padding:"10px 14px",marginBottom:16,fontSize:11,color:"var(--text-2)"}}>
-                🗂️ Verrà registrato nel <strong style={{color:"var(--accent)"}}>Registro Assegni</strong>{" "}
-                con stato <strong style={{color:"var(--warn)"}}>IN ARCHIVIO</strong> e le fatture collegate andranno in <strong style={{color:"var(--warn)"}}>DA INCASSARE</strong> fino alla riconciliazione bancaria
-              </div>
-            )}
+                  {/* B — Note per singolo documento (espandibile) */}
+                  {fveSel.length>0&&(
+                    <div style={{marginBottom:12}}>
+                      <button onClick={()=>setShowNoteDoc(p=>!p)}
+                        style={{background:"transparent",border:"1px solid var(--border)",
+                          borderRadius:"var(--radius-s)",padding:"7px 14px",
+                          color:"var(--text-2)",cursor:"pointer",fontSize:11,width:"100%",
+                          textAlign:"left",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                        <span>✎ Note per singolo documento ({fveSel.length})</span>
+                        <span style={{fontSize:10,color:"var(--text-3)"}}>{showNoteDoc?"▲ chiudi":"▼ espandi"}</span>
+                      </button>
+                      {showNoteDoc&&(
+                        <div style={{border:"1px solid var(--border)",borderTop:"none",
+                          borderRadius:"0 0 var(--radius-s) var(--radius-s)",
+                          padding:"10px 14px",background:"var(--raised)"}}>
+                          {fveSel.map((r,i)=>{
+                            const num = r.doc[COL.numeroDocumento];
+                            return (
+                              <div key={num} style={{marginBottom:i<fveSel.length-1?10:0}}>
+                                <label style={{color:"var(--text-2)",fontSize:10,display:"block",marginBottom:4}}>
+                                  FVE {num} — {r.doc[COL.ragioneSociale]} — {eur(r.importoAllocato)}
+                                </label>
+                                <input value={noteDocPerDoc[num]??""} 
+                                  onChange={e=>setNoteDocPerDoc(p=>({...p,[num]:e.target.value}))}
+                                  placeholder={`Lascia vuoto per usare la nota globale`}
+                                  style={{width:"100%",boxSizing:"border-box",
+                                    background:"var(--bg)",border:"1px solid var(--border)",
+                                    borderRadius:"var(--radius-s)",padding:"7px 12px",
+                                    color:"var(--text-1)",fontSize:12,fontFamily:"var(--font)",outline:"none"}}/>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* C — Nota assegno (solo tipo assegno) */}
+                  {tipo==="assegno"&&(
+                    <div style={{background:"var(--raised)",border:"1px solid var(--border)",
+                      borderRadius:"var(--radius-s)",padding:"14px 16px",marginBottom:12}}>
+                      <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,letterSpacing:".8px",
+                        textTransform:"uppercase",marginBottom:8}}>
+                        🗂️ Nota registro assegni
+                      </div>
+                      <input value={noteAssegno}
+                        onChange={e=>setNoteAssegno(e.target.value)}
+                        placeholder="Note aggiuntive sull'assegno (opzionale)"
+                        style={{width:"100%",boxSizing:"border-box",
+                          background:"var(--bg)",border:"1px solid var(--border)",
+                          borderRadius:"var(--radius-s)",padding:"8px 12px",
+                          color:"var(--text-1)",fontSize:12,fontFamily:"var(--font)",outline:"none"}}/>
+                      <div style={{color:"var(--text-3)",fontSize:10,marginTop:5}}>
+                        🗂️ Verrà registrato nel <strong style={{color:"var(--accent)"}}>Registro Assegni</strong>{" "}
+                        con stato <strong style={{color:"var(--warn)"}}>IN ARCHIVIO</strong>. Le fatture andranno in{" "}
+                        <strong style={{color:"var(--warn)"}}>DA INCASSARE</strong> fino alla riconciliazione bancaria.
+                      </div>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             <div style={{display:"flex",gap:10,justifyContent:"space-between"}}>
               <button onClick={()=>setStep(2)} style={{background:"var(--accent-s)",border:"none",
@@ -2238,7 +2400,7 @@ function App() {
     } catch(e) { notify("Errore: "+e.message,"error"); }
   };
 
-  const handleSavePay=async({method,amount,cid,date,notes,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
+  const handleSavePay=async({method,amount,cid,date,notes,noteAssegno,noteDocPerDoc,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
     try {
       const cliente = docs.find(d=>d[COL.codiceCliente]===cid)?.[COL.ragioneSociale]||"";
       // Costruisci allocazioni per D1
@@ -2252,6 +2414,7 @@ function App() {
       const assegno = (method==="ASSEGNO" && nAssegno) ? {
         cliente, n_titolo: nAssegno, data_titolo: dataTitolo,
         importo: amount, fatture_pagate: fveNums, nc_scalate: nacNums||"",
+        note: noteAssegno||"",
       } : null;
 
       const res = await d1API.postIncasso({
@@ -2275,7 +2438,10 @@ function App() {
           const i=d.findIndex(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
           if(i<0) continue;
           const isFull=pred.full.some(x=>x[COL.numeroDocumento]===f[COL.numeroDocumento]);
-          const nuovaNota = f[COL.tipoDocumento]==="NAC" ? (d[i][COL.note]||"") : notes;
+          const numDoc = f[COL.numeroDocumento];
+          const nuovaNota = f[COL.tipoDocumento]==="NAC"
+            ? (d[i][COL.note]||"")
+            : (noteDocPerDoc&&noteDocPerDoc[numDoc] ? noteDocPerDoc[numDoc] : notes);
           if(isFull)
             d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:"PAGATO",[COL.note]:nuovaNota};
           else {
