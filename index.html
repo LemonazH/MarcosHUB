@@ -1090,37 +1090,77 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
   // poi scala le NAC disponibili. Tolleranza: l'assegno può eccedere di <5%.
   const applyPrediction = (targetRows, impAss) => {
     if(!impAss || impAss<=0) return targetRows;
-    // Separa FVE libere (senza assegno già collegato) e NAC
-    const fveLibere = targetRows.filter(r=>r.doc[COL.tipoDocumento]==="FVE"&&!r.doc[COL.nAssegno]);
-    const fveOccupate = targetRows.filter(r=>r.doc[COL.tipoDocumento]==="FVE"&&r.doc[COL.nAssegno]);
-    const nacs = targetRows.filter(r=>r.doc[COL.tipoDocumento]==="NAC");
 
-    // 1. Calcola totale NAC disponibili
-    const totNacDisp = nacs.reduce((s,r)=>s+Math.abs(parseNum(r.doc[COL.saldoResiduo])),0);
+    // Parti da tutte le righe deselezionate
+    const newRows = targetRows.map(r=>({...r, checked:false, importoAllocato:Math.abs(parseNum(r.doc[COL.saldoResiduo]))}));
 
-    // 2. FIFO sulle FVE libere finché budget copre
-    let budget = impAss + totNacDisp; // l'assegno copre netto = FVE - NAC
-    const newRows = targetRows.map(r=>({...r,checked:false,importoAllocato:parseNum(r.doc[COL.saldoResiduo])}));
+    // FVE libere (senza assegno già collegato), ordinate per data crescente
+    const fveIdx = newRows
+      .map((r,i)=>({r,i}))
+      .filter(({r})=>r.doc[COL.tipoDocumento]==="FVE" && !r.doc[COL.nAssegno])
+      .sort((a,b)=>new Date(parseIso(a.r.doc[COL.dataDocumento]))-new Date(parseIso(b.r.doc[COL.dataDocumento])));
 
-    for(let i=0;i<newRows.length;i++){
-      if(newRows[i].doc[COL.tipoDocumento]!=="FVE") continue;
-      if(newRows[i].doc[COL.nAssegno]) continue; // già abbinata
-      const saldo = parseNum(newRows[i].doc[COL.saldoResiduo]);
-      if(budget<=0.005) break;
-      if(saldo<=budget+impAss*0.05){ // tollera 5% eccesso
-        newRows[i]={...newRows[i],checked:true,importoAllocato:saldo};
-        budget-=saldo;
+    // NAC disponibili (indici nel newRows)
+    const nacIdx = newRows
+      .map((r,i)=>({r,i}))
+      .filter(({r})=>r.doc[COL.tipoDocumento]==="NAC");
+
+    const TOL = 0.05; // tolleranza 5%
+
+    // ── PRIORITÀ 1: FVE singola con importo esatto (±1%)
+    const esatta = fveIdx.find(({r})=>{
+      const s = r.importoAllocato;
+      return Math.abs(s - impAss) / impAss <= 0.01;
+    });
+    if(esatta){
+      newRows[esatta.i] = {...newRows[esatta.i], checked:true};
+      newRows[esatta.i]._predMode = "exact";
+      return newRows;
+    }
+
+    // ── PRIORITÀ 2: somma FIFO di FVE per data ravvicinata
+    // Accumula FVE dalla più vecchia finché la somma è <= impAss*(1+TOL)
+    let somma = 0;
+    const selIdx = [];
+    for(const {r,i} of fveIdx){
+      const s = r.importoAllocato;
+      if(somma + s <= impAss * (1 + TOL)){
+        somma += s;
+        selIdx.push(i);
+        // Se siamo entro tolleranza, è una buona soluzione
+        if(Math.abs(somma - impAss) / impAss <= TOL) break;
       }
     }
-    // 3. Seleziona tutte le NAC se ci sono FVE selezionate (scalano il netto)
-    const hasFve = newRows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE");
-    if(hasFve){
-      for(let i=0;i<newRows.length;i++){
-        if(newRows[i].doc[COL.tipoDocumento]==="NAC"){
-          newRows[i]={...newRows[i],checked:true,importoAllocato:Math.abs(parseNum(newRows[i].doc[COL.saldoResiduo]))};
-        }
-      }
+
+    if(selIdx.length > 0 && Math.abs(somma - impAss) / impAss <= TOL){
+      // Soluzione trovata solo con FVE
+      selIdx.forEach(i => { newRows[i] = {...newRows[i], checked:true}; });
+      return newRows;
     }
+
+    // ── PRIORITÀ 3: FVE + NAC per avvicinarsi
+    // Le FVE selezionate eccedono l'assegno → prova a scalare NAC per ridurre il netto
+    // Oppure le FVE non arrivano all'importo → aggiungi NAC solo se riducono lo scarto
+
+    // 3a. Se la somma FVE eccede l'assegno, prova a trovare NAC che riducono esattamente lo scarto
+    if(selIdx.length > 0 && somma > impAss){
+      const eccesso = somma - impAss;
+      // Cerca una NAC singola che copre l'eccesso (±2%)
+      const nacMatch = nacIdx.find(({r})=>Math.abs(r.importoAllocato - eccesso)/eccesso <= 0.02);
+      selIdx.forEach(i => { newRows[i] = {...newRows[i], checked:true}; });
+      if(nacMatch){
+        newRows[nacMatch.i] = {...newRows[nacMatch.i], checked:true};
+      }
+      return newRows;
+    }
+
+    // 3b. Somma FVE < impAss: seleziona comunque le FVE trovate (parziale)
+    if(selIdx.length > 0){
+      selIdx.forEach(i => { newRows[i] = {...newRows[i], checked:true}; });
+      return newRows;
+    }
+
+    // ── FALLBACK: nessuna FVE utile trovata, non seleziona nulla
     return newRows;
   };
 
