@@ -464,14 +464,14 @@ function Badge({label}) {
     NAC:   {bg:"var(--bg)",c:"#c084fc"},
     Aperto:{bg:"var(--success-s)",c:"#4ade80"},
     APERTO:{bg:"var(--success-s)",c:"#4ade80"},
-    Chiuso:{bg:"#e2e8f0",c:"#64748b"},
-    CHIUSO:{bg:"#e2e8f0",c:"#64748b"},
+    Chiuso:{bg:"#1C1C22",c:"#9898A6"},
+    CHIUSO:{bg:"#1C1C22",c:"#9898A6"},
     "DA INCASSARE":{bg:"var(--danger-s)",c:"#fb923c"},
     PARZIALE:{bg:"var(--danger-s)",c:"#fbbf24"},
     Bonifico:{bg:"var(--bg)",c:"#38bdf8"},
     "Assegno Postdatato":{bg:"var(--danger-s)",c:"#fb923c"},
   };
-  const s = map[label]||{bg:"#e2e8f0",c:"#94a3b8"};
+  const s = map[label]||{bg:"#1C1C22",c:"#9898A6"};
   return <span style={{background:s.bg,color:s.c,padding:"2px 8px",borderRadius:5,
     fontSize:11,fontWeight:600,letterSpacing:.4}}>{label}</span>;
 }
@@ -495,7 +495,7 @@ function EditCell({value, onSave, numeric, display, color}) {
     <span onDoubleClick={()=>setEd(true)} title="Doppio click per modificare"
       style={{cursor:"text",display:"block",padding:"2px 3px",borderRadius:4,
               color:color||"inherit",transition:"background .15s"}}
-      onMouseEnter={e=>e.target.style.background="#e2e8f0"}
+      onMouseEnter={e=>e.target.style.background="var(--raised)"}
       onMouseLeave={e=>e.target.style.background="transparent"}>
       {shown}
     </span>
@@ -687,7 +687,7 @@ function CashChart({assegni}) {
             {/* barra normale */}
             <linearGradient id="ccBg" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#22c55e" stopOpacity=".9"/>
-              <stop offset="100%" stopColor="var(--success-s)" stopOpacity=".5"/>
+              <stop offset="100%" stopColor="#052e16" stopOpacity=".5"/>
             </linearGradient>
             {/* barra hover */}
             <linearGradient id="ccBh" x1="0" y1="0" x2="0" y2="1">
@@ -707,7 +707,7 @@ function CashChart({assegni}) {
             {/* barra pino (consegnato) */}
             <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#60a5fa" stopOpacity=".9"/>
-              <stop offset="100%" stopColor="var(--bg)" stopOpacity=".5"/>
+              <stop offset="100%" stopColor="#0E0E11" stopOpacity=".5"/>
             </linearGradient>
             {/* barra pino hover */}
             <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
@@ -717,16 +717,16 @@ function CashChart({assegni}) {
           </defs>
 
           {/* area plot sfondo */}
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="var(--bg)" rx={4}/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#0E0E11" rx={4}/>
 
           {/* linee griglia */}
           {gridLines.map(({r,y,val})=>(
             <g key={r}>
               <line x1={P.l} x2={P.l+iW} y1={y} y2={y}
-                stroke={r===1?"var(--accent-s)":"var(--bg)"} strokeWidth={1}
+                stroke={r===1?"#2563EB":"#1C1C22"} strokeWidth={1}
                 strokeDasharray={r===1?"":"4,5"}/>
               <text x={P.l-6} y={y+3.5} textAnchor="end"
-                fill="var(--bg)" fontSize={9} fontFamily="var(--mono)">
+                fill="#9898A6" fontSize={9} fontFamily="var(--mono)">
                 {fmtY(val)}
               </text>
             </g>
@@ -785,7 +785,7 @@ function CashChart({assegni}) {
                 {/* label asse X */}
                 {(i%labelStep===0||n<=15)&&(
                   <text x={xOf(i)} y={H-P.b+14} textAnchor="middle"
-                    fill={isToday?"#818cf8":isHov?"var(--text-2)":"var(--bg)"}
+                    fill={isToday?"#818cf8":isHov?"#F0F0F4":"#9898A6"}
                     fontSize={8.5} fontFamily="var(--mono)"
                     fontWeight={isToday||isHov?"bold":"normal"}>
                     {fmtDay(k)}
@@ -796,7 +796,7 @@ function CashChart({assegni}) {
           })}
 
           {/* asse sinistro */}
-          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="var(--accent-s)" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#2A2A34" strokeWidth={1}/>
           {/* asse inferiore */}
           <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="var(--accent-s)" strokeWidth={1}/>
         </svg>
@@ -848,7 +848,7 @@ function CashChart({assegni}) {
 
               {/* lista assegni */}
               <div style={{maxHeight:280,overflowY:"auto",
-                scrollbarWidth:"thin",scrollbarColor:"#e2e8f0 transparent"}}>
+                scrollbarWidth:"thin",scrollbarColor:"#2A2A34 transparent"}}>
                 {v.items.map((a,j)=>{
                   const imp=parseNum(a["IMPORTO TITOLO"]);
                   const fatture=a["FATTURE PAGATE"]||"";
@@ -934,7 +934,7 @@ function CashChart({assegni}) {
                   <div style={{display:"flex",justifyContent:"space-between",
                     fontSize:9,marginBottom:5}}>
                     <span style={{display:"flex",alignItems:"center",gap:4}}>
-                      <span style={{width:6,height:6,borderRadius:1,background:"#fb923c",display:"inline-block"}}/>
+                      <span style={{width:6,height:6,borderRadius:1,background:"var(--danger-s)",display:"inline-block"}}/>
                       <span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span>
                     </span>
                     <span style={{display:"flex",alignItems:"center",gap:4}}>
@@ -980,7 +980,7 @@ function CashChart({assegni}) {
           <span style={{color:"var(--text-2)"}}>Scaduto ±4gg</span>
         </span>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
-          <span style={{width:2,height:10,background:"#818cf8",display:"inline-block"}}/>
+          <span style={{width:2,height:10,background:"#60a5fa",display:"inline-block"}}/>
           <span style={{color:"var(--text-2)"}}>Oggi</span>
         </span>
         <span style={{marginLeft:"auto",color:"var(--text-2)",fontSize:9,
@@ -1123,7 +1123,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     width:"100%",outline:"none"};
   const card = (active,accent="#6366f1") => ({
     border:`2px solid ${active?accent:"#e2e8f0"}`,borderRadius:12,padding:"18px 20px",
-    cursor:"pointer",background:active?`${accent}11`:"#f8f9fc",
+    cursor:"pointer",background:active?`${accent}11`:"var(--raised)",
     transition:"all .15s",textAlign:"center",flex:1,
   });
 
@@ -1372,7 +1372,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     const wr = statoDoc==="APERTO" && isWarn(row.doc[COL.dataDocumento]);
                     return (
                       <tr key={i} style={{borderBottom:"1px solid #ffffff",cursor:"pointer",
-                        background:isNac?(row.checked?"var(--bg)":"var(--bg)"):(row.checked?"#f4f6ff":"#f8f9fc"),
+                        background:isNac?(row.checked?"var(--bg)":"var(--bg)"):(row.checked?"var(--border-2)":"var(--raised)"),
                         opacity:row.checked?1:0.65}}
                         onClick={()=>toggleRow(i)}>
                         <td style={{padding:"9px 12px",width:36,textAlign:"center"}}>
@@ -2747,15 +2747,15 @@ function App() {
                       const wn=doc[COL.stato]?.toUpperCase()==="APERTO"&&isWarn(doc[COL.dataDocumento]);
                       const di=doc[COL.stato]==="DA INCASSARE";
                       const origIdx=docs.indexOf(doc);
-                      const base=ov?"var(--danger-s)":wn?"var(--warn-s)":i%2===0?"#f8f9ff":"var(--bg)";
+                      const base=ov?"var(--danger-s)":wn?"var(--warn-s)":i%2===0?"var(--raised)":"var(--surface)";
                       return (
                         <tr key={doc[COL.numeroDocumento]+i} className="row-hover"
-                          style={{borderBottom:"1px solid #f4f6ff",background:base}}>
+                          style={{borderBottom:"1px solid var(--border-2)",background:base}}>
                           <td style={{padding:"9px 11px"}}><Badge label={doc[COL.tipoDocumento]}/></td>
                           <td style={{padding:"9px 11px",color:"var(--accent)",fontWeight:600}}>
                             <EditCell value={doc[COL.numeroDocumento]} onSave={v=>handleEdit(origIdx,COL.numeroDocumento,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:ov?"#ef4444":wn?"#fb923c":"#94a3b8"}}>
+                          <td style={{padding:"9px 11px",color:ov?"var(--danger)":wn?"var(--warn)":"var(--text-2)"}}>
                             <EditCell value={doc[COL.dataDocumento]} onSave={v=>handleEdit(origIdx,COL.dataDocumento,v)}/>
                             {ov&&<span style={{color:"var(--danger)",fontSize:10}}> ⚠</span>}
                           </td>
@@ -2766,7 +2766,7 @@ function App() {
                             <EditCell value={doc[COL.importoDocumento]} numeric onSave={v=>handleEdit(origIdx,COL.importoDocumento,v)}/>
                           </td>
                           <td style={{padding:"9px 11px",textAlign:"right",fontWeight:700,
-                            color:parseNum(doc[COL.saldoResiduo])>0?"#f1f5f9":"#22c55e"}}>
+                            color:parseNum(doc[COL.saldoResiduo])>0?"var(--text-1)":"var(--success)"}}>
                             <EditCell value={doc[COL.saldoResiduo]} numeric onSave={v=>handleEdit(origIdx,COL.saldoResiduo,v)}/>
                           </td>
                           <td style={{padding:"9px 11px",color:"var(--text-2)",fontSize:11}}>
@@ -2834,7 +2834,7 @@ function App() {
                     const origIdx = incs.indexOf(inc);
                     return (
                     <tr key={inc["ID Incasso"]||i} className="row-hover"
-                      style={{borderBottom:"1px solid #f4f6ff",background:i%2===0?"#f8f9ff":"var(--bg)"}}>
+                      style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)"}}>
                       <td style={{padding:"10px 13px",color:"var(--accent)",fontFamily:"var(--font)",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
@@ -2890,7 +2890,7 @@ function App() {
                     const origIdxA = assegni.indexOf(a);
                     return (
                       <tr key={i} className="row-hover"
-                        style={{borderBottom:"1px solid #f4f6ff",background:i%2===0?"#f8f9ff":"var(--bg)"}}>
+                        style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)"}}>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
                         <td style={{padding:"9px 13px",color:"#0284C7",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
@@ -3304,7 +3304,7 @@ function App() {
                       <>
                         {/* Riepilogo abbinamento */}
                         <div style={{
-                          background: isDone?"var(--success-s)":assSelIds.size>0?"var(--danger-s)":"#f8f9ff",
+                          background: isDone?"var(--success-s)":assSelIds.size>0?"var(--danger-s)":"var(--raised)",
                           border:`1px solid ${isDone?"#22c55e":assSelIds.size>0?"#d97706":"#e2e8f0"}`,
                           borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:12,fontSize:11}}>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
@@ -3637,7 +3637,7 @@ function App() {
                     {fatture.map((f,j)=>{
                       const doc = docCollegati.find(d=>d._numRef===f);
                       return (
-                        <div key={j} style={{background:doc?"#f4f6ff":"var(--bg)",
+                        <div key={j} style={{background:doc?"var(--border-2)":"var(--bg)",
                           border:`1px solid ${doc?"var(--bg)":"#e2e8f0"}`,
                           borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:6,
                           display:"flex",justifyContent:"space-between",alignItems:"center"}}>
