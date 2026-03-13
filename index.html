@@ -30,42 +30,139 @@
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&display=swap" rel="stylesheet" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <style>
+    :root {
+      --bg:       #F7F7F9;
+      --surface:  #FFFFFF;
+      --border:   #E4E4EA;
+      --border-2: #EFEFF4;
+      --text-1:   #0F0F14;
+      --text-2:   #52525E;
+      --text-3:   #A1A1AE;
+      --accent:   #2563EB;
+      --accent-s: #EFF4FF;
+      --accent-t: rgba(37,99,235,.12);
+      --navy:     #0F172A;
+      --success:  #16A34A;
+      --warn:     #D97706;
+      --danger:   #DC2626;
+      --success-s:#F0FDF4;
+      --warn-s:   #FFFBEB;
+      --danger-s: #FEF2F2;
+      --radius:   10px;
+      --radius-s: 6px;
+      --shadow:   0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+      --shadow-m: 0 4px 16px rgba(0,0,0,.08), 0 1px 3px rgba(0,0,0,.04);
+      --shadow-l: 0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+      --font:     'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
+    }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; }
-    body { background: #f0f4ff; font-family: 'Century Gothic', CenturyGothic, 'Apple Gothic', 'Trebuchet MS', sans-serif; color: #e2e8f0; }
-    ::-webkit-scrollbar { width: 5px; height: 5px; }
-    ::-webkit-scrollbar-track { background: #f1f5f9; }
-    ::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 3px; }
+    body {
+      background: var(--bg);
+      font-family: var(--font);
+      color: var(--text-1);
+      font-size: 13px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-3); }
 
     /* ── Animazioni ── */
-    @keyframes spin      { to { transform: rotate(360deg); } }
-    @keyframes slideUp   { from { transform:translateY(20px);opacity:0; } to { transform:translateY(0);opacity:1; } }
-    @keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
-    @keyframes fadeSlide { from { opacity:0; transform:translateX(-10px); } to { opacity:1; transform:translateX(0); } }
-    @keyframes tabIn     { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes countUp   { from { opacity:0; transform:translateY(8px) scale(.95); } to { opacity:1; transform:translateY(0) scale(1); } }
-    @keyframes barGrow   { from { transform:scaleY(0); transform-origin:bottom; } to { transform:scaleY(1); transform-origin:bottom; } }
-    @keyframes glowPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(99,102,241,.0); } 50% { box-shadow: 0 0 16px 2px rgba(99,102,241,.18); } }
-    @keyframes sidebarIn { from { transform:translateX(-100%); opacity:0; } to { transform:translateX(0); opacity:1; } }
+    @keyframes spin    { to { transform: rotate(360deg); } }
+    @keyframes tabIn   { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+    @keyframes countUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes slideIn { from { transform:translateX(-16px); opacity:0; } to { transform:translateX(0); opacity:1; } }
 
-    .tab-content     { animation: tabIn .22s cubic-bezier(.4,0,.2,1) both; }
-    .kpi-card        { transition: transform .18s, box-shadow .18s; }
-    .kpi-card:hover  { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,.5), 0 0 0 1px rgba(99,102,241,.18); }
-    .nav-item        { transition: background .14s, color .14s, padding-left .14s; }
-    .nav-item:hover  { background: rgba(99,102,241,.08) !important; color: #4338ca !important; padding-left: 22px !important; }
-    .row-hover:hover { background: #eef2ff !important; }
-    .glass-card      {
-      background: rgba(255,255,255,.85);
-      backdrop-filter: blur(18px) saturate(1.2);
-      -webkit-backdrop-filter: blur(18px) saturate(1.2);
-      border: 1px solid rgba(99,102,241,.2);
-      box-shadow: 0 2px 16px rgba(99,102,241,.08);
+    /* ── Componenti ── */
+    .tab-content { animation: tabIn .2s cubic-bezier(.4,0,.2,1) both; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
     }
-    .btn-primary     { transition: filter .14s, transform .12s; }
-    .btn-primary:hover { filter: brightness(1.12); transform: translateY(-1px); }
+
+    .kpi-card {
+      transition: box-shadow .15s, transform .15s;
+      cursor: default;
+    }
+    .kpi-card:hover {
+      box-shadow: var(--shadow-m);
+      transform: translateY(-1px);
+    }
+
+    .nav-item {
+      transition: background .1s, color .1s;
+      border-radius: var(--radius-s);
+    }
+    .nav-item:hover {
+      background: var(--accent-s) !important;
+      color: var(--accent) !important;
+    }
+
+    .row-hover:hover { background: var(--bg) !important; }
+
+    .glass-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+
+    .btn-primary { transition: opacity .12s, transform .12s, box-shadow .12s; }
+    .btn-primary:hover { opacity: .9; transform: translateY(-1px); box-shadow: var(--shadow-m); }
+
+    /* ── Tabelle ── */
+    table { border-collapse: collapse; width: 100%; }
+    th {
+      font-weight: 600;
+      font-size: 10px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: var(--text-3);
+      padding: 10px 14px;
+      background: var(--bg);
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid var(--border-2); vertical-align: middle; }
+
+    /* ── Input / Select ── */
+    input, select, textarea {
+      font-family: var(--font);
+      font-size: 13px;
+      color: var(--text-1);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-s);
+      outline: none;
+      transition: border-color .12s, box-shadow .12s;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-t);
+    }
+
+    /* ── Badge ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .03em;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -314,11 +411,11 @@ function makeSortTh(sortKey, sortDir, toggleSort) {
         style={{padding:"11px 13px",textAlign:"left",fontWeight:600,fontSize:11,
           whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",
           color:active?"#f1f5f9":"#475569",
-          background:active?"#162032":"transparent",
+          background:active?"var(--bg)":"transparent",
           transition:"color .15s,background .15s",...style}}>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           {label}
-          <span style={{fontSize:10,color:active?"#6366f1":"#334155"}}>
+          <span style={{fontSize:10,color:active?"#6366f1":"var(--bg)"}}>
             {active?(sortDir==="asc"?"▲":"▼"):"⇅"}
           </span>
         </span>
@@ -331,11 +428,11 @@ function makeSortTh(sortKey, sortDir, toggleSort) {
    SHARED STYLES
 ────────────────────────────────────────────── */
 const S = {
-  input: { background:"#ffffff", border:"1px solid #e2e8f0", color:"#e2e8f0",
-           padding:"9px 12px", borderRadius:8, fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
+  input: { background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text-1)",
+           padding:"9px 12px", borderRadius:"var(--radius-s)", fontFamily:"var(--font)",
            fontSize:13, width:"100%" },
-  btn:   { border:"none", borderRadius:8, padding:"9px 18px", cursor:"pointer",
-           fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif", fontWeight:700, fontSize:12 },
+  btn:   { border:"none", borderRadius:"var(--radius-s)", padding:"9px 18px", cursor:"pointer",
+           fontFamily:"var(--font)", fontWeight:700, fontSize:12 },
 };
 
 /* ──────────────────────────────────────────────
@@ -345,10 +442,10 @@ function Toast({msg,type,onClose}) {
   useEffect(()=>{ const t=setTimeout(onClose,3800); return ()=>clearTimeout(t); },[onClose]);
   const accent={success:"#22c55e",error:"#ef4444",info:"#6366f1",warn:"#fb923c"}[type]||"#6366f1";
   return (
-    <div style={{position:"fixed",bottom:28,right:28,zIndex:9999,background:"#eef2ff",
-      color:"#e2e8f0",padding:"13px 20px",borderRadius:10,borderLeft:`4px solid ${accent}`,
+    <div style={{position:"fixed",bottom:28,right:28,zIndex:9999,background:"var(--accent-s)",
+      color:"var(--text-1)",padding:"13px 20px",borderRadius:10,borderLeft:`4px solid ${accent}`,
       boxShadow:"0 8px 32px rgba(0,0,0,.6)",fontSize:13,maxWidth:360,
-      animation:"slideUp .3s ease",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+      animation:"slideUp .3s ease",fontFamily:"var(--font)"}}>
       {msg}
     </div>
   );
@@ -362,16 +459,16 @@ function Spinner({size=16}) {
 
 function Badge({label}) {
   const map = {
-    FVE:   {bg:"#1e3a5f",c:"#60a5fa"},
-    NAC:   {bg:"#3b1f3b",c:"#c084fc"},
-    Aperto:{bg:"#1a3a2a",c:"#4ade80"},
-    APERTO:{bg:"#1a3a2a",c:"#4ade80"},
+    FVE:   {bg:"var(--bg)",c:"#60a5fa"},
+    NAC:   {bg:"var(--bg)",c:"#c084fc"},
+    Aperto:{bg:"var(--success-s)",c:"#4ade80"},
+    APERTO:{bg:"var(--success-s)",c:"#4ade80"},
     Chiuso:{bg:"#e2e8f0",c:"#64748b"},
     CHIUSO:{bg:"#e2e8f0",c:"#64748b"},
-    "DA INCASSARE":{bg:"#2d1f0a",c:"#fb923c"},
-    PARZIALE:{bg:"#2a2010",c:"#fbbf24"},
-    Bonifico:{bg:"#1a2f4a",c:"#38bdf8"},
-    "Assegno Postdatato":{bg:"#3a2a1a",c:"#fb923c"},
+    "DA INCASSARE":{bg:"var(--danger-s)",c:"#fb923c"},
+    PARZIALE:{bg:"var(--danger-s)",c:"#fbbf24"},
+    Bonifico:{bg:"var(--bg)",c:"#38bdf8"},
+    "Assegno Postdatato":{bg:"var(--danger-s)",c:"#fb923c"},
   };
   const s = map[label]||{bg:"#e2e8f0",c:"#94a3b8"};
   return <span style={{background:s.bg,color:s.c,padding:"2px 8px",borderRadius:5,
@@ -472,43 +569,43 @@ function CashChart({assegni}) {
   // ── UI filtri ─────────────────────────────────────────────
   const FilBtn = ({label,active,onClick,color}) => (
     React.createElement("button",{onClick,style:{
-      background:active?(color||"#1e3a5f"):"transparent",
+      background:active?(color||"var(--bg)"):"transparent",
       border:`1px solid ${active?(color||"#3b82f6"):"#e2e8f0"}`,
       color:active?"#f1f5f9":"#475569",
       borderRadius:6,padding:"4px 10px",cursor:"pointer",
       fontSize:10,fontWeight:active?700:400,
-      fontFamily:"IBM Plex Mono,monospace",transition:"all .12s",
+      fontFamily:"var(--mono)",transition:"all .12s",
     }},label)
   );
 
   const filtriUI = (
     <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-      <div style={{display:"flex",gap:3,background:"#f8faff",border:"1px solid #0f1f35",borderRadius:8,padding:3}}>
+      <div style={{display:"flex",gap:3,background:"var(--bg)",border:"1px solid #0f1f35",borderRadius:"var(--radius-s)",padding:3}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
-            color={v==="IN ARCHIVIO"?"#78350f":v==="CONSEGNATO A PINO"?"#1e3a5f":"#e2e8f0"}
+            color={v==="IN ARCHIVIO"?"#78350f":v==="CONSEGNATO A PINO"?"var(--bg)":"#e2e8f0"}
             onClick={()=>setStatoFil(v)}/>
         ))}
       </div>
-      <div style={{width:1,height:20,background:"#eef2ff",flexShrink:0}}/>
-      <div style={{display:"flex",gap:3,background:"#f8faff",border:"1px solid #0f1f35",borderRadius:8,padding:3}}>
+      <div style={{width:1,height:20,background:"var(--accent-s)",flexShrink:0}}/>
+      <div style={{display:"flex",gap:3,background:"var(--bg)",border:"1px solid #0f1f35",borderRadius:"var(--radius-s)",padding:3}}>
         {PRESETS.map((p,i)=>(
-          <FilBtn key={i} label={p.label} color="#1e3a5f"
+          <FilBtn key={i} label={p.label} color="var(--bg)"
             active={preset===i&&!fromDate&&!toDate}
             onClick={()=>{setPreset(i);setFromDate("");setToDate("");}}/>
         ))}
       </div>
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
         <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}
-          style={{background:"#f8faff",border:"1px solid #e2e8f0",borderRadius:6,
-            color:"#64748b",fontSize:10,padding:"4px 8px",fontFamily:"IBM Plex Mono,monospace"}}/>
-        <span style={{color:"#64748b",fontSize:10}}>→</span>
+          style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+            color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
+        <span style={{color:"var(--text-2)",fontSize:10}}>→</span>
         <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)}
-          style={{background:"#f8faff",border:"1px solid #e2e8f0",borderRadius:6,
-            color:"#64748b",fontSize:10,padding:"4px 8px",fontFamily:"IBM Plex Mono,monospace"}}/>
+          style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+            color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
         {(fromDate||toDate)&&(
           <button onClick={()=>{setFromDate("");setToDate("");}}
-            style={{background:"#eef2ff",border:"none",color:"#ef4444",borderRadius:5,
+            style={{background:"var(--accent-s)",border:"none",color:"var(--danger)",borderRadius:5,
               padding:"3px 7px",cursor:"pointer",fontSize:11}}>✕</button>
         )}
       </div>
@@ -520,7 +617,7 @@ function CashChart({assegni}) {
       {filtriUI}
       <div style={{padding:"48px 0",textAlign:"center"}}>
         <div style={{fontSize:32,marginBottom:8,opacity:.3}}>◈</div>
-        <div style={{color:"#64748b",fontSize:12}}>Nessun assegno nel periodo selezionato</div>
+        <div style={{color:"var(--text-2)",fontSize:12}}>Nessun assegno nel periodo selezionato</div>
       </div>
     </div>
   );
@@ -564,17 +661,17 @@ function CashChart({assegni}) {
       {/* ── KPI strip ─────────────────────────────────────── */}
       <div style={{display:"flex",gap:2,marginBottom:14,flexWrap:"wrap"}}>
         {[
-          {label:"Totale periodo",  val:eur(totGlobale), color:"#4ade80"},
-          {label:"In Archivio",     val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"#fb923c"},
-          {label:"Cons. a Pino",    val:eur(entries.reduce((s,[,v])=>s+v.pino,0)),     color:"#60a5fa"},
-          {label:"Assegni · Date",  val:`${nGlobale} · ${entries.length}`,             color:"#64748b"},
+          {label:"Totale periodo",  val:eur(totGlobale), color:"var(--success)"},
+          {label:"In Archivio",     val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"var(--warn)"},
+          {label:"Cons. a Pino",    val:eur(entries.reduce((s,[,v])=>s+v.pino,0)),     color:"var(--accent)"},
+          {label:"Assegni · Date",  val:`${nGlobale} · ${entries.length}`,             color:"var(--text-2)"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 130px",background:"#f8faff",
+          <div key={i} style={{flex:"1 1 130px",background:"var(--bg)",
             border:"1px solid #0f1f35",borderRadius:10,padding:"10px 16px"}}>
-            <div style={{color:"#64748b",fontSize:9,fontWeight:700,
+            <div style={{color:"var(--text-2)",fontSize:9,fontWeight:700,
               textTransform:"uppercase",letterSpacing:.8,marginBottom:4}}>{label}</div>
             <div style={{color,fontSize:14,fontWeight:800,
-              fontFamily:"IBM Plex Mono,monospace",lineHeight:1}}>{val}</div>
+              fontFamily:"var(--mono)",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
@@ -589,7 +686,7 @@ function CashChart({assegni}) {
             {/* barra normale */}
             <linearGradient id="ccBg" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#22c55e" stopOpacity=".9"/>
-              <stop offset="100%" stopColor="#052e16" stopOpacity=".5"/>
+              <stop offset="100%" stopColor="var(--success-s)" stopOpacity=".5"/>
             </linearGradient>
             {/* barra hover */}
             <linearGradient id="ccBh" x1="0" y1="0" x2="0" y2="1">
@@ -599,7 +696,7 @@ function CashChart({assegni}) {
             {/* barra tolleranza */}
             <linearGradient id="ccBt" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#fb923c" stopOpacity=".9"/>
-              <stop offset="100%" stopColor="#431407" stopOpacity=".5"/>
+              <stop offset="100%" stopColor="var(--danger-s)" stopOpacity=".5"/>
             </linearGradient>
             {/* barra tolleranza hover */}
             <linearGradient id="ccBth" x1="0" y1="0" x2="0" y2="1">
@@ -609,7 +706,7 @@ function CashChart({assegni}) {
             {/* barra pino (consegnato) */}
             <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%"   stopColor="#60a5fa" stopOpacity=".9"/>
-              <stop offset="100%" stopColor="#1e3a5f" stopOpacity=".5"/>
+              <stop offset="100%" stopColor="var(--bg)" stopOpacity=".5"/>
             </linearGradient>
             {/* barra pino hover */}
             <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
@@ -619,16 +716,16 @@ function CashChart({assegni}) {
           </defs>
 
           {/* area plot sfondo */}
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#050b15" rx={4}/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="var(--bg)" rx={4}/>
 
           {/* linee griglia */}
           {gridLines.map(({r,y,val})=>(
             <g key={r}>
               <line x1={P.l} x2={P.l+iW} y1={y} y2={y}
-                stroke={r===1?"#0f1f35":"#0d1a2a"} strokeWidth={1}
+                stroke={r===1?"var(--accent-s)":"var(--bg)"} strokeWidth={1}
                 strokeDasharray={r===1?"":"4,5"}/>
               <text x={P.l-6} y={y+3.5} textAnchor="end"
-                fill="#334155" fontSize={9} fontFamily="IBM Plex Mono,monospace">
+                fill="var(--bg)" fontSize={9} fontFamily="var(--mono)">
                 {fmtY(val)}
               </text>
             </g>
@@ -668,7 +765,7 @@ function CashChart({assegni}) {
                 {(isHov||(n<=8))&&(
                   <text x={xOf(i)} y={yTot-5} textAnchor="middle"
                     fill={inTol?"#fb923c":v.archivio>0?"#4ade80":"#60a5fa"} fontSize={8}
-                    fontFamily="IBM Plex Mono,monospace" fontWeight="bold">
+                    fontFamily="var(--mono)" fontWeight="bold">
                     {fmtY(v.total)}
                   </text>
                 )}
@@ -677,18 +774,18 @@ function CashChart({assegni}) {
                 {nA>1&&!isHov&&(
                   <g>
                     <circle cx={xOf(i)} cy={yTot-10} r={6}
-                      fill="#070d18" stroke="#e2e8f0" strokeWidth={1}/>
+                      fill="var(--bg)" stroke="#e2e8f0" strokeWidth={1}/>
                     <text x={xOf(i)} y={yTot-6.5} textAnchor="middle"
                       fill="#475569" fontSize={6.5}
-                      fontFamily="IBM Plex Mono,monospace" fontWeight="bold">{nA}</text>
+                      fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
                   </g>
                 )}
 
                 {/* label asse X */}
                 {(i%labelStep===0||n<=15)&&(
                   <text x={xOf(i)} y={H-P.b+14} textAnchor="middle"
-                    fill={isToday?"#818cf8":isHov?"#94a3b8":"#334155"}
-                    fontSize={8.5} fontFamily="IBM Plex Mono,monospace"
+                    fill={isToday?"#818cf8":isHov?"#94a3b8":"var(--bg)"}
+                    fontSize={8.5} fontFamily="var(--mono)"
                     fontWeight={isToday||isHov?"bold":"normal"}>
                     {fmtDay(k)}
                   </text>
@@ -698,9 +795,9 @@ function CashChart({assegni}) {
           })}
 
           {/* asse sinistro */}
-          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#0f1f35" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="var(--accent-s)" strokeWidth={1}/>
           {/* asse inferiore */}
-          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="#0f1f35" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="var(--accent-s)" strokeWidth={1}/>
         </svg>
 
         {/* ── TOOLTIP ──────────────────────────────────────── */}
@@ -713,7 +810,7 @@ function CashChart({assegni}) {
           const TW=290;
           const inTol=isInTol(k);
           const accentColor=inTol?"#fb923c":"#22c55e";
-          const accentBg=inTol?"#1c0a00":"#041510";
+          const accentBg=inTol?"var(--danger-s)":"var(--success-s)";
 
           return (
             <div style={{
@@ -721,7 +818,7 @@ function CashChart({assegni}) {
               top:Math.max(4, mousePos.y-20),
               left:flipL?`calc(${pctX*100}% - ${TW+14}px)`:`calc(${pctX*100}% + 14px)`,
               width:TW,
-              background:"#060e1c",
+              background:"var(--bg)",
               border:`1px solid ${accentColor}33`,
               borderRadius:12,
               boxShadow:`0 20px 60px #00000099, 0 0 0 1px ${accentColor}11`,
@@ -738,11 +835,11 @@ function CashChart({assegni}) {
                   {fmtFullLong(k)}
                 </div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                  <span style={{color:"#64748b",fontSize:10}}>
+                  <span style={{color:"var(--text-2)",fontSize:10}}>
                     {v.items.length} assegn{v.items.length===1?"o":"i"} in scadenza
                   </span>
                   <span style={{color:accentColor,fontSize:17,fontWeight:900,
-                    fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",lineHeight:1}}>
+                    fontFamily:"var(--font)",lineHeight:1}}>
                     {eur(v.total)}
                   </span>
                 </div>
@@ -764,30 +861,30 @@ function CashChart({assegni}) {
                       {/* riga 1: cliente + importo */}
                       <div style={{display:"flex",justifyContent:"space-between",
                         alignItems:"flex-start",marginBottom:4}}>
-                        <div style={{color:"#e2e8f0",fontSize:11,fontWeight:700,
+                        <div style={{color:"var(--text-1)",fontSize:11,fontWeight:700,
                           flex:1,minWidth:0,overflow:"hidden",
                           textOverflow:"ellipsis",whiteSpace:"nowrap",
                           paddingRight:8}}>
                           {a["CLIENTE"]||"—"}
                         </div>
                         <div style={{color:accentColor,fontSize:12,fontWeight:900,
-                          fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
+                          fontFamily:"var(--font)",
                           whiteSpace:"nowrap",flexShrink:0}}>
                           {eur(imp)}
                         </div>
                       </div>
                       {/* riga 2: n° titolo + stato */}
                       <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
-                        <span style={{color:"#38bdf8",fontSize:9,
-                          fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",fontWeight:700}}>
+                        <span style={{color:"#0284C7",fontSize:9,
+                          fontFamily:"var(--font)",fontWeight:700}}>
                           {a["N TITOLO"]||"—"}
                         </span>
-                        <span style={{color:"#64748b",fontSize:8}}>·</span>
+                        <span style={{color:"var(--text-2)",fontSize:8}}>·</span>
                         <span style={{
                           fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,
-                          background: inTol?"#1c0a00":"#071510",
+                          background: inTol?"var(--danger-s)":"var(--success-s)",
                           color:inTol?"#fb923c":"#22c55e",
-                          border:`1px solid ${inTol?"#7c2d12":"#14532d"}`,
+                          border:`1px solid ${inTol?"#7c2d12":"var(--success-s)"}`,
                         }}>
                           {a["STATO TITOLO"]||""}
                         </span>
@@ -797,9 +894,9 @@ function CashChart({assegni}) {
                         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:3}}>
                           {fatture&&(
                             <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                              <span style={{color:"#64748b",fontSize:8,fontWeight:700}}>FATT.</span>
-                              <span style={{color:"#64748b",fontSize:9,
-                                fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                              <span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>FATT.</span>
+                              <span style={{color:"var(--text-2)",fontSize:9,
+                                fontFamily:"var(--font)"}}>
                                 {fmtDocList(fatture)}
                               </span>
                             </div>
@@ -808,16 +905,16 @@ function CashChart({assegni}) {
                             <div style={{display:"flex",gap:3,alignItems:"center"}}>
                               <span style={{color:"#4c1d95",fontSize:8,fontWeight:700}}>NC</span>
                               <span style={{color:"#a78bfa",fontSize:9,
-                                fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                                fontFamily:"var(--font)"}}>
                                 {fmtDocList(nc)}
                               </span>
                             </div>
                           )}
                           {docsColl&&!fatture&&(
                             <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                              <span style={{color:"#64748b",fontSize:8,fontWeight:700}}>DOC.</span>
-                              <span style={{color:"#64748b",fontSize:9,
-                                fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                              <span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>DOC.</span>
+                              <span style={{color:"var(--text-2)",fontSize:9,
+                                fontFamily:"var(--font)"}}>
                                 {fmtDocList(docsColl)}
                               </span>
                             </div>
@@ -831,28 +928,28 @@ function CashChart({assegni}) {
 
               {/* footer tooltip: breakdown archivio/pino + barra % */}
               <div style={{padding:"8px 14px",borderTop:"1px solid #080f1e",
-                background:"#050b17"}}>
+                background:"var(--bg)"}}>
                 {v.archivio>0&&v.pino>0&&(
                   <div style={{display:"flex",justifyContent:"space-between",
                     fontSize:9,marginBottom:5}}>
                     <span style={{display:"flex",alignItems:"center",gap:4}}>
                       <span style={{width:6,height:6,borderRadius:1,background:"#fb923c",display:"inline-block"}}/>
-                      <span style={{color:"#64748b"}}>Arch. {eur(v.archivio)}</span>
+                      <span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span>
                     </span>
                     <span style={{display:"flex",alignItems:"center",gap:4}}>
                       <span style={{width:6,height:6,borderRadius:1,background:"#60a5fa",display:"inline-block"}}/>
-                      <span style={{color:"#64748b"}}>Pino {eur(v.pino)}</span>
+                      <span style={{color:"var(--text-2)"}}>Pino {eur(v.pino)}</span>
                     </span>
                   </div>
                 )}
                 <div style={{display:"flex",justifyContent:"space-between",
-                  fontSize:9,color:"#64748b",marginBottom:4}}>
+                  fontSize:9,color:"var(--text-2)",marginBottom:4}}>
                   <span>% sul totale periodo</span>
-                  <span style={{color:"#64748b",fontFamily:"IBM Plex Mono,monospace"}}>
+                  <span style={{color:"var(--text-2)",fontFamily:"var(--mono)"}}>
                     {((v.total/totGlobale)*100).toFixed(1)}%
                   </span>
                 </div>
-                <div style={{height:3,background:"#0f1f35",borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:3,background:"var(--accent-s)",borderRadius:2,overflow:"hidden"}}>
                   <div style={{height:"100%",background:accentColor,
                     width:`${(v.total/totGlobale)*100}%`,
                     borderRadius:2}}/>
@@ -865,28 +962,28 @@ function CashChart({assegni}) {
 
       {/* ── legenda footer ─────────────────────────────── */}
       <div style={{display:"flex",gap:12,marginTop:10,
-        fontSize:10,color:"#64748b",flexWrap:"wrap",alignItems:"center"}}>
+        fontSize:10,color:"var(--text-2)",flexWrap:"wrap",alignItems:"center"}}>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:10,height:10,borderRadius:2,
             background:"linear-gradient(#4ade80,#052e16)",display:"inline-block"}}/>
-          <span style={{color:"#64748b"}}>In Archivio</span>
+          <span style={{color:"var(--text-2)"}}>In Archivio</span>
         </span>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:10,height:10,borderRadius:2,
             background:"linear-gradient(#60a5fa,#1e3a5f)",display:"inline-block"}}/>
-          <span style={{color:"#64748b"}}>Cons. a Pino</span>
+          <span style={{color:"var(--text-2)"}}>Cons. a Pino</span>
         </span>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:10,height:10,borderRadius:2,
             background:"linear-gradient(#fb923c,#431407)",display:"inline-block"}}/>
-          <span style={{color:"#64748b"}}>Scaduto ±4gg</span>
+          <span style={{color:"var(--text-2)"}}>Scaduto ±4gg</span>
         </span>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:2,height:10,background:"#818cf8",display:"inline-block"}}/>
-          <span style={{color:"#64748b"}}>Oggi</span>
+          <span style={{color:"var(--text-2)"}}>Oggi</span>
         </span>
-        <span style={{marginLeft:"auto",color:"#64748b",fontSize:9,
-          fontFamily:"IBM Plex Mono,monospace"}}>
+        <span style={{marginLeft:"auto",color:"var(--text-2)",fontSize:9,
+          fontFamily:"var(--mono)"}}>
           {winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} → {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}
         </span>
       </div>
@@ -1020,8 +1117,8 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
   };
 
   // ── STYLES locali
-  const inp = {background:"#f8f9fc",border:"1px solid #e2e8f0",borderRadius:8,
-    padding:"9px 12px",color:"#e2e8f0",fontSize:13,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
+  const inp = {background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
+    padding:"9px 12px",color:"var(--text-1)",fontSize:13,fontFamily:"var(--font)",
     width:"100%",outline:"none"};
   const card = (active,accent="#6366f1") => ({
     border:`2px solid ${active?accent:"#e2e8f0"}`,borderRadius:12,padding:"18px 20px",
@@ -1032,19 +1129,19 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:1000,
       display:"flex",alignItems:"center",justifyContent:"center",animation:"fadeIn .2s"}}>
-      <div style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:16,
+      <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:16,
         width:700,maxHeight:"94vh",overflowY:"auto",
-        boxShadow:"0 24px 80px rgba(0,0,0,.9)",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+        boxShadow:"0 24px 80px rgba(0,0,0,.9)",fontFamily:"var(--font)"}}>
 
         {/* ── HEADER */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
-          padding:"18px 24px",borderBottom:"1px solid #e2e8f0",position:"sticky",top:0,
-          background:"#f8fafc",zIndex:10}}>
+          padding:"18px 24px",borderBottom:"1px solid var(--border)",position:"sticky",top:0,
+          background:"var(--bg)",zIndex:10}}>
           <div>
-            <div style={{color:"#e2e8f0",fontSize:15,fontWeight:700}}>⟁ Registra Incasso</div>
+            <div style={{color:"var(--text-1)",fontSize:15,fontWeight:700}}>⟁ Registra Incasso</div>
             <div style={{display:"flex",gap:16,marginTop:6}}>
               {["Tipo & Cliente","Abbina Documenti","Conferma"].map((lbl,i)=>(
-                <span key={i} style={{fontSize:10,color:step===i+1?"#6366f1":"#334155",
+                <span key={i} style={{fontSize:10,color:step===i+1?"#6366f1":"var(--bg)",
                   fontWeight:step===i+1?700:400}}>
                   {step===i+1?"● ":""}{i+1}. {lbl}
                 </span>
@@ -1052,7 +1149,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             </div>
           </div>
           <button onClick={onClose} style={{background:"transparent",border:"none",
-            color:"#64748b",fontSize:20,cursor:"pointer"}}>✕</button>
+            color:"var(--text-2)",fontSize:20,cursor:"pointer"}}>✕</button>
         </div>
 
         <div style={{padding:"24px"}}>
@@ -1062,40 +1159,40 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
           <>
             {/* Tipo */}
             <div style={{marginBottom:24}}>
-              <div style={{color:"#64748b",fontSize:11,marginBottom:10,fontWeight:700,letterSpacing:1}}>
+              <div style={{color:"var(--text-2)",fontSize:11,marginBottom:10,fontWeight:700,letterSpacing:1}}>
                 TIPO PAGAMENTO
               </div>
               <div style={{display:"flex",gap:12}}>
                 <div style={card(tipo==="assegno","#6366f1")} onClick={()=>setTipo("assegno")}>
                   <div style={{fontSize:28,marginBottom:6}}>🏷️</div>
                   <div style={{color:tipo==="assegno"?"#a5b4fc":"#94a3b8",fontWeight:700,fontSize:13}}>Assegno</div>
-                  <div style={{color:"#64748b",fontSize:10,marginTop:4}}>Titolo fisico</div>
+                  <div style={{color:"var(--text-2)",fontSize:10,marginTop:4}}>Titolo fisico</div>
                 </div>
                 <div style={card(tipo==="bonifico","#0ea5e9")} onClick={()=>setTipo("bonifico")}>
                   <div style={{fontSize:28,marginBottom:6}}>🏦</div>
                   <div style={{color:tipo==="bonifico"?"#7dd3fc":"#94a3b8",fontWeight:700,fontSize:13}}>Bonifico</div>
-                  <div style={{color:"#64748b",fontSize:10,marginTop:4}}>Trasferimento bancario</div>
+                  <div style={{color:"var(--text-2)",fontSize:10,marginTop:4}}>Trasferimento bancario</div>
                 </div>
               </div>
             </div>
 
             {/* Dati specifici per tipo */}
             {tipo==="assegno"&&(
-              <div style={{background:"#f8f9fc",border:"1px solid #e2e8f0",borderRadius:12,
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,
                 padding:18,marginBottom:20}}>
-                <div style={{color:"#64748b",fontSize:11,marginBottom:12,fontWeight:700,letterSpacing:1}}>
+                <div style={{color:"var(--text-2)",fontSize:11,marginBottom:12,fontWeight:700,letterSpacing:1}}>
                   DATI ASSEGNO
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
                   <div>
-                    <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>
+                    <label style={{color:"var(--text-2)",fontSize:11,display:"block",marginBottom:5}}>
                       Numero Assegno
                     </label>
                     <input value={nAssegno} onChange={e=>setNAssegno(e.target.value)}
                       placeholder="AB - XXXXX" style={inp}/>
                   </div>
                   <div>
-                    <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>
+                    <label style={{color:"var(--text-2)",fontSize:11,display:"block",marginBottom:5}}>
                       Data sul Titolo
                     </label>
                     <input type="date" value={dataTitolo}
@@ -1107,30 +1204,30 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   </div>
                 </div>
                 {dataTitolo&&(
-                  <div style={{marginTop:12,background:"#ffffff",borderRadius:8,padding:"10px 14px"}}>
+                  <div style={{marginTop:12,background:"var(--surface)",borderRadius:"var(--radius-s)",padding:"10px 14px"}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <div>
-                        <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>Data sul titolo</div>
-                        <div style={{color:"#64748b",fontSize:12}}>
+                        <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Data sul titolo</div>
+                        <div style={{color:"var(--text-2)",fontSize:12}}>
                           {fmtIso(dataTitolo)} — <span style={{color:["Sab","Dom"].includes(dayName(dataTitolo))?"#fb923c":"#64748b"}}>
                             {dayName(dataTitolo)}
                           </span>
                         </div>
                       </div>
                       <div style={{textAlign:"right"}}>
-                        <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>Data incasso previsto</div>
-                        <div style={{color:"#4ade80",fontSize:13,fontWeight:700}}>
+                        <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Data incasso previsto</div>
+                        <div style={{color:"var(--success)",fontSize:13,fontWeight:700}}>
                           {fmtIso(dataIncasso)} — {dayName(dataIncasso)}
                         </div>
                         {dataTitolo!==dataIncasso&&(
-                          <div style={{color:"#fb923c",fontSize:10,marginTop:2}}>
+                          <div style={{color:"var(--warn)",fontSize:10,marginTop:2}}>
                             ↑ spostato (weekend)
                           </div>
                         )}
                       </div>
                     </div>
                     <div style={{marginTop:10}}>
-                      <label style={{color:"#64748b",fontSize:10,display:"block",marginBottom:4}}>
+                      <label style={{color:"var(--text-2)",fontSize:10,display:"block",marginBottom:4}}>
                         Correggi data incasso (se necessario)
                       </label>
                       <input type="date" value={dataIncasso}
@@ -1142,13 +1239,13 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             )}
 
             {tipo==="bonifico"&&(
-              <div style={{background:"#f8f9fc",border:"1px solid #e2e8f0",borderRadius:12,
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,
                 padding:18,marginBottom:20}}>
-                <div style={{color:"#64748b",fontSize:11,marginBottom:12,fontWeight:700,letterSpacing:1}}>
+                <div style={{color:"var(--text-2)",fontSize:11,marginBottom:12,fontWeight:700,letterSpacing:1}}>
                   DATI BONIFICO
                 </div>
                 <div>
-                  <label style={{color:"#64748b",fontSize:11,display:"block",marginBottom:5}}>
+                  <label style={{color:"var(--text-2)",fontSize:11,display:"block",marginBottom:5}}>
                     Data contabile bonifico
                   </label>
                   <input type="date" value={dataBonifico}
@@ -1160,7 +1257,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             {/* Selezione cliente */}
             {tipo&&(
               <div style={{marginBottom:20}}>
-                <div style={{color:"#64748b",fontSize:11,marginBottom:10,fontWeight:700,letterSpacing:1}}>
+                <div style={{color:"var(--text-2)",fontSize:11,marginBottom:10,fontWeight:700,letterSpacing:1}}>
                   CLIENTE
                 </div>
                 <div style={{position:"relative"}}>
@@ -1171,22 +1268,22 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     style={inp}/>
                   {showDropdown&&filteredClients.length>0&&(
                     <div style={{position:"absolute",top:"100%",left:0,right:0,zIndex:50,
-                      background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:8,
+                      background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
                       maxHeight:200,overflowY:"auto",boxShadow:"0 8px 24px #000a"}}>
                       {filteredClients.slice(0,10).map(c=>(
                         <div key={c.id} onClick={()=>selectClient(c.id,c.name)}
                           style={{padding:"10px 14px",cursor:"pointer",borderBottom:"1px solid #f4f6ff"}}
                           className="row-hover">
-                          <div style={{color:"#e2e8f0",fontSize:12}}>{c.name}</div>
-                          <div style={{color:"#64748b",fontSize:10}}>cod. {c.id}</div>
+                          <div style={{color:"var(--text-1)",fontSize:12}}>{c.name}</div>
+                          <div style={{color:"var(--text-2)",fontSize:10}}>cod. {c.id}</div>
                         </div>
                       ))}
                     </div>
                   )}
                 </div>
                 {cid&&(
-                  <div style={{marginTop:10,background:"#f4f6ff",border:"1px solid #1e3a5f",
-                    borderRadius:8,padding:"10px 14px",fontSize:12,color:"#60a5fa"}}>
+                  <div style={{marginTop:10,background:"var(--bg)",border:"1px solid var(--border)",
+                    borderRadius:"var(--radius-s)",padding:"10px 14px",fontSize:12,color:"var(--accent)"}}>
                     ✓ <strong>{clientName}</strong> — {rows.filter(r=>r.doc[COL.tipoDocumento]==="FVE").length} FVE aperte,{" "}
                     {rows.filter(r=>r.doc[COL.tipoDocumento]==="NAC").length} NAC disponibili
                   </div>
@@ -1195,13 +1292,13 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             )}
 
             <div style={{display:"flex",justifyContent:"flex-end",gap:10}}>
-              <button onClick={onClose} style={{background:"#eef2ff",border:"none",borderRadius:8,
-                padding:"10px 20px",color:"#64748b",cursor:"pointer",fontSize:13}}>Annulla</button>
+              <button onClick={onClose} style={{background:"var(--accent-s)",border:"none",borderRadius:"var(--radius-s)",
+                padding:"10px 20px",color:"var(--text-2)",cursor:"pointer",fontSize:13}}>Annulla</button>
               <button
                 disabled={!tipo||!cid||(tipo==="assegno"&&!dataIncasso)||(tipo==="bonifico"&&!dataBonifico)}
                 onClick={()=>setStep(2)}
                 style={{background:tipo&&cid?"linear-gradient(135deg,#4f46e5,#7c3aed)":"#e2e8f0",
-                  border:"none",borderRadius:8,padding:"10px 24px",
+                  border:"none",borderRadius:"var(--radius-s)",padding:"10px 24px",
                   color:tipo&&cid?"#fff":"#475569",cursor:tipo&&cid?"pointer":"not-allowed",
                   fontSize:13,fontWeight:700}}>
                 Avanti → Abbina Documenti
@@ -1214,21 +1311,21 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
         {step===2&&(
           <>
             {/* Riepilogo testata */}
-            <div style={{background:"#f8f9fc",border:"1px solid #e2e8f0",borderRadius:10,
+            <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:10,
               padding:"12px 16px",marginBottom:18,display:"flex",gap:20,flexWrap:"wrap"}}>
               <div>
-                <div style={{color:"#64748b",fontSize:10}}>Cliente</div>
-                <div style={{color:"#e2e8f0",fontSize:13,fontWeight:700}}>{clientName}</div>
+                <div style={{color:"var(--text-2)",fontSize:10}}>Cliente</div>
+                <div style={{color:"var(--text-1)",fontSize:13,fontWeight:700}}>{clientName}</div>
               </div>
               <div>
-                <div style={{color:"#64748b",fontSize:10}}>Tipo</div>
-                <div style={{color:"#a5b4fc",fontSize:13,fontWeight:700}}>
+                <div style={{color:"var(--text-2)",fontSize:10}}>Tipo</div>
+                <div style={{color:"var(--accent)",fontSize:13,fontWeight:700}}>
                   {tipo==="assegno"?`🏷️ Assegno ${nAssegno}`:"🏦 Bonifico"}
                 </div>
               </div>
               <div>
-                <div style={{color:"#64748b",fontSize:10}}>Data incasso previsto</div>
-                <div style={{color:"#4ade80",fontSize:13,fontWeight:700}}>{fmtIso(dataEff)}</div>
+                <div style={{color:"var(--text-2)",fontSize:10}}>Data incasso previsto</div>
+                <div style={{color:"var(--success)",fontSize:13,fontWeight:700}}>{fmtIso(dataEff)}</div>
               </div>
             </div>
 
@@ -1239,29 +1336,29 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 {lbl:"NAC scalate",val:eur(totNac),c:"#c084fc"},
                 {lbl:"Netto da incassare",val:eur(netto),c:"#38bdf8"},
               ].map(({lbl,val,c})=>(
-                <div key={lbl} style={{background:"#f8f9fc",border:"1px solid #e2e8f0",
-                  borderRadius:8,padding:"10px 14px",textAlign:"center"}}>
-                  <div style={{color:"#64748b",fontSize:10,marginBottom:4}}>{lbl}</div>
+                <div key={lbl} style={{background:"var(--bg)",border:"1px solid var(--border)",
+                  borderRadius:"var(--radius-s)",padding:"10px 14px",textAlign:"center"}}>
+                  <div style={{color:"var(--text-2)",fontSize:10,marginBottom:4}}>{lbl}</div>
                   <div style={{color:c,fontSize:15,fontWeight:700}}>{val}</div>
                 </div>
               ))}
             </div>
 
             {/* Tabella partitario */}
-            <div style={{border:"1px solid #e2e8f0",borderRadius:10,overflow:"hidden",marginBottom:20}}>
-              <div style={{padding:"10px 14px",background:"#f8f9fc",borderBottom:"1px solid #e2e8f0",
+            <div style={{border:"1px solid var(--border)",borderRadius:10,overflow:"hidden",marginBottom:20}}>
+              <div style={{padding:"10px 14px",background:"var(--bg)",borderBottom:"1px solid var(--border)",
                 display:"flex",justifyContent:"space-between"}}>
-                <span style={{color:"#4338ca",fontSize:11,fontWeight:700}}>◈ PARTITARIO APERTO</span>
-                <span style={{color:"#64748b",fontSize:10}}>
+                <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ PARTITARIO APERTO</span>
+                <span style={{color:"var(--text-2)",fontSize:10}}>
                   FVE = verde • NAC = viola (scalano dal netto)
                 </span>
               </div>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
-                  <tr style={{background:"#f8f9fc",borderBottom:"1px solid #e2e8f0"}}>
+                  <tr style={{background:"var(--bg)",borderBottom:"1px solid var(--border)"}}>
                     {["","Tipo","N° Doc","Data","Scadenza","Saldo","Importo"].map(h=>(
                       <th key={h} style={{padding:"8px 12px",textAlign:h==="Importo"||h==="Saldo"?"right":"left",
-                        color:"#64748b",fontWeight:600,fontSize:10}}>{h}</th>
+                        color:"var(--text-2)",fontWeight:600,fontSize:10}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -1274,7 +1371,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     const wr = statoDoc==="APERTO" && isWarn(row.doc[COL.dataDocumento]);
                     return (
                       <tr key={i} style={{borderBottom:"1px solid #ffffff",cursor:"pointer",
-                        background:isNac?(row.checked?"#1a0f2e":"#0f0a1a"):(row.checked?"#f4f6ff":"#f8f9fc"),
+                        background:isNac?(row.checked?"var(--bg)":"var(--bg)"):(row.checked?"#f4f6ff":"#f8f9fc"),
                         opacity:row.checked?1:0.65}}
                         onClick={()=>toggleRow(i)}>
                         <td style={{padding:"9px 12px",width:36,textAlign:"center"}}>
@@ -1283,21 +1380,21 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                             onClick={e=>e.stopPropagation()}/>
                         </td>
                         <td style={{padding:"9px 12px"}}>
-                          <span style={{background:isNac?"#2a1040":"#1e1a40",color:isNac?"#c084fc":"#818cf8",
+                          <span style={{background:isNac?"var(--bg)":"var(--bg)",color:isNac?"#c084fc":"#818cf8",
                             borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>
                             {row.doc[COL.tipoDocumento]}
                           </span>
                         </td>
-                        <td style={{padding:"9px 12px",color:"#60a5fa",fontWeight:600}}>
+                        <td style={{padding:"9px 12px",color:"var(--accent)",fontWeight:600}}>
                           {row.doc[COL.numeroDocumento]}
                         </td>
-                        <td style={{padding:"9px 12px",color:"#64748b",fontSize:11}}>
+                        <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11}}>
                           {dFmt(row.doc[COL.dataDocumento])}
                         </td>
                         <td style={{padding:"9px 12px",color:ov?"#ef4444":wr?"#fb923c":"#64748b",fontSize:11}}>
                           {row.doc[COL.dataPagamento]?dFmt(row.doc[COL.dataPagamento]):"—"}
                         </td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"#64748b"}}>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:"var(--text-2)"}}>
                           {eur(saldo)}
                         </td>
                         <td style={{padding:"9px 12px",textAlign:"right"}}>
@@ -1306,12 +1403,12 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                                 onChange={e=>setAlloc(i,e.target.value)}
                                 onClick={e=>e.stopPropagation()}
                                 min={0} max={saldo} step={0.01}
-                                style={{width:100,background:"#ffffff",
-                                  border:`1px solid ${isNac?"#a855f744":"#1e3a5f"}`,
+                                style={{width:100,background:"var(--surface)",
+                                  border:`1px solid ${isNac?"#a855f744":"var(--bg)"}`,
                                   borderRadius:6,padding:"4px 8px",
                                   color:isNac?"#c084fc":"#4ade80",
                                   fontSize:12,textAlign:"right",fontWeight:700}}/>
-                            : <span style={{color:"#64748b",fontSize:11}}>—</span>
+                            : <span style={{color:"var(--text-2)",fontSize:11}}>—</span>
                           }
                         </td>
                       </tr>
@@ -1322,15 +1419,15 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             </div>
 
             <div style={{display:"flex",gap:10,justifyContent:"space-between"}}>
-              <button onClick={()=>setStep(1)} style={{background:"#eef2ff",border:"none",
-                borderRadius:8,padding:"10px 20px",color:"#64748b",cursor:"pointer",fontSize:13}}>
+              <button onClick={()=>setStep(1)} style={{background:"var(--accent-s)",border:"none",
+                borderRadius:"var(--radius-s)",padding:"10px 20px",color:"var(--text-2)",cursor:"pointer",fontSize:13}}>
                 ← Indietro
               </button>
               <button disabled={!rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")}
                 onClick={()=>setStep(3)}
                 style={{background:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")
                   ?"linear-gradient(135deg,#059669,#10b981)":"#e2e8f0",
-                  border:"none",borderRadius:8,padding:"10px 24px",
+                  border:"none",borderRadius:"var(--radius-s)",padding:"10px 24px",
                   color:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")?"#fff":"#475569",
                   cursor:rows.some(r=>r.checked&&r.doc[COL.tipoDocumento]==="FVE")?"pointer":"not-allowed",
                   fontSize:13,fontWeight:700}}>
@@ -1343,53 +1440,53 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
         {/* ══ STEP 3 — Riepilogo + Conferma ══ */}
         {step===3&&(
           <>
-            <div style={{color:"#4338ca",fontSize:11,fontWeight:700,
+            <div style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",
               marginBottom:16,letterSpacing:1}}>◈ RIEPILOGO OPERAZIONE</div>
 
             {/* Card riepilogo */}
-            <div style={{background:"#f8f9fc",border:"1px solid #e2e8f0",
+            <div style={{background:"var(--bg)",border:"1px solid var(--border)",
               borderRadius:12,padding:18,marginBottom:16}}>
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:14}}>
                 <div>
-                  <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>Cliente</div>
-                  <div style={{color:"#e2e8f0",fontSize:13,fontWeight:700}}>{clientName}</div>
+                  <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Cliente</div>
+                  <div style={{color:"var(--text-1)",fontSize:13,fontWeight:700}}>{clientName}</div>
                 </div>
                 <div>
-                  <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>Tipo</div>
-                  <div style={{color:"#a5b4fc",fontSize:13,fontWeight:700}}>
+                  <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Tipo</div>
+                  <div style={{color:"var(--accent)",fontSize:13,fontWeight:700}}>
                     {tipo==="assegno"?`🏷️ Assegno`:"🏦 Bonifico"}
                   </div>
                 </div>
                 {tipo==="assegno"&&<>
                   <div>
-                    <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>N° Assegno</div>
-                    <div style={{color:"#60a5fa",fontSize:13,fontWeight:700}}>{nAssegno||"—"}</div>
+                    <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>N° Assegno</div>
+                    <div style={{color:"var(--accent)",fontSize:13,fontWeight:700}}>{nAssegno||"—"}</div>
                   </div>
                   <div>
-                    <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>Data titolo</div>
-                    <div style={{color:"#64748b",fontSize:13}}>{fmtIso(dataTitolo)}</div>
+                    <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Data titolo</div>
+                    <div style={{color:"var(--text-2)",fontSize:13}}>{fmtIso(dataTitolo)}</div>
                   </div>
                 </>}
                 <div>
-                  <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>Data incasso previsto</div>
-                  <div style={{color:"#4ade80",fontSize:14,fontWeight:800}}>{fmtIso(dataEff)}</div>
+                  <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Data incasso previsto</div>
+                  <div style={{color:"var(--success)",fontSize:14,fontWeight:800}}>{fmtIso(dataEff)}</div>
                 </div>
                 <div>
-                  <div style={{color:"#64748b",fontSize:10,marginBottom:3}}>Netto da incassare</div>
-                  <div style={{color:"#38bdf8",fontSize:14,fontWeight:800}}>{eur(netto)}</div>
+                  <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Netto da incassare</div>
+                  <div style={{color:"#0284C7",fontSize:14,fontWeight:800}}>{eur(netto)}</div>
                 </div>
               </div>
 
               {/* FVE */}
-              <div style={{borderTop:"1px solid #e2e8f0",paddingTop:12,marginBottom:8}}>
-                <div style={{color:"#4ade80",fontSize:10,fontWeight:700,marginBottom:6}}>
+              <div style={{borderTop:"1px solid var(--border)",paddingTop:12,marginBottom:8}}>
+                <div style={{color:"var(--success)",fontSize:10,fontWeight:700,marginBottom:6}}>
                   FATTURE (FVE) — {fveSel.length} selezionate
                 </div>
                 {fveSel.map((r,i)=>(
                   <div key={i} style={{display:"flex",justifyContent:"space-between",
                     padding:"5px 0",borderBottom:"1px solid #f4f6ff",fontSize:12}}>
-                    <span style={{color:"#64748b"}}>{r.doc[COL.numeroDocumento]} — {dFmt(r.doc[COL.dataDocumento])}</span>
-                    <span style={{color:"#4ade80",fontWeight:700}}>{eur(r.importoAllocato)}</span>
+                    <span style={{color:"var(--text-2)"}}>{r.doc[COL.numeroDocumento]} — {dFmt(r.doc[COL.dataDocumento])}</span>
+                    <span style={{color:"var(--success)",fontWeight:700}}>{eur(r.importoAllocato)}</span>
                   </div>
                 ))}
               </div>
@@ -1412,10 +1509,10 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             </div>
 
             {/* Nota che verrà scritta */}
-            <div style={{background:"#0a1a10",border:"1px solid #22c55e33",borderRadius:8,
+            <div style={{background:"var(--success-s)",border:"1px solid #22c55e33",borderRadius:"var(--radius-s)",
               padding:"10px 14px",marginBottom:16,fontSize:11}}>
-              <div style={{color:"#64748b",marginBottom:4}}>📝 Nota che verrà scritta sul documento:</div>
-              <div style={{color:"#4ade80",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+              <div style={{color:"var(--text-2)",marginBottom:4}}>📝 Nota che verrà scritta sul documento:</div>
+              <div style={{color:"var(--success)",fontFamily:"var(--font)"}}>
                 {tipo==="assegno"
                   ? `DA INCASSARE ${fmtIso(dataEff)}${nacSel.length?` | NAC: ${nacSel.map(r=>r.doc[COL.numeroDocumento]).join(", ")}`:""}` 
                   : `DA INCASSARE BONIF ${fmtIso(dataEff)}${nacSel.length?` | NAC: ${nacSel.map(r=>r.doc[COL.numeroDocumento]).join(", ")}`:""}`}
@@ -1423,21 +1520,21 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
             </div>
 
             {tipo==="assegno"&&(
-              <div style={{background:"#0a1225",border:"1px solid #6366f133",borderRadius:8,
-                padding:"10px 14px",marginBottom:16,fontSize:11,color:"#64748b"}}>
-                🗂️ Verrà registrato nel <strong style={{color:"#a5b4fc"}}>Registro Assegni</strong>{" "}
-                con stato <strong style={{color:"#fb923c"}}>IN ARCHIVIO</strong> e le fatture collegate andranno in <strong style={{color:"#fb923c"}}>DA INCASSARE</strong> fino alla riconciliazione bancaria
+              <div style={{background:"var(--bg)",border:"1px solid #6366f133",borderRadius:"var(--radius-s)",
+                padding:"10px 14px",marginBottom:16,fontSize:11,color:"var(--text-2)"}}>
+                🗂️ Verrà registrato nel <strong style={{color:"var(--accent)"}}>Registro Assegni</strong>{" "}
+                con stato <strong style={{color:"var(--warn)"}}>IN ARCHIVIO</strong> e le fatture collegate andranno in <strong style={{color:"var(--warn)"}}>DA INCASSARE</strong> fino alla riconciliazione bancaria
               </div>
             )}
 
             <div style={{display:"flex",gap:10,justifyContent:"space-between"}}>
-              <button onClick={()=>setStep(2)} style={{background:"#eef2ff",border:"none",
-                borderRadius:8,padding:"10px 20px",color:"#64748b",cursor:"pointer",fontSize:13}}>
+              <button onClick={()=>setStep(2)} style={{background:"var(--accent-s)",border:"none",
+                borderRadius:"var(--radius-s)",padding:"10px 20px",color:"var(--text-2)",cursor:"pointer",fontSize:13}}>
                 ← Rivedi
               </button>
               <button onClick={save} disabled={saving}
                 style={{background:saving?"#e2e8f0":"linear-gradient(135deg,#059669,#10b981)",
-                  border:"none",borderRadius:8,padding:"10px 28px",
+                  border:"none",borderRadius:"var(--radius-s)",padding:"10px 28px",
                   color:saving?"#475569":"#fff",cursor:saving?"not-allowed":"pointer",
                   fontSize:13,fontWeight:700}}>
                 {saving?<><Spinner size={13}/> Salvataggio...</>:"✓ Conferma & Salva"}
@@ -1581,21 +1678,21 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
 
   return (
     <div style={{maxWidth:700,margin:"0 auto"}}>
-      <h2 style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:20,marginBottom:4}}>
+      <h2 style={{fontFamily:"var(--font)",fontWeight:800,fontSize:20,marginBottom:4}}>
         ⬆ Importa da Excel
       </h2>
-      <p style={{color:"#64748b",fontSize:12,marginBottom:24}}>
+      <p style={{color:"var(--text-2)",fontSize:12,marginBottom:24}}>
         Carica il file Excel esportato dal gestionale. Vengono letti solo i documenti FVE e NAC,
         scartando automaticamente i duplicati già presenti.
       </p>
 
       {/* Drop area file */}
       <div style={{border:"2px dashed #e2e8f0",borderRadius:12,padding:"32px",textAlign:"center",
-        marginBottom:20,background:"#ffffff",cursor:"pointer"}}
+        marginBottom:20,background:"var(--surface)",cursor:"pointer"}}
         onClick={()=>fileRef.current?.click()}>
         <div style={{fontSize:32,marginBottom:8}}>📊</div>
-        <div style={{color:"#64748b",fontSize:13}}>Clicca per selezionare il file <strong style={{color:"#e2e8f0"}}>.xlsx</strong></div>
-        <div style={{color:"#64748b",fontSize:11,marginTop:4}}>Colonne usate: A (data), D (tipo), F (num.doc), I (cod.cliente), J (cliente), N (importo)</div>
+        <div style={{color:"var(--text-2)",fontSize:13}}>Clicca per selezionare il file <strong style={{color:"var(--text-1)"}}>.xlsx</strong></div>
+        <div style={{color:"var(--text-2)",fontSize:11,marginTop:4}}>Colonne usate: A (data), D (tipo), F (num.doc), I (cod.cliente), J (cliente), N (importo)</div>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile}
           style={{display:"none"}} />
       </div>
@@ -1605,49 +1702,49 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
         <div style={{marginBottom:20}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:16}}>
             {[
-              {label:"Nuovi totali", val:parsed.nuovi.length, color:"#4ade80"},
-              {label:"FVE nuove",    val:parsed.fve.length,   color:"#60a5fa"},
+              {label:"Nuovi totali", val:parsed.nuovi.length, color:"var(--success)"},
+              {label:"FVE nuove",    val:parsed.fve.length,   color:"var(--accent)"},
               {label:"NAC nuove",    val:parsed.nac.length,   color:"#f59e0b"},
-              {label:"Duplicati",    val:parsed.duplicati.length, color:"#64748b"},
+              {label:"Duplicati",    val:parsed.duplicati.length, color:"var(--text-2)"},
             ].map(({label,val,color})=>(
-              <div key={label} style={{background:"#ffffff",border:"1px solid #e2e8f0",
-                borderRadius:8,padding:"12px",textAlign:"center"}}>
+              <div key={label} style={{background:"var(--surface)",border:"1px solid var(--border)",
+                borderRadius:"var(--radius-s)",padding:"12px",textAlign:"center"}}>
                 <div style={{color,fontSize:22,fontWeight:800}}>{val}</div>
-                <div style={{color:"#64748b",fontSize:10,marginTop:2}}>{label}</div>
+                <div style={{color:"var(--text-2)",fontSize:10,marginTop:2}}>{label}</div>
               </div>
             ))}
           </div>
 
           {/* Anteprima prime righe nuove */}
           {parsed.nuovi.length > 0 && (
-            <div style={{background:"#ffffff",border:"1px solid #e2e8f0",borderRadius:8,
+            <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
               overflow:"auto",marginBottom:16,maxHeight:180}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
                 <thead>
-                  <tr style={{background:"#f8fafc"}}>
+                  <tr style={{background:"var(--bg)"}}>
                     {["Tipo","N.Doc","Data","Cliente","Importo"].map(h=>(
-                      <th key={h} style={{padding:"6px 10px",color:"#64748b",fontWeight:600,textAlign:"left"}}>{h}</th>
+                      <th key={h} style={{padding:"6px 10px",color:"var(--text-2)",fontWeight:600,textAlign:"left"}}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {parsed.nuovi.slice(0,8).map((d,i)=>(
-                    <tr key={i} style={{borderTop:"1px solid #e2e8f0"}}>
+                    <tr key={i} style={{borderTop:"1px solid var(--border)"}}>
                       <td style={{padding:"5px 10px"}}>
-                        <span style={{background:d.tipo_documento==="FVE"?"#1e3a5f":"#3a1f0a",
+                        <span style={{background:d.tipo_documento==="FVE"?"var(--bg)":"var(--warn-s)",
                           color:d.tipo_documento==="FVE"?"#60a5fa":"#f59e0b",
                           padding:"1px 6px",borderRadius:4,fontSize:10}}>{d.tipo_documento}</span>
                       </td>
-                      <td style={{padding:"5px 10px",color:"#e2e8f0"}}>{d.numero_documento}</td>
-                      <td style={{padding:"5px 10px",color:"#64748b"}}>{toIT(d.data_documento)}</td>
-                      <td style={{padding:"5px 10px",color:"#e2e8f0",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.ragione_sociale}</td>
-                      <td style={{padding:"5px 10px",color:d.importo_totale<0?"#f87171":"#4ade80",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                      <td style={{padding:"5px 10px",color:"var(--text-1)"}}>{d.numero_documento}</td>
+                      <td style={{padding:"5px 10px",color:"var(--text-2)"}}>{toIT(d.data_documento)}</td>
+                      <td style={{padding:"5px 10px",color:"var(--text-1)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.ragione_sociale}</td>
+                      <td style={{padding:"5px 10px",color:d.importo_totale<0?"#f87171":"#4ade80",fontFamily:"var(--font)"}}>
                         {new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(d.importo_totale)}
                       </td>
                     </tr>
                   ))}
                   {parsed.nuovi.length > 8 && (
-                    <tr><td colSpan={5} style={{padding:"6px 10px",color:"#64748b",fontSize:10}}>
+                    <tr><td colSpan={5} style={{padding:"6px 10px",color:"var(--text-2)",fontSize:10}}>
                       ... e altri {parsed.nuovi.length - 8} documenti
                     </td></tr>
                   )}
@@ -1664,7 +1761,7 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
           <button onClick={handleImport}
             style={{background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff",
               border:"none",borderRadius:10,padding:"12px 28px",fontWeight:700,
-              fontSize:13,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+              fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>
             ⬆ Importa {parsed.nuovi.length} documenti
           </button>
         )}
@@ -1674,23 +1771,23 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
           </div>
         )}
         {phase === "importing" && (
-          <button disabled style={{background:"#eef2ff",color:"#64748b",border:"none",
-            borderRadius:10,padding:"12px 28px",fontWeight:700,fontSize:13,fontFamily:"'Syne',sans-serif"}}>
+          <button disabled style={{background:"var(--accent-s)",color:"var(--text-2)",border:"none",
+            borderRadius:10,padding:"12px 28px",fontWeight:700,fontSize:13,fontFamily:"var(--font)"}}>
             Importazione in corso...
           </button>
         )}
         {phase === "done" && (
           <button onClick={reset}
-            style={{background:"#eef2ff",color:"#64748b",border:"none",borderRadius:10,
-              padding:"12px 28px",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+            style={{background:"var(--accent-s)",color:"var(--text-2)",border:"none",borderRadius:10,
+              padding:"12px 28px",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>
             ↺ Importa un altro file
           </button>
         )}
         {(phase === "preview" || phase === "done") && (
           <button onClick={reset}
-            style={{background:"transparent",color:"#64748b",border:"1px solid #e2e8f0",
+            style={{background:"transparent",color:"var(--text-2)",border:"1px solid var(--border)",
               borderRadius:10,padding:"12px 20px",fontWeight:600,fontSize:13,
-              cursor:"pointer",fontFamily:"'Syne',sans-serif"}}>
+              cursor:"pointer",fontFamily:"var(--font)"}}>
             Annulla
           </button>
         )}
@@ -1698,9 +1795,9 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
 
       {/* Log */}
       {log.length > 0 && (
-        <div style={{marginTop:20,background:"#f8f9fc",border:"1px solid #e2e8f0",
-          borderRadius:8,padding:12,maxHeight:150,overflow:"auto"}}>
-          {log.map((l,i)=><div key={i} style={{fontSize:11,color:"#64748b",marginBottom:3}}>{l}</div>)}
+        <div style={{marginTop:20,background:"var(--bg)",border:"1px solid var(--border)",
+          borderRadius:"var(--radius-s)",padding:12,maxHeight:150,overflow:"auto"}}>
+          {log.map((l,i)=><div key={i} style={{fontSize:11,color:"var(--text-2)",marginBottom:3}}>{l}</div>)}
         </div>
       )}
     </div>
@@ -1881,62 +1978,68 @@ function App() {
   },[]);
 
   if(!authed) return (
-    <div style={{minHeight:"100vh",background:"#eef2ff",
-      backgroundImage:"radial-gradient(ellipse at 30% 20%, rgba(99,102,241,.15) 0%, transparent 55%), radial-gradient(ellipse at 75% 80%, rgba(56,189,248,.04) 0%, transparent 55%)",
+    <div style={{minHeight:"100vh",background:"var(--bg)",
       display:"flex",alignItems:"center",justifyContent:"center"}}>
       <div style={{
-        background:"rgba(255,255,255,.95)",
-        backdropFilter:"blur(24px)",
-        border:"1px solid rgba(99,102,241,.25)",
-        borderRadius:20,padding:"44px 40px",width:360,textAlign:"center",
-        boxShadow:"0 24px 64px rgba(0,0,0,.6), 0 0 0 1px rgba(99,102,241,.1)",
-        animation:"countUp .4s cubic-bezier(.4,0,.2,1) both",
+        background:"var(--surface)",
+        border:"1px solid var(--border)",
+        borderRadius:16,padding:"40px 40px",width:360,
+        boxShadow:"var(--shadow-l)",
+        animation:"countUp .3s ease both",
       }}>
-        <div style={{width:56,height:56,
-          background:"linear-gradient(135deg,#4f46e5,#7c3aed)",
-          borderRadius:16,display:"flex",alignItems:"center",justifyContent:"center",
-          fontSize:26,margin:"0 auto 20px",
-          boxShadow:"0 8px 24px rgba(99,102,241,.45)"}}>⟁</div>
-        <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,fontSize:22,
-          marginBottom:4,color:"#e2e8f0"}}>Marco's HUB</div>
-        <div style={{color:"#64748b",fontSize:11,marginBottom:32,letterSpacing:.3}}>
-          Gestione Crediti & Cash Flow
+        {/* Logo */}
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:28}}>
+          <div style={{width:36,height:36,borderRadius:10,
+            background:"#0F172A",
+            display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+            <svg width="18" height="18" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="11" width="3" height="7" rx="1" fill="white" opacity=".45"/>
+              <rect x="7.5" y="7" width="3" height="11" rx="1" fill="white" opacity=".7"/>
+              <rect x="13" y="3" width="3" height="15" rx="1" fill="white"/>
+              <polyline points="3.5,10 9,6 14.5,2" stroke="#93C5FD" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="14.5" cy="2" r="1.6" fill="#93C5FD"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--font)",fontWeight:700,fontSize:15,
+              color:"var(--text-1)",fontStyle:"italic",letterSpacing:"-.3px"}}>Marco's HUB</div>
+            <div style={{color:"var(--text-3)",fontSize:9,marginTop:1}}>Gestione Crediti & Cash Flow</div>
+          </div>
         </div>
-        <div style={{textAlign:"left",marginBottom:14}}>
-          <label style={{color:"#6366f1",fontSize:10,fontWeight:700,
-            display:"block",marginBottom:6,letterSpacing:.8,textTransform:"uppercase"}}>Utente</label>
+
+        <div style={{color:"var(--text-1)",fontSize:16,fontWeight:600,marginBottom:6}}>Accedi</div>
+        <div style={{color:"var(--text-3)",fontSize:12,marginBottom:24}}>Inserisci le tue credenziali per continuare</div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{color:"var(--text-2)",fontSize:11,fontWeight:500,
+            display:"block",marginBottom:5}}>Utente</label>
           <input value={loginUser} onChange={e=>setLoginUser(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&handleLogin()} placeholder="Nome utente"
-            style={{width:"100%",background:"#f8f9ff",
-              border:"1px solid rgba(99,102,241,.3)",borderRadius:9,
-              padding:"10px 14px",color:"#e2e8f0",fontSize:13,
-              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",outline:"none",boxSizing:"border-box"}}/>
+            style={{width:"100%",padding:"9px 12px",
+              borderRadius:"var(--radius-s)",boxSizing:"border-box"}}/>
         </div>
-        <div style={{textAlign:"left",marginBottom:24}}>
-          <label style={{color:"#6366f1",fontSize:10,fontWeight:700,
-            display:"block",marginBottom:6,letterSpacing:.8,textTransform:"uppercase"}}>Password</label>
+        <div style={{marginBottom:20}}>
+          <label style={{color:"var(--text-2)",fontSize:11,fontWeight:500,
+            display:"block",marginBottom:5}}>Password</label>
           <input type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&handleLogin()} placeholder="••••••••"
-            style={{width:"100%",background:"#f8f9ff",
-              border:"1px solid rgba(99,102,241,.3)",borderRadius:9,
-              padding:"10px 14px",color:"#e2e8f0",fontSize:13,
-              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",outline:"none",boxSizing:"border-box"}}/>
+            style={{width:"100%",padding:"9px 12px",
+              borderRadius:"var(--radius-s)",boxSizing:"border-box"}}/>
         </div>
-        {loginErr&&<div style={{color:"#f87171",fontSize:12,marginBottom:16,
-          background:"rgba(239,68,68,.08)",border:"1px solid rgba(239,68,68,.15)",
-          borderRadius:7,padding:"8px"}}>{loginErr}</div>}
+        {loginErr&&(
+          <div style={{color:"var(--danger)",fontSize:12,marginBottom:14,
+            background:"var(--danger-s)",border:"1px solid #FECACA",
+            borderRadius:"var(--radius-s)",padding:"8px 12px"}}>{loginErr}</div>
+        )}
         <button className="btn-primary" onClick={handleLogin}
-          style={{width:"100%",
-            background:"linear-gradient(135deg,#4f46e5,#6366f1)",color:"#fff",
-            border:"none",borderRadius:10,padding:"12px",fontSize:14,fontWeight:700,
-            cursor:"pointer",fontFamily:"'Syne',sans-serif",letterSpacing:.5,
-            boxShadow:"0 4px 18px rgba(99,102,241,.4)"}}>
+          style={{width:"100%",background:"var(--accent)",color:"#fff",
+            border:"none",borderRadius:"var(--radius-s)",padding:"10px",
+            fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
           Accedi
         </button>
       </div>
     </div>
   );
-
 
   // handleSignIn rimosso (D1 non richiede Google sign-in)
 
@@ -2303,138 +2406,128 @@ function App() {
 
   /* ── RENDER ── */
   return (
-    <div style={{display:"flex",minHeight:"100vh",background:"#f8f9fc"}}>
+    <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
 
-      {/* ══ SIDEBAR ══ */}
+      {/* SIDEBAR */}
       <aside style={{
-        width:220,flexShrink:0,
-        background:"rgba(255,255,255,.97)",
-        backdropFilter:"blur(24px)",
-        borderRight:"1px solid rgba(99,102,241,.15)",
+        width:224,flexShrink:0,
+        background:"var(--surface)",
+        borderRight:"1px solid var(--border)",
         display:"flex",flexDirection:"column",
         position:"sticky",top:0,height:"100vh",
-        animation:"sidebarIn .3s cubic-bezier(.4,0,.2,1) both",
         zIndex:50,
       }}>
         {/* Logo */}
-        <div style={{padding:"22px 20px 18px",borderBottom:"1px solid rgba(99,102,241,.12)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{width:40,height:40,flexShrink:0,
-              background:"linear-gradient(135deg,#6366f1,#8b5cf6)",
-              borderRadius:12,display:"flex",alignItems:"center",
-              justifyContent:"center",
-              boxShadow:"0 4px 16px rgba(99,102,241,.35)"}}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" stroke="white" strokeWidth="1.5" strokeOpacity="0.4"/>
-                <path d="M8 12 L10.5 15 L16 9" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M12 3 C12 3 16 6 19 10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeOpacity="0.6"/>
-                <circle cx="19" cy="6" r="2.5" fill="#a5f3fc"/>
-              </svg>
-            </div>
-            <div>
-              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:800,
-                fontSize:14,letterSpacing:-.3,color:"#3730a3",fontStyle:"italic",fontWeight:800}}>Marco's HUB</div>
-              <div style={{color:"#64748b",fontSize:8,marginTop:1}}>Gestione Crediti</div>
+        <div style={{padding:"18px 16px 14px",borderBottom:"1px solid var(--border-2)",
+          display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:32,height:32,flexShrink:0,borderRadius:"var(--radius-s)",
+            background:"#0F172A",
+            display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+              <rect x="2" y="11" width="3" height="7" rx="1" fill="white" opacity=".45"/>
+              <rect x="7.5" y="7" width="3" height="11" rx="1" fill="white" opacity=".7"/>
+              <rect x="13" y="3" width="3" height="15" rx="1" fill="white"/>
+              <polyline points="3.5,10 9,6 14.5,2" stroke="#93C5FD" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+              <circle cx="14.5" cy="2" r="1.6" fill="#93C5FD"/>
+            </svg>
+          </div>
+          <div>
+            <div style={{fontFamily:"var(--font)",fontWeight:700,fontSize:13,
+              letterSpacing:-.3,color:"var(--text-1)",fontStyle:"italic"}}>Marco's HUB</div>
+            <div style={{color:"var(--text-3)",fontSize:9,marginTop:1,letterSpacing:".3px"}}>
+              Gestione Crediti
             </div>
           </div>
         </div>
 
-        {/* Nav items */}
-        <nav style={{flex:1,padding:"12px 10px",overflowY:"auto"}}>
-          <div style={{color:"#a5b4fc",fontSize:8,fontWeight:700,
-            letterSpacing:1.2,padding:"4px 10px 8px",textTransform:"uppercase"}}>
-            Navigazione
+        {/* Nav */}
+        <nav style={{flex:1,padding:"8px 8px",overflowY:"auto"}}>
+          <div style={{color:"var(--text-3)",fontSize:9,fontWeight:600,
+            letterSpacing:"1px",padding:"10px 8px 6px",textTransform:"uppercase"}}>
+            Menu
           </div>
           {TABS.map(({id,lbl,icon})=>{
             const active = tab===id;
             return (
               <button key={id} className="nav-item" onClick={()=>setTab(id)} style={{
-                width:"100%",display:"flex",alignItems:"center",gap:10,
-                background: active
-                  ? "linear-gradient(90deg,rgba(99,102,241,.12),rgba(99,102,241,.03))"
-                  : "transparent",
+                width:"100%",display:"flex",alignItems:"center",gap:8,
+                background: active ? "var(--accent-s)" : "transparent",
                 border:"none",
-                borderLeft: active ? "3px solid #6366f1" : "3px solid transparent",
-                borderRadius:active?"0 8px 8px 0":"0 8px 8px 0",
-                color: active ? "#4338ca" : "#6b7280",
-                padding:"10px 14px",cursor:"pointer",
-                fontSize:11,fontWeight:active?700:400,
-                fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
-                textAlign:"left",marginBottom:2,
-                paddingLeft: active ? "14px" : "14px",
+                color: active ? "var(--accent)" : "var(--text-2)",
+                padding:"7px 10px",cursor:"pointer",
+                fontSize:12.5,fontWeight:active?600:400,
+                fontFamily:"var(--font)",
+                textAlign:"left",marginBottom:1,
+                borderRadius:"var(--radius-s)",
               }}>
-                <span style={{fontSize:14,opacity:active?1:.6}}>{icon}</span>
+                <span style={{fontSize:12,opacity:active?1:.5,width:14,textAlign:"center",flexShrink:0}}>{icon}</span>
                 {lbl}
-                {id==="riconcilia"&&<span style={{marginLeft:"auto",fontSize:8,
-                  background:"#1e3a5f",color:"#60a5fa",borderRadius:4,padding:"1px 5px"}}>🏦</span>}
               </button>
             );
           })}
         </nav>
 
-        {/* Footer sidebar */}
-        <div style={{padding:"14px 16px",borderTop:"1px solid rgba(99,102,241,.1)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:10}}>
-            <div style={{width:28,height:28,borderRadius:"50%",
-              background:"linear-gradient(135deg,#1e3a5f,#2563eb)",
+        {/* Footer */}
+        <div style={{padding:"10px 12px",borderTop:"1px solid var(--border-2)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+            <div style={{width:24,height:24,borderRadius:"50%",flexShrink:0,
+              background:"#0F172A",
               display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:11,color:"#4338ca",flexShrink:0}}>
+              fontSize:9,color:"#fff",fontWeight:700}}>
               {authed?.[0]?.toUpperCase()||"U"}
             </div>
-            <div style={{minWidth:0}}>
-              <div style={{color:"#64748b",fontSize:10,fontWeight:700,
-                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                {authed}
-              </div>
-              <div style={{color:"#64748b",fontSize:8}}>{isAdmin?"Admin":"Operatore"}</div>
+            <div style={{minWidth:0,flex:1}}>
+              <div style={{color:"var(--text-1)",fontSize:11,fontWeight:600,
+                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{authed}</div>
+              <div style={{color:"var(--text-3)",fontSize:9}}>{isAdmin?"Admin":"Operatore"}</div>
             </div>
           </div>
-          <div style={{display:"flex",gap:6}}>
+          <div style={{display:"flex",gap:5}}>
             <button onClick={loadData} style={{
-              flex:1,background:"#eef2ff",border:"1px solid rgba(99,102,241,.3)",
-              color:"#4338ca",borderRadius:7,padding:"6px 0",cursor:"pointer",fontSize:10,
-              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
-            }} title="Sincronizza dati">↻ Sync</button>
+              flex:1,background:"var(--bg)",border:"1px solid var(--border)",
+              color:"var(--text-2)",borderRadius:"var(--radius-s)",
+              padding:"5px 0",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",
+            }}>↻ Sync</button>
             <button onClick={handleLogout} style={{
-              flex:1,background:"#fef2f2",border:"1px solid rgba(239,68,68,.25)",
-              color:"#dc2626",borderRadius:7,padding:"6px 0",cursor:"pointer",fontSize:10,
-              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
+              flex:1,background:"var(--bg)",border:"1px solid var(--border)",
+              color:"var(--danger)",borderRadius:"var(--radius-s)",
+              padding:"5px 0",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",
             }}>Esci</button>
           </div>
         </div>
       </aside>
 
-      {/* ══ MAIN AREA ══ */}
+      {/* MAIN AREA */}
       <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>
 
         {/* Top bar */}
         <div style={{
-          height:56,flexShrink:0,
-          background:"rgba(255,255,255,.92)",
-          backdropFilter:"blur(16px)",
-          borderBottom:"1px solid rgba(99,102,241,.12)",
+          height:52,flexShrink:0,
+          background:"var(--surface)",
+          borderBottom:"1px solid var(--border)",
           display:"flex",alignItems:"center",
           justifyContent:"space-between",
           padding:"0 24px",
         }}>
-          <div>
-            <div style={{color:"#e2e8f0",fontSize:13,fontWeight:700}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{color:"var(--text-1)",fontSize:13.5,fontWeight:600,letterSpacing:"-.2px"}}>
               {TABS.find(t=>t.id===tab)?.lbl||""}
             </div>
-            <div style={{color:"#64748b",fontSize:9,marginTop:1}}>
+            <div style={{color:"var(--text-3)",fontSize:10,paddingLeft:12,
+              borderLeft:"1px solid var(--border)"}}>
               {new Date().toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            {demo&&<span style={{color:"#fb923c",fontSize:9,background:"rgba(251,146,60,.1)",
-              border:"1px solid rgba(251,146,60,.2)",padding:"3px 8px",borderRadius:5}}>DEMO</span>}
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {demo&&<span style={{color:"var(--warn)",fontSize:9,background:"var(--warn-s)",
+              border:"1px solid #FCD34D",padding:"3px 8px",borderRadius:20,fontWeight:600}}>DEMO</span>}
             {loading&&<Spinner/>}
             <button className="btn-primary" onClick={()=>setShowPay(true)} style={{
-              background:"linear-gradient(135deg,#4f46e5,#6366f1)",
-              color:"#fff",border:"none",borderRadius:9,
-              padding:"8px 18px",cursor:"pointer",fontSize:11,fontWeight:700,
-              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
-              boxShadow:"0 4px 14px rgba(99,102,241,.35)",
+              background:"var(--accent)",
+              color:"#fff",border:"none",borderRadius:"var(--radius-s)",
+              padding:"7px 16px",cursor:"pointer",fontSize:12,fontWeight:600,
+              fontFamily:"var(--font)",
+              boxShadow:"0 1px 3px rgba(37,99,235,.3)",
             }}>
               + Pagamento
             </button>
@@ -2442,45 +2535,39 @@ function App() {
         </div>
 
         {/* Contenuto tab */}
-        <main style={{flex:1,overflowY:"auto",padding:"22px 24px"}}>
+        <main style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
 
         {/* DASHBOARD */}
         {tab==="dashboard"&&(
           <div className="tab-content">
             <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
               {[
-                {lbl:"Crediti Aperti (FVE)",  val:eur(totFVE),  accent:"#6366f1", icon:"◈",
-                 sub:`${open.filter(d=>d[COL.tipoDocumento]==="FVE").length} fatture`},
-                {lbl:"Note di Credito",        val:eur(totNAC),  accent:"#a78bfa", icon:"↩",
+                {lbl:"Crediti Aperti",    val:eur(totFVE),           color:"var(--accent)",
+                 sub:`${open.filter(d=>d[COL.tipoDocumento]==="FVE").length} fatture aperte`},
+                {lbl:"Note di Credito",   val:eur(totNAC),           color:"#7C3AED",
                  sub:`${open.filter(d=>d[COL.tipoDocumento]==="NAC").length} documenti`},
-                {lbl:"Esposizione Netta",      val:eur(totFVE+totNAC), accent:"#38bdf8", icon:"⟐",
-                 sub:"saldo residuo totale"},
-                {lbl:"Scaduti >90gg",          val:overdue.length, accent:"#ef4444", icon:"⚠",
+                {lbl:"Esposizione Netta", val:eur(totFVE+totNAC),    color:"var(--text-1)",
+                 sub:"saldo residuo netto"},
+                {lbl:"Scaduti >90gg",     val:String(overdue.length),color:"var(--danger)",
                  sub:eur(overdue.reduce((s,d)=>s+parseNum(d[COL.saldoResiduo]),0))},
-              ].map(({lbl,val,accent,icon,sub},i)=>(
-                <div key={lbl} className="kpi-card glass-card" style={{
-                  borderRadius:14,padding:"18px 20px",
-                  borderTop:`2px solid ${accent}`,
-                  animation:`countUp .35s cubic-bezier(.4,0,.2,1) ${i*0.07}s both`,
+              ].map(({lbl,val,color,sub},i)=>(
+                <div key={lbl} className="kpi-card card" style={{
+                  padding:"18px 20px",
+                  animation:`countUp .28s ease ${i*0.06}s both`,
                 }}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
-                    <div style={{color:"#64748b",fontSize:10,lineHeight:1.4,maxWidth:120}}>{lbl}</div>
-                    <div style={{width:28,height:28,borderRadius:8,flexShrink:0,
-                      background:`${accent}18`,border:`1px solid ${accent}30`,
-                      display:"flex",alignItems:"center",justifyContent:"center",
-                      fontSize:13,color:accent}}>{icon}</div>
-                  </div>
-                  <div style={{color:accent,fontSize:20,fontFamily:"'Syne',sans-serif",
-                    fontWeight:800,letterSpacing:-.5,lineHeight:1}}>{val}</div>
-                  {sub&&<div style={{color:"#64748b",fontSize:9,marginTop:6}}>{sub}</div>}
+                  <div style={{color:"var(--text-3)",fontSize:10,fontWeight:500,
+                    letterSpacing:".5px",marginBottom:12,textTransform:"uppercase"}}>{lbl}</div>
+                  <div style={{color,fontSize:23,fontFamily:"var(--mono)",
+                    fontWeight:500,letterSpacing:"-.5px",lineHeight:1,marginBottom:6}}>{val}</div>
+                  <div style={{color:"var(--text-3)",fontSize:10}}>{sub}</div>
                 </div>
               ))}
             </div>
 
             {/* Cash Flow */}
-            <div className="glass-card" style={{borderRadius:14,padding:"18px 20px",marginBottom:16}}>
+            <div className="glass-card" style={{borderRadius:"var(--radius)",padding:"18px 20px",marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <div style={{color:"#4338ca",fontSize:11,fontWeight:700,letterSpacing:.5}}>
+                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",letterSpacing:.5}}>
                   ◈ CASH FLOW — Scadenze assegni
                 </div>
               </div>
@@ -2488,12 +2575,12 @@ function App() {
             </div>
 
             {/* Scadenziario critico */}
-            <div className="glass-card" style={{borderRadius:14,padding:"18px 20px"}}>
+            <div className="glass-card" style={{borderRadius:"var(--radius)",padding:"18px 20px"}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-                <div style={{color:"#fca5a5",fontSize:11,fontWeight:700,letterSpacing:.5}}>
+                <div style={{color:"var(--danger)",fontSize:11,fontWeight:700,letterSpacing:.5}}>
                   ⚠ SCADENZIARIO CRITICO
                 </div>
-                <span style={{color:"#64748b",fontSize:9}}>
+                <span style={{color:"var(--text-2)",fontSize:9}}>
                   {open.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO"&&(isOver(d[COL.dataDocumento])||isWarn(d[COL.dataDocumento]))).length} documenti
                 </span>
               </div>
@@ -2505,22 +2592,22 @@ function App() {
                     display:"flex",justifyContent:"space-between",alignItems:"center",
                     background:ov?"rgba(239,68,68,.07)":"rgba(251,146,60,.06)",
                     border:`1px solid ${ov?"rgba(239,68,68,.2)":"rgba(251,146,60,.18)"}`,
-                    borderRadius:9,padding:"9px 13px",
+                    borderRadius:"var(--radius-s)",padding:"9px 13px",
                     animation:`countUp .25s ease ${i*0.04}s both`,
                   }}>
                     <div>
                       <div style={{color:ov?"#fca5a5":"#fdba74",fontSize:11,fontWeight:700}}>{d[COL.numeroDocumento]}</div>
-                      <div style={{color:"#64748b",fontSize:9,marginTop:2}}>
+                      <div style={{color:"var(--text-2)",fontSize:9,marginTop:2}}>
                         {d[COL.ragioneSociale]} · {dFmt(d[COL.dataDocumento])}
                       </div>
                     </div>
                     <div style={{color:ov?"#ef4444":"#fb923c",fontSize:12,fontWeight:800,
-                      fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>{eur(d[COL.saldoResiduo])}</div>
+                      fontFamily:"var(--font)"}}>{eur(d[COL.saldoResiduo])}</div>
                   </div>
                 );
               })}
               {open.filter(d=>d[COL.tipoDocumento]==="FVE"&&d[COL.stato]?.toUpperCase()==="APERTO"&&(isOver(d[COL.dataDocumento])||isWarn(d[COL.dataDocumento]))).length===0&&(
-                <div style={{color:"#22c55e",fontSize:12,textAlign:"center",padding:24,gridColumn:"1/-1"}}>
+                <div style={{color:"var(--success)",fontSize:12,textAlign:"center",padding:24,gridColumn:"1/-1"}}>
                   ✓ Nessun documento in scadenza critica
                 </div>
               )}
@@ -2541,15 +2628,15 @@ function App() {
               <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:110}}>
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
               </select>
-              <span style={{color:"#64748b",fontSize:11,marginLeft:"auto"}}>
+              <span style={{color:"var(--text-2)",fontSize:11,marginLeft:"auto"}}>
                 {filtered.length} doc • <span style={{color:"#6366f1"}}>doppio click = modifica</span>
               </span>
             </div>
-            <div style={{background:"#ffffff",border:"1px solid rgba(99,102,241,.12)",borderRadius:14,overflow:"hidden"}}>
+            <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:900}}>
                   <thead>
-                    <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                    <tr style={{background:"var(--bg)",borderBottom:"2px solid #e2e8f0"}}>
                       <DocSortTh label="Tipo"           colKey={COL.tipoDocumento}/>
                       <DocSortTh label="N° Doc"         colKey={COL.numeroDocumento}/>
                       <DocSortTh label="Data"           colKey={COL.dataDocumento}/>
@@ -2568,35 +2655,35 @@ function App() {
                       const wn=doc[COL.stato]?.toUpperCase()==="APERTO"&&isWarn(doc[COL.dataDocumento]);
                       const di=doc[COL.stato]==="DA INCASSARE";
                       const origIdx=docs.indexOf(doc);
-                      const base=ov?"#0f0808":wn?"#0f0d06":i%2===0?"#f8f9ff":"#08111a";
+                      const base=ov?"var(--danger-s)":wn?"var(--warn-s)":i%2===0?"#f8f9ff":"var(--bg)";
                       return (
                         <tr key={doc[COL.numeroDocumento]+i} className="row-hover"
                           style={{borderBottom:"1px solid #f4f6ff",background:base}}>
                           <td style={{padding:"9px 11px"}}><Badge label={doc[COL.tipoDocumento]}/></td>
-                          <td style={{padding:"9px 11px",color:"#60a5fa",fontWeight:600}}>
+                          <td style={{padding:"9px 11px",color:"var(--accent)",fontWeight:600}}>
                             <EditCell value={doc[COL.numeroDocumento]} onSave={v=>handleEdit(origIdx,COL.numeroDocumento,v)}/>
                           </td>
                           <td style={{padding:"9px 11px",color:ov?"#ef4444":wn?"#fb923c":"#94a3b8"}}>
                             <EditCell value={doc[COL.dataDocumento]} onSave={v=>handleEdit(origIdx,COL.dataDocumento,v)}/>
-                            {ov&&<span style={{color:"#ef4444",fontSize:10}}> ⚠</span>}
+                            {ov&&<span style={{color:"var(--danger)",fontSize:10}}> ⚠</span>}
                           </td>
-                          <td style={{padding:"9px 11px",color:"#e2e8f0"}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-1)"}}>
                             <EditCell value={doc[COL.ragioneSociale]} onSave={v=>handleEdit(origIdx,COL.ragioneSociale,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:"#64748b",textAlign:"right"}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-2)",textAlign:"right"}}>
                             <EditCell value={doc[COL.importoDocumento]} numeric onSave={v=>handleEdit(origIdx,COL.importoDocumento,v)}/>
                           </td>
                           <td style={{padding:"9px 11px",textAlign:"right",fontWeight:700,
                             color:parseNum(doc[COL.saldoResiduo])>0?"#f1f5f9":"#22c55e"}}>
                             <EditCell value={doc[COL.saldoResiduo]} numeric onSave={v=>handleEdit(origIdx,COL.saldoResiduo,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:"#64748b",fontSize:11}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-2)",fontSize:11}}>
                             {toIT(doc[COL.dataPagamento])}
                           </td>
-                          <td style={{padding:"9px 11px",color:"#38bdf8",fontSize:11}}>
+                          <td style={{padding:"9px 11px",color:"#0284C7",fontSize:11}}>
                             <EditCell value={doc[COL.nAssegno]||""} onSave={v=>handleEdit(origIdx,COL.nAssegno,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:"#64748b",fontSize:11,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-2)",fontSize:11,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                             <EditCell value={doc[COL.note]||""} onSave={v=>handleEdit(origIdx,COL.note,v)}/>
                           </td>
                           {/* Stato — cliccabile se PAGATO per riaprire */}
@@ -2613,7 +2700,7 @@ function App() {
                                 }}
                                 style={{cursor:"pointer",display:"inline-block"}}>
                                 <Badge label={doc[COL.stato]}/>
-                                <span style={{display:"block",fontSize:8,color:"#64748b",textAlign:"center",marginTop:1}}>clicca x riaprire</span>
+                                <span style={{display:"block",fontSize:8,color:"var(--text-2)",textAlign:"center",marginTop:1}}>clicca x riaprire</span>
                               </span>
                             ) : (
                               <Badge label={doc[COL.stato]}/>
@@ -2633,15 +2720,15 @@ function App() {
         {tab==="incassi"&&(
           <div className="tab-content">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-              <span style={{color:"#64748b",fontSize:12}}>{incs.length} incassi registrati</span>
+              <span style={{color:"var(--text-2)",fontSize:12}}>{incs.length} incassi registrati</span>
               <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff"}}>
                 + Nuovo Incasso
               </button>
             </div>
-            <div style={{background:"#ffffff",border:"1px solid rgba(99,102,241,.12)",borderRadius:14,overflow:"hidden"}}>
+            <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
-                  <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                  <tr style={{background:"var(--bg)",borderBottom:"2px solid #e2e8f0"}}>
                     <IncSortTh label="ID Incasso" colKey="ID Incasso"/>
                     <IncSortTh label="Metodo"     colKey="Metodo"/>
                     <IncSortTh label="Data"       colKey="Data Ricezione"/>
@@ -2655,13 +2742,13 @@ function App() {
                     const origIdx = incs.indexOf(inc);
                     return (
                     <tr key={inc["ID Incasso"]||i} className="row-hover"
-                      style={{borderBottom:"1px solid #f4f6ff",background:i%2===0?"#f8f9ff":"#08111a"}}>
-                      <td style={{padding:"10px 13px",color:"#60a5fa",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
+                      style={{borderBottom:"1px solid #f4f6ff",background:i%2===0?"#f8f9ff":"var(--bg)"}}>
+                      <td style={{padding:"10px 13px",color:"var(--accent)",fontFamily:"var(--font)",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#64748b",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#4ade80",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#e2e8f0",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"#64748b",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                     </tr>
                     );
                   })}
@@ -2675,15 +2762,15 @@ function App() {
         {tab==="assegni"&&(
           <div className="tab-content">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-              <span style={{color:"#64748b",fontSize:12}}>{assegni.length} assegni nel registro</span>
+              <span style={{color:"var(--text-2)",fontSize:12}}>{assegni.length} assegni nel registro</span>
               <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                <div style={{background:"#f4f6ff",border:"1px solid #1e3a5f",borderRadius:8,
-                  padding:"8px 16px",fontSize:12,color:"#60a5fa"}}>
+                <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
+                  padding:"8px 16px",fontSize:12,color:"var(--accent)"}}>
                   Totale: <strong>{eur(assSorted.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}</strong>
                 </div>
               </div>
             </div>
-            <div style={{background:"#ffffff",border:"1px solid rgba(99,102,241,.12)",borderRadius:14,overflow:"hidden"}}>
+            <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <colgroup>
@@ -2696,7 +2783,7 @@ function App() {
                     <col style={{width:"13%"}}/>{/* Stato */}
                   </colgroup>
                   <thead>
-                    <tr style={{background:"#f8fafc",borderBottom:"2px solid #e2e8f0"}}>
+                    <tr style={{background:"var(--bg)",borderBottom:"2px solid #e2e8f0"}}>
                       <AssSortTh label="Cliente"       colKey="CLIENTE"/>
                       <AssSortTh label="N° Titolo"     colKey="N TITOLO"/>
                       <AssSortTh label="Data"          colKey="DATA TITOLO"/>
@@ -2711,12 +2798,12 @@ function App() {
                     const origIdxA = assegni.indexOf(a);
                     return (
                       <tr key={i} className="row-hover"
-                        style={{borderBottom:"1px solid #f4f6ff",background:i%2===0?"#f8f9ff":"#08111a"}}>
-                        <td style={{padding:"9px 13px",color:"#e2e8f0",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#38bdf8",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#64748b",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#4ade80",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#4ade80" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#64748b",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
+                        style={{borderBottom:"1px solid #f4f6ff",background:i%2===0?"#f8f9ff":"var(--bg)"}}>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"#0284C7",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#4ade80" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-2)",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
                         <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} color={assStatoColor(a["STATO TITOLO"])} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
                       </tr>
@@ -2737,34 +2824,34 @@ function App() {
             {/* COLONNA SINISTRA — Lista accrediti */}
             <div>
               {/* Upload */}
-              <div style={{background:"#ffffff",border:"2px dashed #1e3a5f",borderRadius:14,
+              <div style={{background:"var(--surface)",border:"2px dashed #1e3a5f",borderRadius:"var(--radius)",
                 padding:24,textAlign:"center",marginBottom:18}}>
-                <div style={{color:"#64748b",fontSize:13,marginBottom:12}}>
+                <div style={{color:"var(--text-2)",fontSize:13,marginBottom:12}}>
                   🏦 Carica file Excel della banca
                 </div>
                 <label style={{background:"linear-gradient(135deg,#1e40af,#3b82f6)",color:"#fff",
-                  borderRadius:8,padding:"10px 24px",cursor:"pointer",fontSize:13,fontWeight:700,
-                  fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                  borderRadius:"var(--radius-s)",padding:"10px 24px",cursor:"pointer",fontSize:13,fontWeight:700,
+                  fontFamily:"var(--font)"}}>
                   Scegli file .xlsx
                   <input type="file" accept=".xlsx,.xls" onChange={handleBankFile}
                     style={{display:"none"}}/>
                 </label>
                 {bankRows.length>0&&(
-                  <div style={{marginTop:12,color:"#4ade80",fontSize:12}}>
+                  <div style={{marginTop:12,color:"var(--success)",fontSize:12}}>
                     ✓ {bankRows.length} accrediti caricati •{" "}
-                    <span style={{color:"#22c55e"}}>{bankRows.filter(r=>r.riconciliato).length} riconciliati</span>
+                    <span style={{color:"var(--success)"}}>{bankRows.filter(r=>r.riconciliato).length} riconciliati</span>
                   </div>
                 )}
               </div>
 
               {/* Lista accrediti */}
               {bankRows.length>0&&(
-                <div style={{background:"#ffffff",border:"1px solid rgba(99,102,241,.12)",borderRadius:14,overflow:"hidden"}}>
-                  <div style={{padding:"12px 16px",borderBottom:"1px solid #e2e8f0",
+                <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+                  <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",
                     display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                    <span style={{color:"#4338ca",fontSize:11,fontWeight:700}}>◈ ACCREDITI DAL FILE BANCA</span>
-                    <span style={{color:"#64748b",fontSize:11}}>
-                      Totale: <strong style={{color:"#4ade80"}}>{eur(bankRows.reduce((s,r)=>s+r.avere,0))}</strong>
+                    <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ ACCREDITI DAL FILE BANCA</span>
+                    <span style={{color:"var(--text-2)",fontSize:11}}>
+                      Totale: <strong style={{color:"var(--success)"}}>{eur(bankRows.reduce((s,r)=>s+r.avere,0))}</strong>
                     </span>
                   </div>
                   <div style={{maxHeight:520,overflowY:"auto"}}>
@@ -2774,48 +2861,48 @@ function App() {
                         <div key={i} onClick={()=>{setAccrediti([row]);setRecoSel({});setRecoSearch("");}}
                           style={{
                             padding:"11px 14px",borderBottom:"1px solid #0a1222",cursor:"pointer",
-                            background: row.riconciliato?"#061209": isSel?"#0b1a2e":"transparent",
+                            background: row.riconciliato?"var(--success-s)": isSel?"var(--bg)":"transparent",
                             borderLeft:`3px solid ${row.riconciliato?"#22c55e":isSel?"#3b82f6":"transparent"}`,
                             transition:"background .12s",
                           }}>
                           {/* Riga 1: Data + Importo */}
                           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                             <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                              <span style={{color:"#60a5fa",fontSize:11,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",fontWeight:700}}>
+                              <span style={{color:"var(--accent)",fontSize:11,fontFamily:"var(--font)",fontWeight:700}}>
                                 {toIT(row.data)}
                               </span>
-                              {row.dare>0&&<span style={{color:"#ef4444",fontSize:9}}>
+                              {row.dare>0&&<span style={{color:"var(--danger)",fontSize:9}}>
                                 dare: {eur(row.dare)}
                               </span>}
-                              {row.riconciliato&&<span style={{color:"#22c55e",fontSize:9,
-                                background:"#071f10",border:"1px solid #14532d",
+                              {row.riconciliato&&<span style={{color:"var(--success)",fontSize:9,
+                                background:"var(--success-s)",border:"1px solid #14532d",
                                 borderRadius:4,padding:"1px 5px"}}>✓ ok</span>}
                             </div>
                             <span style={{color:row.riconciliato?"#22c55e":"#4ade80",
-                              fontWeight:800,fontSize:13,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
+                              fontWeight:800,fontSize:13,fontFamily:"var(--font)",
                               whiteSpace:"nowrap",marginLeft:8}}>
                               +{eur(row.avere)}
                             </span>
                           </div>
                           {/* Riga 2: Causale ABI + badge tipo */}
                           {row.desc&&<div style={{display:"flex",gap:5,alignItems:"center",marginBottom:2}}>
-                            <span style={{color:"#38bdf8",fontSize:9,
+                            <span style={{color:"#0284C7",fontSize:9,
                               whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
-                              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",flex:1}}>
+                              fontFamily:"var(--font)",flex:1}}>
                               {row.desc}
                             </span>
                             {(()=>{
                               const d = (row.desc+row.descAdd).toLowerCase();
                               if(d.includes("versamento")&&(d.includes("assegn")||d.includes("titol")))
-                                return <span style={{background:"#1c1400",border:"1px solid #d97706",borderRadius:3,padding:"0px 5px",color:"#fbbf24",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>📋 ASSEGNI</span>;
+                                return <span style={{background:"var(--danger-s)",border:"1px solid #d97706",borderRadius:3,padding:"0px 5px",color:"#fbbf24",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>📋 ASSEGNI</span>;
                               if(d.includes("accredito")&&(d.includes("beu")||d.includes("bonifico ist")))
-                                return <span style={{background:"#0a1f2e",border:"1px solid #0284c7",borderRadius:3,padding:"0px 5px",color:"#38bdf8",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>⚡ BEU</span>;
+                                return <span style={{background:"var(--bg)",border:"1px solid #0284c7",borderRadius:3,padding:"0px 5px",color:"#0284C7",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>⚡ BEU</span>;
                               if(d.includes("accredito")&&d.includes("bonifico"))
-                                return <span style={{background:"#0a1f0a",border:"1px solid #16a34a",borderRadius:3,padding:"0px 5px",color:"#4ade80",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>↙ BONIF.</span>;
+                                return <span style={{background:"var(--success-s)",border:"1px solid #16a34a",borderRadius:3,padding:"0px 5px",color:"var(--success)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>↙ BONIF.</span>;
                               if(d.includes("versamento")&&d.includes("contanti"))
-                                return <span style={{background:"#1a0f2e",border:"1px solid #7c3aed",borderRadius:3,padding:"0px 5px",color:"#a78bfa",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>💵 CONTANTI</span>;
+                                return <span style={{background:"var(--bg)",border:"1px solid #7c3aed",borderRadius:3,padding:"0px 5px",color:"#a78bfa",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>💵 CONTANTI</span>;
                               if(d.includes("rid")||d.includes("sdd")||d.includes("addebito diretto"))
-                                return <span style={{background:"#1a0a0a",border:"1px solid #dc2626",borderRadius:3,padding:"0px 5px",color:"#f87171",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>🔄 RID/SDD</span>;
+                                return <span style={{background:"var(--danger-s)",border:"1px solid #dc2626",borderRadius:3,padding:"0px 5px",color:"var(--danger)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>🔄 RID/SDD</span>;
                               return null;
                             })()}
                           </div>}
@@ -2835,22 +2922,22 @@ function App() {
               )}
 
               {bankRows.length===0&&(
-                <div style={{background:"#ffffff",border:"1px solid rgba(99,102,241,.12)",borderRadius:14,
-                  padding:60,textAlign:"center",color:"#64748b"}}>
+                <div style={{background:"var(--surface)",border:"1px solid rgba(99,102,241,.12)",borderRadius:"var(--radius)",
+                  padding:60,textAlign:"center",color:"var(--text-2)"}}>
                   <div style={{fontSize:32,marginBottom:12}}>🏦</div>
                   <div style={{fontSize:13}}>Carica un file Excel della banca per iniziare la riconciliazione</div>
                 </div>
               )}
 
               {/* ══ PANNELLO ASSEGNI MANUALE ══ */}
-              <div style={{marginTop:18,background:"#ffffff",border:"1px solid #1e3a5f",borderRadius:14,overflow:"hidden"}}>
+              <div style={{marginTop:18,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",overflow:"hidden"}}>
                 {/* Header */}
-                <div style={{padding:"12px 18px",borderBottom:"1px solid #e2e8f0",
+                <div style={{padding:"12px 18px",borderBottom:"1px solid var(--border)",
                   display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-                  <span style={{color:"#fb923c",fontSize:12,fontWeight:700,letterSpacing:.5}}>
+                  <span style={{color:"var(--warn)",fontSize:12,fontWeight:700,letterSpacing:.5}}>
                     📋 ASSEGNI — RICERCA MANUALE
                   </span>
-                  <span style={{color:"#64748b",fontSize:10}}>
+                  <span style={{color:"var(--text-2)",fontSize:10}}>
                     {assegni.length} totali nel sistema
                   </span>
                 </div>
@@ -2861,26 +2948,26 @@ function App() {
 
                   {/* Data Da */}
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <label style={{color:"#64748b",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Dal</label>
+                    <label style={{color:"var(--text-2)",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Dal</label>
                     <input type="date" value={assManDa} onChange={e=>setAssManDa(e.target.value)}
-                      style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:6,
-                        padding:"5px 8px",color:"#64748b",fontSize:11,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}/>
+                      style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                        padding:"5px 8px",color:"var(--text-2)",fontSize:11,fontFamily:"var(--font)"}}/>
                   </div>
 
                   {/* Data A */}
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <label style={{color:"#64748b",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Al</label>
+                    <label style={{color:"var(--text-2)",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Al</label>
                     <input type="date" value={assManA} onChange={e=>setAssManA(e.target.value)}
-                      style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:6,
-                        padding:"5px 8px",color:"#64748b",fontSize:11,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}/>
+                      style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                        padding:"5px 8px",color:"var(--text-2)",fontSize:11,fontFamily:"var(--font)"}}/>
                   </div>
 
                   {/* Stato */}
                   <div style={{display:"flex",flexDirection:"column",gap:4}}>
-                    <label style={{color:"#64748b",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Stato</label>
+                    <label style={{color:"var(--text-2)",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Stato</label>
                     <select value={assManStato} onChange={e=>setAssManStato(e.target.value)}
-                      style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:6,
-                        padding:"5px 8px",color:"#64748b",fontSize:11,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                      style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                        padding:"5px 8px",color:"var(--text-2)",fontSize:11,fontFamily:"var(--font)"}}>
                       {["TUTTI","IN ARCHIVIO","CONSEGNATO A PINO"].map(s=>(
                         <option key={s} value={s}>{s}</option>
                       ))}
@@ -2889,17 +2976,17 @@ function App() {
 
                   {/* Ricerca cliente/n.titolo */}
                   <div style={{display:"flex",flexDirection:"column",gap:4,flex:1,minWidth:140}}>
-                    <label style={{color:"#64748b",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Cerca</label>
+                    <label style={{color:"var(--text-2)",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Cerca</label>
                     <input type="text" value={assManSearch} onChange={e=>setAssManSearch(e.target.value)}
                       placeholder="cliente o n° assegno..."
-                      style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:6,
-                        padding:"5px 8px",color:"#e2e8f0",fontSize:11,width:"100%"}}/>
+                      style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                        padding:"5px 8px",color:"var(--text-1)",fontSize:11,width:"100%"}}/>
                   </div>
 
                   {/* Reset */}
                   <button onClick={()=>{setAssManDa("");setAssManA("");setAssManStato("TUTTI");setAssManSearch("");}}
-                    style={{background:"#f8fafc",border:"1px solid #e2e8f0",borderRadius:6,
-                      padding:"5px 10px",color:"#64748b",fontSize:10,cursor:"pointer",alignSelf:"flex-end"}}>
+                    style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                      padding:"5px 10px",color:"var(--text-2)",fontSize:10,cursor:"pointer",alignSelf:"flex-end"}}>
                     ✕ Reset
                   </button>
                 </div>
@@ -2919,7 +3006,7 @@ function App() {
                   }).sort((a,b)=>toISO(a["DATA TITOLO"]).localeCompare(toISO(b["DATA TITOLO"])));
 
                   if(!filtered.length) return (
-                    <div style={{padding:30,textAlign:"center",color:"#64748b",fontSize:12}}>
+                    <div style={{padding:30,textAlign:"center",color:"var(--text-2)",fontSize:12}}>
                       Nessun assegno trovato con i filtri impostati
                     </div>
                   );
@@ -2929,10 +3016,10 @@ function App() {
                   return (
                     <div>
                       {/* Totale */}
-                      <div style={{padding:"8px 18px",background:"#050d1a",
+                      <div style={{padding:"8px 18px",background:"var(--bg)",
                         display:"flex",justifyContent:"space-between",fontSize:11}}>
-                        <span style={{color:"#64748b"}}>{filtered.length} assegni filtrati</span>
-                        <span style={{color:"#4ade80",fontWeight:800,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                        <span style={{color:"var(--text-2)"}}>{filtered.length} assegni filtrati</span>
+                        <span style={{color:"var(--success)",fontWeight:800,fontFamily:"var(--font)"}}>
                           {eur(totale)}
                         </span>
                       </div>
@@ -2950,23 +3037,23 @@ function App() {
                                 padding:"10px 18px",
                                 borderBottom:"1px solid #0a1220",
                                 cursor:"pointer",
-                                background: isSel?"#0f1f10":"transparent",
+                                background: isSel?"var(--success-s)":"transparent",
                                 borderLeft: isSel?"3px solid #4ade80":"3px solid transparent",
                                 transition:"background .15s",
                               }}
-                              onMouseEnter={e=>{ if(!isSel) e.currentTarget.style.background="#0a1220"; }}
+                              onMouseEnter={e=>{ if(!isSel) e.currentTarget.style.background="var(--bg)"; }}
                               onMouseLeave={e=>{ if(!isSel) e.currentTarget.style.background="transparent"; }}
                             >
                               {/* Riga principale */}
                               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                                 <div style={{flex:1,minWidth:0}}>
                                   <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:3}}>
-                                    <span style={{color:"#e2e8f0",fontSize:12,fontWeight:600,
+                                    <span style={{color:"var(--text-1)",fontSize:12,fontWeight:600,
                                       whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:200}}>
                                       {a["CLIENTE"]}
                                     </span>
                                     <span style={{
-                                      background: a["STATO TITOLO"]==="IN ARCHIVIO"?"#2d1f0a":"#0f2010",
+                                      background: a["STATO TITOLO"]==="IN ARCHIVIO"?"var(--danger-s)":"var(--success-s)",
                                       color:statoC,
                                       fontSize:9,padding:"1px 6px",borderRadius:4,fontWeight:700,
                                       whiteSpace:"nowrap"
@@ -2975,22 +3062,22 @@ function App() {
                                     </span>
                                   </div>
                                   <div style={{display:"flex",gap:10,alignItems:"center"}}>
-                                    <span style={{color:"#38bdf8",fontSize:10,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                                    <span style={{color:"#0284C7",fontSize:10,fontFamily:"var(--font)"}}>
                                       {a["N TITOLO"]}
                                     </span>
-                                    <span style={{color:"#64748b",fontSize:10}}>
+                                    <span style={{color:"var(--text-2)",fontSize:10}}>
                                       📅 {toIT(a["DATA TITOLO"])}
                                     </span>
                                     {docs&&(
-                                      <span style={{color:"#64748b",fontSize:9}}>
-                                        Fatt: <span style={{color:"#64748b"}}>{fmtDocList(docs)}</span>
+                                      <span style={{color:"var(--text-2)",fontSize:9}}>
+                                        Fatt: <span style={{color:"var(--text-2)"}}>{fmtDocList(docs)}</span>
                                       </span>
                                     )}
                                   </div>
                                 </div>
                                 <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
-                                  <div style={{color:"#4ade80",fontSize:13,fontWeight:800,
-                                    fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                                  <div style={{color:"var(--success)",fontSize:13,fontWeight:800,
+                                    fontFamily:"var(--font)"}}>
                                     {eur(a["IMPORTO TITOLO"])}
                                   </div>
                                 </div>
@@ -2999,30 +3086,30 @@ function App() {
                               {/* Dettaglio espanso */}
                               {isSel&&(
                                 <div style={{marginTop:10,padding:"10px 12px",
-                                  background:"#050d1a",borderRadius:8,
-                                  border:"1px solid #e2e8f0"}}>
-                                  <div style={{color:"#60a5fa",fontSize:10,fontWeight:700,marginBottom:8}}>
+                                  background:"var(--bg)",borderRadius:"var(--radius-s)",
+                                  border:"1px solid var(--border)"}}>
+                                  <div style={{color:"var(--accent)",fontSize:10,fontWeight:700,marginBottom:8}}>
                                     📄 Dettaglio assegno
                                   </div>
                                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 16px",fontSize:10}}>
-                                    <div><span style={{color:"#64748b"}}>Cliente: </span>
-                                      <span style={{color:"#e2e8f0"}}>{a["CLIENTE"]}</span></div>
-                                    <div><span style={{color:"#64748b"}}>N° Titolo: </span>
-                                      <span style={{color:"#38bdf8",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>{a["N TITOLO"]}</span></div>
-                                    <div><span style={{color:"#64748b"}}>Data titolo: </span>
-                                      <span style={{color:"#64748b"}}>{toIT(a["DATA TITOLO"])}</span></div>
-                                    <div><span style={{color:"#64748b"}}>Importo: </span>
-                                      <span style={{color:"#4ade80",fontWeight:800,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>{eur(a["IMPORTO TITOLO"])}</span></div>
-                                    <div><span style={{color:"#64748b"}}>Stato: </span>
+                                    <div><span style={{color:"var(--text-2)"}}>Cliente: </span>
+                                      <span style={{color:"var(--text-1)"}}>{a["CLIENTE"]}</span></div>
+                                    <div><span style={{color:"var(--text-2)"}}>N° Titolo: </span>
+                                      <span style={{color:"#0284C7",fontFamily:"var(--font)"}}>{a["N TITOLO"]}</span></div>
+                                    <div><span style={{color:"var(--text-2)"}}>Data titolo: </span>
+                                      <span style={{color:"var(--text-2)"}}>{toIT(a["DATA TITOLO"])}</span></div>
+                                    <div><span style={{color:"var(--text-2)"}}>Importo: </span>
+                                      <span style={{color:"var(--success)",fontWeight:800,fontFamily:"var(--font)"}}>{eur(a["IMPORTO TITOLO"])}</span></div>
+                                    <div><span style={{color:"var(--text-2)"}}>Stato: </span>
                                       <span style={{color:statoC,fontWeight:700}}>{a["STATO TITOLO"]}</span></div>
-                                    {docs&&<div style={{gridColumn:"1/-1"}}><span style={{color:"#64748b"}}>Fatture/Doc: </span>
-                                      <span style={{color:"#c084fc",fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>{fmtDocList(docs)}</span></div>}
-                                    {a["NC SCALATE"]&&<div style={{gridColumn:"1/-1"}}><span style={{color:"#64748b"}}>NC scalate: </span>
+                                    {docs&&<div style={{gridColumn:"1/-1"}}><span style={{color:"var(--text-2)"}}>Fatture/Doc: </span>
+                                      <span style={{color:"#c084fc",fontFamily:"var(--font)"}}>{fmtDocList(docs)}</span></div>}
+                                    {a["NC SCALATE"]&&<div style={{gridColumn:"1/-1"}}><span style={{color:"var(--text-2)"}}>NC scalate: </span>
                                       <span style={{color:"#c084fc"}}>{fmtDocList(a["NC SCALATE"])}</span></div>}
                                   </div>
 
                                   {/* Link rapido: imposta come accredito manuale */}
-                                  <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid #e2e8f0",
+                                  <div style={{marginTop:10,paddingTop:8,borderTop:"1px solid var(--border)",
                                     display:"flex",justifyContent:"flex-end"}}>
                                     <button
                                       onClick={e=>{
@@ -3083,29 +3170,29 @@ function App() {
             {/* COLONNA DESTRA — Pannello abbinamento */}
             <div style={{position:"sticky",top:20}}>
               {accrediti.length>0?(
-                <div style={{background:"#ffffff",border:"1px solid #1e3a5f",borderRadius:14,padding:18}}>
+                <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",padding:18}}>
 
                   {/* ── 1. ACCREDITO BANCARIO SELEZIONATO ── */}
-                  <div style={{background:"#0f1f35",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
+                  <div style={{background:"var(--accent-s)",borderRadius:10,padding:"12px 14px",marginBottom:14}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                       <div>
-                        <div style={{color:"#60a5fa",fontSize:10,fontWeight:700,marginBottom:3}}>
+                        <div style={{color:"var(--accent)",fontSize:10,fontWeight:700,marginBottom:3}}>
                           🏦 ACCREDITO BANCARIO
                         </div>
-                        <div style={{color:"#4ade80",fontSize:22,fontWeight:800,
-                          fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                        <div style={{color:"var(--success)",fontSize:22,fontWeight:800,
+                          fontFamily:"var(--font)"}}>
                           +{eur(accrediti[0].avere)}
                         </div>
-                        <div style={{color:"#64748b",fontSize:10,marginTop:2}}>
+                        <div style={{color:"var(--text-2)",fontSize:10,marginTop:2}}>
                           📅 {toIT(accrediti[0].data)}
                         </div>
-                        {accrediti[0].desc&&<div style={{color:"#38bdf8",fontSize:9,marginTop:4,
-                          fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",lineHeight:1.4}}>
+                        {accrediti[0].desc&&<div style={{color:"#0284C7",fontSize:9,marginTop:4,
+                          fontFamily:"var(--font)",lineHeight:1.4}}>
                           {accrediti[0].desc}
                         </div>}
                       </div>
                       <button onClick={()=>{setAccrediti([]);setRecoSel({});setRecoSearch("");}}
-                        style={{background:"none",border:"none",color:"#64748b",
+                        style={{background:"none",border:"none",color:"var(--text-2)",
                           cursor:"pointer",fontSize:13,padding:0}}>✕</button>
                     </div>
                   </div>
@@ -3125,25 +3212,25 @@ function App() {
                       <>
                         {/* Riepilogo abbinamento */}
                         <div style={{
-                          background: isDone?"#071a0e":assSelIds.size>0?"#1a1000":"#f8f9ff",
+                          background: isDone?"var(--success-s)":assSelIds.size>0?"var(--danger-s)":"#f8f9ff",
                           border:`1px solid ${isDone?"#22c55e":assSelIds.size>0?"#d97706":"#e2e8f0"}`,
-                          borderRadius:8,padding:"8px 12px",marginBottom:12,fontSize:11}}>
+                          borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:12,fontSize:11}}>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                            <span style={{color:"#64748b"}}>Accredito banca:</span>
-                            <span style={{color:"#4ade80",fontWeight:700,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                            <span style={{color:"var(--text-2)"}}>Accredito banca:</span>
+                            <span style={{color:"var(--success)",fontWeight:700,fontFamily:"var(--font)"}}>
                               +{eur(totAcc)}
                             </span>
                           </div>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                            <span style={{color:"#64748b"}}>Assegni abbinati ({assSelIds.size}):</span>
-                            <span style={{color:"#e2e8f0",fontWeight:700,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                            <span style={{color:"var(--text-2)"}}>Assegni abbinati ({assSelIds.size}):</span>
+                            <span style={{color:"var(--text-1)",fontWeight:700,fontFamily:"var(--font)"}}>
                               {eur(totAssegni)}
                             </span>
                           </div>
                           <div style={{display:"flex",justifyContent:"space-between",
-                            paddingTop:4,borderTop:"1px solid #e2e8f0"}}>
-                            <span style={{color:"#64748b"}}>Differenza:</span>
-                            <span style={{fontWeight:800,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",
+                            paddingTop:4,borderTop:"1px solid var(--border)"}}>
+                            <span style={{color:"var(--text-2)"}}>Differenza:</span>
+                            <span style={{fontWeight:800,fontFamily:"var(--font)",
                               color:isDone?"#22c55e":diff<0?"#ef4444":"#fb923c"}}>
                               {isDone?"✓ pareggio":diff>0?`scoperto ${eur(diff)}`:`eccedente ${eur(-diff)}`}
                             </span>
@@ -3178,7 +3265,7 @@ function App() {
                               });
 
                             if(!lista.length) return (
-                              <div style={{padding:20,textAlign:"center",color:"#64748b",fontSize:11}}>
+                              <div style={{padding:20,textAlign:"center",color:"var(--text-2)",fontSize:11}}>
                                 Nessun assegno trovato
                               </div>
                             );
@@ -3199,9 +3286,9 @@ function App() {
                                     return n;
                                   })}
                                   style={{
-                                    padding:"9px 11px",marginBottom:6,borderRadius:8,cursor:"pointer",
+                                    padding:"9px 11px",marginBottom:6,borderRadius:"var(--radius-s)",cursor:"pointer",
                                     border:`1px solid ${checked?"#3b82f6":nearDate?"#d9770644":"#e2e8f0"}`,
-                                    background:checked?"#0b1f3a":nearDate?"#1a1000":"transparent",
+                                    background:checked?"var(--bg)":nearDate?"var(--danger-s)":"transparent",
                                     transition:"background .12s",
                                   }}>
                                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
@@ -3210,28 +3297,28 @@ function App() {
                                         <span style={{color:checked?"#60a5fa":"#94a3b8",fontSize:12,fontWeight:700}}>
                                           {checked?"☑":"☐"}
                                         </span>
-                                        <span style={{color:"#e2e8f0",fontSize:11,fontWeight:600,
+                                        <span style={{color:"var(--text-1)",fontSize:11,fontWeight:600,
                                           whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:160}}>
                                           {a["CLIENTE"]}
                                         </span>
-                                        <span style={{background:"#f4f6ff",color:statoColor,
+                                        <span style={{background:"var(--bg)",color:statoColor,
                                           fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,whiteSpace:"nowrap"}}>
                                           {a["STATO TITOLO"]}
                                         </span>
                                         {nearDate&&!checked&&<span style={{color:"#fbbf24",fontSize:8,
-                                          background:"#1c1400",padding:"1px 5px",borderRadius:3}}>
+                                          background:"var(--danger-s)",padding:"1px 5px",borderRadius:3}}>
                                           stessa data
                                         </span>}
                                       </div>
                                       <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                                        <span style={{color:"#38bdf8",fontSize:9,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                                        <span style={{color:"#0284C7",fontSize:9,fontFamily:"var(--font)"}}>
                                           {a["N TITOLO"]}
                                         </span>
-                                        <span style={{color:"#64748b",fontSize:9}}>
+                                        <span style={{color:"var(--text-2)",fontSize:9}}>
                                           {toIT(a["DATA TITOLO"])}
                                         </span>
                                       </div>
-                                      {docs2&&<div style={{color:"#64748b",fontSize:9,marginTop:2}}>
+                                      {docs2&&<div style={{color:"var(--text-2)",fontSize:9,marginTop:2}}>
                                         Fatt: <span style={{color:checked?"#94a3b8":"#475569"}}>
                                           {fmtDocList(docs2)}
                                         </span>
@@ -3239,7 +3326,7 @@ function App() {
                                     </div>
                                     <div style={{flexShrink:0,marginLeft:10,textAlign:"right"}}>
                                       <div style={{color:checked?"#4ade80":"#f1f5f9",fontSize:13,fontWeight:800,
-                                        fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                                        fontFamily:"var(--font)"}}>
                                         {eur(imp)}
                                       </div>
                                     </div>
@@ -3262,21 +3349,21 @@ function App() {
                       color:Object.keys(recoSel).length>0?"#fff":"#475569",
                       border:"none",borderRadius:10,padding:"12px",fontSize:13,fontWeight:700,
                       cursor:Object.keys(recoSel).length>0?"pointer":"not-allowed",
-                      fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",marginBottom:8}}>
+                      fontFamily:"var(--font)",marginBottom:8}}>
                     {recoSaving?"Salvataggio...":
                       Object.keys(recoSel).length>0
                         ?`✓ Conferma — ${Object.keys(recoSel).length} assegn${Object.keys(recoSel).length>1?"i":"o"}`
                         :"Seleziona almeno un assegno"}
                   </button>
                   <button onClick={()=>{setAccrediti([]);setRecoSel({});setRecoSearch("");}}
-                    style={{width:"100%",background:"transparent",border:"1px solid #e2e8f0",
-                      color:"#64748b",borderRadius:10,padding:"8px",fontSize:12,cursor:"pointer"}}>
+                    style={{width:"100%",background:"transparent",border:"1px solid var(--border)",
+                      color:"var(--text-2)",borderRadius:10,padding:"8px",fontSize:12,cursor:"pointer"}}>
                     Annulla
                   </button>
                 </div>
               ):(
-                <div style={{background:"#ffffff",border:"1px dashed #e2e8f0",borderRadius:14,
-                  padding:40,textAlign:"center",color:"#64748b"}}>
+                <div style={{background:"var(--surface)",border:"1px dashed #e2e8f0",borderRadius:"var(--radius)",
+                  padding:40,textAlign:"center",color:"var(--text-2)"}}>
                   <div style={{fontSize:28,marginBottom:10}}>←</div>
                   <div style={{fontSize:12,lineHeight:1.6}}>
                     Seleziona un accredito dal file banca<br/>
@@ -3291,34 +3378,34 @@ function App() {
 
         {/* STORICO RICONCILIAZIONI */}
         {tab==="storico"&&(
-          <div className="tab-content glass-card" style={{borderRadius:14,overflow:"hidden"}}>
-            <div style={{padding:"14px 18px",borderBottom:"1px solid #e2e8f0",
+          <div className="tab-content glass-card" style={{borderRadius:"var(--radius)",overflow:"hidden"}}>
+            <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",
               display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
-              <span style={{color:"#4338ca",fontSize:11,fontWeight:700}}>◈ STORICO RICONCILIAZIONI</span>
+              <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ STORICO RICONCILIAZIONI</span>
               <div style={{display:"flex",gap:16,fontSize:11}}>
-                <span style={{color:"#60a5fa"}}>
+                <span style={{color:"var(--accent)"}}>
                   Bancarie: <strong>{riconciliazioni.filter(r=>r.tipo==="Banca"||(r.id||"").startsWith("RIC-")).length}</strong>
                 </span>
-                <span style={{color:"#4ade80"}}>
+                <span style={{color:"var(--success)"}}>
                   Pagamenti: <strong>{riconciliazioni.filter(r=>r.tipo==="Pagamento"||(r.id||"").startsWith("INC-")).length}</strong>
                 </span>
-                <span style={{color:"#64748b"}}>
-                  Totale incassato: <strong style={{color:"#38bdf8"}}>{eur(riconciliazioni.reduce((s,r)=>s+(parseNum(r.accredito||r["ACCREDITO"]||0)),0))}</strong>
+                <span style={{color:"var(--text-2)"}}>
+                  Totale incassato: <strong style={{color:"#0284C7"}}>{eur(riconciliazioni.reduce((s,r)=>s+(parseNum(r.accredito||r["ACCREDITO"]||0)),0))}</strong>
                 </span>
               </div>
             </div>
             {riconciliazioni.length===0?(
-              <div style={{padding:60,textAlign:"center",color:"#64748b",fontSize:12}}>
+              <div style={{padding:60,textAlign:"center",color:"var(--text-2)",fontSize:12}}>
                 Nessuna riconciliazione registrata
               </div>
             ):(
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <thead>
-                    <tr style={{background:"#f8f9fc"}}>
+                    <tr style={{background:"var(--bg)"}}>
                       {["ID","Data","Accredito","Descrizione","Fatture/NAC collegate"].map(h=>(
                         <th key={h} style={{padding:"10px 14px",textAlign:"left",
-                          color:"#64748b",fontWeight:600,fontSize:11,borderBottom:"1px solid #e2e8f0"}}>{h}</th>
+                          color:"var(--text-2)",fontWeight:600,fontSize:11,borderBottom:"1px solid var(--border)"}}>{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -3334,31 +3421,31 @@ function App() {
                       <tr key={i} style={{borderBottom:"1px solid #f4f6ff",cursor:"pointer"}} className="row-hover"
                         onClick={()=>setStoricoPopup({r, fatture, tipo, data, desc, accredito, id, descAdd:r.descAdd||"", utente:r.utente||""})}>
                         <td style={{padding:"10px 14px"}}>
-                          <div style={{color:"#64748b",fontSize:9,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",marginBottom:2}}>{id}</div>
-                          <span style={{background:tipo==="Banca"?"#0f1f35":"#0a2a1a",
-                            border:`1px solid ${tipo==="Banca"?"#1e3a5f":"#22c55e33"}`,
+                          <div style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--font)",marginBottom:2}}>{id}</div>
+                          <span style={{background:tipo==="Banca"?"var(--accent-s)":"var(--success-s)",
+                            border:`1px solid ${tipo==="Banca"?"var(--bg)":"#22c55e33"}`,
                             borderRadius:4,padding:"1px 6px",
                             color:tipo==="Banca"?"#60a5fa":"#4ade80",fontSize:9}}>
                             {tipo}
                           </span>
                         </td>
-                        <td style={{padding:"10px 14px",color:"#64748b",fontSize:12}}>{toIT(data)}</td>
-                        <td style={{padding:"10px 14px",color:"#4ade80",fontWeight:700,
-                          fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",fontSize:13}}>
+                        <td style={{padding:"10px 14px",color:"var(--text-2)",fontSize:12}}>{toIT(data)}</td>
+                        <td style={{padding:"10px 14px",color:"var(--success)",fontWeight:700,
+                          fontFamily:"var(--font)",fontSize:13}}>
                           {accredito?eur(accredito):"—"}
                         </td>
-                        <td style={{padding:"10px 14px",color:"#64748b",fontSize:11,maxWidth:260,
+                        <td style={{padding:"10px 14px",color:"var(--text-2)",fontSize:11,maxWidth:260,
                           overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                           {desc}
                         </td>
                         <td style={{padding:"10px 14px"}}>
                           {fatture.length>0 ? fatture.map((f,j)=>(
-                            <span key={j} style={{display:"inline-block",background:"#0f1f35",
-                              border:"1px solid #1e3a5f",borderRadius:4,padding:"1px 6px",
-                              color:"#60a5fa",fontSize:10,marginRight:4,marginBottom:2}}>
+                            <span key={j} style={{display:"inline-block",background:"var(--accent-s)",
+                              border:"1px solid var(--border)",borderRadius:4,padding:"1px 6px",
+                              color:"var(--accent)",fontSize:10,marginRight:4,marginBottom:2}}>
                               {f}
                             </span>
-                          )) : <span style={{color:"#64748b"}}>—</span>}
+                          )) : <span style={{color:"var(--text-2)"}}>—</span>}
                         </td>
                       </tr>
                     );})}
@@ -3397,29 +3484,29 @@ function App() {
           return all.filter((a,i,arr)=>arr.findIndex(b=>b["N TITOLO"]===a["N TITOLO"])===i);
         })();
         return (
-          <div style={{position:"fixed",inset:0,background:"#000000cc",zIndex:500,
+          <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.4)",zIndex:500,
             display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
             onClick={()=>setStoricoPopup(null)}>
-            <div style={{background:"#ffffff",border:"1px solid #1e3a5f",borderRadius:16,
+            <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,
               width:"100%",maxWidth:680,maxHeight:"85vh",display:"flex",flexDirection:"column",
               boxShadow:"0 24px 80px #00000099"}}
               onClick={e=>e.stopPropagation()}>
 
               {/* Header */}
-              <div style={{padding:"16px 20px",borderBottom:"1px solid #e2e8f0",
+              <div style={{padding:"16px 20px",borderBottom:"1px solid var(--border)",
                 display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                 <div>
                   <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
-                    <span style={{color:"#64748b",fontSize:10,fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>{id}</span>
-                    <span style={{background:tipo==="Banca"?"#0f1f35":"#0a2a1a",
-                      border:`1px solid ${tipo==="Banca"?"#1e3a5f":"#22c55e33"}`,
+                    <span style={{color:"var(--text-2)",fontSize:10,fontFamily:"var(--font)"}}>{id}</span>
+                    <span style={{background:tipo==="Banca"?"var(--accent-s)":"var(--success-s)",
+                      border:`1px solid ${tipo==="Banca"?"var(--bg)":"#22c55e33"}`,
                       borderRadius:4,padding:"1px 6px",
                       color:tipo==="Banca"?"#60a5fa":"#4ade80",fontSize:9}}>{tipo}</span>
                   </div>
-                  <div style={{color:"#4ade80",fontSize:20,fontWeight:800,
-                    fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>{accredito?eur(accredito):"—"}</div>
-                  <div style={{color:"#64748b",fontSize:11,marginTop:2}}>📅 {toIT(data)}</div>
-                  {desc&&desc!=="—"&&<div style={{color:"#64748b",fontSize:10,marginTop:4,
+                  <div style={{color:"var(--success)",fontSize:20,fontWeight:800,
+                    fontFamily:"var(--font)"}}>{accredito?eur(accredito):"—"}</div>
+                  <div style={{color:"var(--text-2)",fontSize:11,marginTop:2}}>📅 {toIT(data)}</div>
+                  {desc&&desc!=="—"&&<div style={{color:"var(--text-2)",fontSize:10,marginTop:4,
                     maxWidth:400,lineHeight:1.4}}>{desc}</div>}
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -3434,15 +3521,15 @@ function App() {
                         loadData();
                       } catch(e) { notify("Errore: "+e.message,"error"); }
                     }}
-                    style={{background:"#1a0a0a",border:"1px solid #7f1d1d",color:"#ef4444",
-                      borderRadius:8,padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:700,
+                    style={{background:"var(--danger-s)",border:"1px solid #7f1d1d",color:"var(--danger)",
+                      borderRadius:"var(--radius-s)",padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:700,
                       display:"flex",alignItems:"center",gap:5}}>
                       🗑 Elimina
                     </button>
                   )}
                   <button onClick={()=>setStoricoPopup(null)}
-                    style={{background:"#eef2ff",border:"none",color:"#64748b",
-                      borderRadius:8,padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
+                    style={{background:"var(--accent-s)",border:"none",color:"var(--text-2)",
+                      borderRadius:"var(--radius-s)",padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
                 </div>
               </div>
 
@@ -3451,30 +3538,30 @@ function App() {
                 {/* Documenti/Fatture abbinate */}
                 {(docCollegati.length>0||fatture.length>0)&&(
                   <div style={{marginBottom:16}}>
-                    <div style={{color:"#64748b",fontSize:10,fontWeight:700,
+                    <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,
                       textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>
                       📄 Documenti abbinati ({fatture.length})
                     </div>
                     {fatture.map((f,j)=>{
                       const doc = docCollegati.find(d=>d._numRef===f);
                       return (
-                        <div key={j} style={{background:doc?"#f4f6ff":"#0a0a0a",
-                          border:`1px solid ${doc?"#1e3a5f":"#e2e8f0"}`,
-                          borderRadius:8,padding:"8px 12px",marginBottom:6,
+                        <div key={j} style={{background:doc?"#f4f6ff":"var(--bg)",
+                          border:`1px solid ${doc?"var(--bg)":"#e2e8f0"}`,
+                          borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:6,
                           display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <div>
-                            <span style={{color:"#60a5fa",fontWeight:700,fontSize:12,
-                              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>
+                            <span style={{color:"var(--accent)",fontWeight:700,fontSize:12,
+                              fontFamily:"var(--font)"}}>
                               {f}
                             </span>
-                            {doc&&<div style={{color:"#64748b",fontSize:10,marginTop:2}}>
+                            {doc&&<div style={{color:"var(--text-2)",fontSize:10,marginTop:2}}>
                               {doc[COL.ragioneSociale]} · {doc[COL.tipoDocumento]}
                             </div>}
                           </div>
                           {doc&&<div style={{textAlign:"right"}}>
                             <div style={{color: doc[COL.stato]==="CHIUSO"||doc[COL.stato]==="PAGATO"?"#4ade80":doc[COL.stato]==="DA INCASSARE"?"#fb923c":"#94a3b8",
                               fontSize:11,fontWeight:700}}>{doc[COL.stato]}</div>
-                            <div style={{color:"#64748b",fontSize:10}}>
+                            <div style={{color:"var(--text-2)",fontSize:10}}>
                               saldo: {eur(doc[COL.saldoResiduo])}
                             </div>
                           </div>}
@@ -3487,30 +3574,30 @@ function App() {
                 {/* Assegni collegati */}
                 {assCollegati.length>0&&(
                   <div>
-                    <div style={{color:"#fb923c",fontSize:10,fontWeight:700,
+                    <div style={{color:"var(--warn)",fontSize:10,fontWeight:700,
                       textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>
                       📋 Assegni correlati ({assCollegati.length})
                     </div>
                     {assCollegati.map((a,j)=>(
-                      <div key={j} style={{background:"#0e1620",border:"1px solid #1e3a5f",
-                        borderRadius:8,padding:"10px 12px",marginBottom:6}}>
+                      <div key={j} style={{background:"var(--bg)",border:"1px solid var(--border)",
+                        borderRadius:"var(--radius-s)",padding:"10px 12px",marginBottom:6}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                           <div>
-                            <div style={{color:"#e2e8f0",fontSize:12,fontWeight:700}}>{a["CLIENTE"]}</div>
-                            <div style={{color:"#38bdf8",fontSize:10,
-                              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif",marginTop:1}}>{a["N TITOLO"]}</div>
+                            <div style={{color:"var(--text-1)",fontSize:12,fontWeight:700}}>{a["CLIENTE"]}</div>
+                            <div style={{color:"#0284C7",fontSize:10,
+                              fontFamily:"var(--font)",marginTop:1}}>{a["N TITOLO"]}</div>
                           </div>
                           <div style={{textAlign:"right"}}>
-                            <div style={{color:"#4ade80",fontSize:13,fontWeight:800,
-                              fontFamily:"'Century Gothic',CenturyGothic,'Trebuchet MS',sans-serif"}}>{eur(a["IMPORTO TITOLO"])}</div>
+                            <div style={{color:"var(--success)",fontSize:13,fontWeight:800,
+                              fontFamily:"var(--font)"}}>{eur(a["IMPORTO TITOLO"])}</div>
                             <div style={{color:assStatoColor(a["STATO TITOLO"]),fontSize:9,marginTop:1}}>
                               {a["STATO TITOLO"]}
                             </div>
                           </div>
                         </div>
                         <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-                          <span style={{color:"#64748b",fontSize:9}}>Data: {toIT(a["DATA TITOLO"])}</span>
-                          {a["FATTURE PAGATE"]&&<span style={{color:"#64748b",fontSize:9}}>
+                          <span style={{color:"var(--text-2)",fontSize:9}}>Data: {toIT(a["DATA TITOLO"])}</span>
+                          {a["FATTURE PAGATE"]&&<span style={{color:"var(--text-2)",fontSize:9}}>
                             Fatt: {fmtDocList(a["FATTURE PAGATE"])}
                           </span>}
                           {a["NC SCALATE"]&&<span style={{color:"#c084fc",fontSize:9}}>
@@ -3523,7 +3610,7 @@ function App() {
                 )}
 
                 {docCollegati.length===0&&assCollegati.length===0&&(
-                  <div style={{textAlign:"center",color:"#64748b",padding:30,fontSize:12}}>
+                  <div style={{textAlign:"center",color:"var(--text-2)",padding:30,fontSize:12}}>
                     Nessun documento o assegno trovato per questa riconciliazione
                   </div>
                 )}
@@ -3544,9 +3631,9 @@ class ErrorBoundary extends React.Component {
   static getDerivedStateFromError(e) { return { error: e }; }
   render() {
     if (this.state.error) return (
-      <div style={{padding:40,background:"#ffffff",minHeight:"100vh",color:"#ef4444"}}>
+      <div style={{padding:40,background:"var(--surface)",minHeight:"100vh",color:"var(--danger)"}}>
         <h2 style={{fontFamily:"monospace"}}>⚠ Errore App</h2>
-        <pre style={{background:"#f8f9fc",padding:20,borderRadius:8,color:"#f87171",fontSize:12,overflow:"auto"}}>
+        <pre style={{background:"var(--bg)",padding:20,borderRadius:"var(--radius-s)",color:"var(--danger)",fontSize:12,overflow:"auto"}}>
           {this.state.error.toString()}
           {this.state.error.stack}
         </pre>
