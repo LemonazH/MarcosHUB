@@ -31,7 +31,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400;1,9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <style>
     :root {
@@ -58,7 +58,7 @@
       --shadow:   0 1px 3px rgba(0,0,0,.3);
       --shadow-m: 0 4px 16px rgba(0,0,0,.4);
       --shadow-l: 0 16px 48px rgba(0,0,0,.5);
-      --font:     'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font:     'Century Gothic', CenturyGothic, 'Apple Gothic', 'Trebuchet MS', 'DM Sans', sans-serif;
       --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -113,13 +113,13 @@
       font-size: 10px;
       letter-spacing: .06em;
       text-transform: uppercase;
-      color: var(--text-3);
+      color: var(--text-2);
       padding: 10px 14px;
       background: var(--raised);
       border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
-    td { padding: 10px 14px; border-bottom: 1px solid var(--border-2); vertical-align: middle; color: var(--text-1); }
+    td { padding: 11px 14px; border-bottom: 1px solid var(--border-2); vertical-align: middle; color: var(--text-1); font-size: 12.5px; }
 
     input, select, textarea {
       font-family: var(--font);
@@ -581,7 +581,7 @@ function CashChart({assegni}) {
 
   const filtriUI = (
     <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-      <div style={{display:"flex",gap:3,background:"var(--bg)",border:"1px solid #0f1f35",borderRadius:"var(--radius-s)",padding:3}}>
+      <div style={{display:"flex",gap:3,background:"#1C1C22",border:"1px solid #0f1f35",borderRadius:"var(--radius-s)",padding:3}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
             color={v==="IN ARCHIVIO"?"#F59E0B":v==="CONSEGNATO A PINO"?"var(--bg)":"var(--border)"}
@@ -589,7 +589,7 @@ function CashChart({assegni}) {
         ))}
       </div>
       <div style={{width:1,height:20,background:"var(--accent-s)",flexShrink:0}}/>
-      <div style={{display:"flex",gap:3,background:"var(--bg)",border:"1px solid #0f1f35",borderRadius:"var(--radius-s)",padding:3}}>
+      <div style={{display:"flex",gap:3,background:"#1C1C22",border:"1px solid #0f1f35",borderRadius:"var(--radius-s)",padding:3}}>
         {PRESETS.map((p,i)=>(
           <FilBtn key={i} label={p.label} color="var(--bg)"
             active={preset===i&&!fromDate&&!toDate}
@@ -598,11 +598,11 @@ function CashChart({assegni}) {
       </div>
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
         <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}
-          style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+          style={{background:"#1C1C22",border:"1px solid #2A2A34",borderRadius:6,
             color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
         <span style={{color:"var(--text-2)",fontSize:10}}>→</span>
         <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)}
-          style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+          style={{background:"#1C1C22",border:"1px solid #2A2A34",borderRadius:6,
             color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
         {(fromDate||toDate)&&(
           <button onClick={()=>{setFromDate("");setToDate("");}}
@@ -667,7 +667,7 @@ function CashChart({assegni}) {
           {label:"Cons. a Pino",    val:eur(entries.reduce((s,[,v])=>s+v.pino,0)),     color:"var(--accent)"},
           {label:"Assegni · Date",  val:`${nGlobale} · ${entries.length}`,             color:"var(--text-2)"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 130px",background:"var(--bg)",
+          <div key={i} style={{flex:"1 1 130px",background:"#1C1C22",
             border:"1px solid #0f1f35",borderRadius:10,padding:"10px 16px"}}>
             <div style={{color:"var(--text-2)",fontSize:9,fontWeight:700,
               textTransform:"uppercase",letterSpacing:.8,marginBottom:4}}>{label}</div>
@@ -775,9 +775,9 @@ function CashChart({assegni}) {
                 {nA>1&&!isHov&&(
                   <g>
                     <circle cx={xOf(i)} cy={yTot-10} r={6}
-                      fill="var(--bg)" stroke="var(--border)" strokeWidth={1}/>
+                      fill="var(--bg)" stroke="#2A2A34" strokeWidth={1}/>
                     <text x={xOf(i)} y={yTot-6.5} textAnchor="middle"
-                      fill="var(--text-2)" fontSize={6.5}
+                      fill="#9898A6" fontSize={6.5}
                       fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
                   </g>
                 )}
@@ -819,7 +819,7 @@ function CashChart({assegni}) {
               top:Math.max(4, mousePos.y-20),
               left:flipL?`calc(${pctX*100}% - ${TW+14}px)`:`calc(${pctX*100}% + 14px)`,
               width:TW,
-              background:"var(--bg)",
+              background:"#1C1C22",
               border:`1px solid ${accentColor}33`,
               borderRadius:12,
               boxShadow:`0 20px 60px #00000099, 0 0 0 1px ${accentColor}11`,
@@ -929,7 +929,7 @@ function CashChart({assegni}) {
 
               {/* footer tooltip: breakdown archivio/pino + barra % */}
               <div style={{padding:"8px 14px",borderTop:"1px solid #080f1e",
-                background:"var(--bg)"}}>
+                background:"#1C1C22"}}>
                 {v.archivio>0&&v.pino>0&&(
                   <div style={{display:"flex",justifyContent:"space-between",
                     fontSize:9,marginBottom:5}}>
@@ -2004,7 +2004,7 @@ function App() {
           <div>
             <div style={{fontFamily:"var(--font)",fontWeight:700,fontSize:15,
               color:"var(--text-1)",fontStyle:"italic",letterSpacing:"-.3px"}}>Marco's HUB</div>
-            <div style={{color:"var(--text-3)",fontSize:9,marginTop:1}}>Gestione Crediti & Cash Flow</div>
+            <div style={{color:"var(--text-2)",fontSize:9,marginTop:1}}>Gestione Crediti & Cash Flow</div>
           </div>
         </div>
 
@@ -2411,7 +2411,7 @@ function App() {
 
       {/* SIDEBAR */}
       <aside style={{
-        width:224,flexShrink:0,
+        width:244,flexShrink:0,
         background:"var(--surface)",
         borderRight:"1px solid var(--border-2)",
         display:"flex",flexDirection:"column",
@@ -2419,8 +2419,8 @@ function App() {
         zIndex:50,
       }}>
         {/* Logo */}
-        <div style={{padding:"18px 16px 14px",borderBottom:"1px solid var(--border-2)",
-          display:"flex",alignItems:"center",gap:10}}>
+        <div style={{padding:"18px 18px 14px",borderBottom:"1px solid var(--border-2)",
+          display:"flex",alignItems:"center",gap:11}}>
           <div style={{width:32,height:32,flexShrink:0,borderRadius:"var(--radius-s)",
             background:"#0F172A",
             display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -2435,16 +2435,16 @@ function App() {
           <div>
             <div style={{fontFamily:"var(--font)",fontWeight:700,fontSize:13,
               letterSpacing:-.3,color:"var(--text-1)",fontStyle:"italic"}}>Marco's HUB</div>
-            <div style={{color:"var(--text-3)",fontSize:9,marginTop:1,letterSpacing:".3px"}}>
+            <div style={{color:"var(--text-2)",fontSize:9,marginTop:1,letterSpacing:".3px"}}>
               Gestione Crediti
             </div>
           </div>
         </div>
 
         {/* Nav */}
-        <nav style={{flex:1,padding:"8px 8px",overflowY:"auto"}}>
-          <div style={{color:"var(--text-3)",fontSize:9,fontWeight:600,
-            letterSpacing:"1px",padding:"10px 8px 6px",textTransform:"uppercase"}}>
+        <nav style={{flex:1,padding:"10px 10px",overflowY:"auto"}}>
+          <div style={{color:"var(--text-2)",fontSize:9,fontWeight:600,
+            letterSpacing:"1.2px",padding:"10px 10px 6px",textTransform:"uppercase"}}>
             Menu
           </div>
           {TABS.map(({id,lbl,icon})=>{
@@ -2455,13 +2455,13 @@ function App() {
                 background: active ? "var(--accent-s)" : "transparent",
                 border:"none",
                 color: active ? "var(--accent)" : "var(--text-2)",
-                padding:"7px 10px",cursor:"pointer",
-                fontSize:12.5,fontWeight:active?600:400,
+                padding:"9px 12px",cursor:"pointer",
+                fontSize:13.5,fontWeight:active?600:400,
                 fontFamily:"var(--font)",
                 textAlign:"left",marginBottom:1,
                 borderRadius:"var(--radius-s)",
               }}>
-                <span style={{fontSize:12,opacity:active?1:.5,width:14,textAlign:"center",flexShrink:0}}>{icon}</span>
+                <span style={{fontSize:14,opacity:active?1:.55,width:16,textAlign:"center",flexShrink:0}}>{icon}</span>
                 {lbl}
               </button>
             );
@@ -2469,18 +2469,18 @@ function App() {
         </nav>
 
         {/* Footer */}
-        <div style={{padding:"10px 12px",borderTop:"1px solid var(--border-2)"}}>
+        <div style={{padding:"12px 14px",borderTop:"1px solid var(--border-2)"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-            <div style={{width:24,height:24,borderRadius:"50%",flexShrink:0,
+            <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,
               background:"#0F172A",
               display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:9,color:"#fff",fontWeight:700}}>
+              fontSize:10,color:"#fff",fontWeight:700}}>
               {authed?.[0]?.toUpperCase()||"U"}
             </div>
             <div style={{minWidth:0,flex:1}}>
-              <div style={{color:"var(--text-1)",fontSize:11,fontWeight:600,
+              <div style={{color:"var(--text-1)",fontSize:12,fontWeight:600,
                 overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{authed}</div>
-              <div style={{color:"var(--text-3)",fontSize:9}}>{isAdmin?"Admin":"Operatore"}</div>
+              <div style={{color:"var(--text-2)",fontSize:9}}>{isAdmin?"Admin":"Operatore"}</div>
             </div>
           </div>
           <div style={{display:"flex",gap:5}}>
@@ -2556,11 +2556,11 @@ function App() {
                   padding:"18px 20px",
                   animation:`countUp .28s ease ${i*0.06}s both`,
                 }}>
-                  <div style={{color:"var(--text-3)",fontSize:10,fontWeight:500,
-                    letterSpacing:".5px",marginBottom:12,textTransform:"uppercase"}}>{lbl}</div>
+                  <div style={{color:"var(--text-2)",fontSize:9.5,fontWeight:600,
+                    letterSpacing:".8px",marginBottom:12,textTransform:"uppercase"}}>{lbl}</div>
                   <div style={{color,fontSize:23,fontFamily:"var(--mono)",
                     fontWeight:500,letterSpacing:"-.5px",lineHeight:1,marginBottom:6}}>{val}</div>
-                  <div style={{color:"var(--text-3)",fontSize:10}}>{sub}</div>
+                  <div style={{color:"var(--text-2)",fontSize:10}}>{sub}</div>
                 </div>
               ))}
             </div>
@@ -2568,7 +2568,7 @@ function App() {
             {/* Cash Flow */}
             <div className="glass-card" style={{borderRadius:"var(--radius)",padding:"18px 20px",marginBottom:16}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-                <span style={{fontSize:9,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",color:"var(--text-2)"}}>
+                <span style={{fontSize:9.5,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",color:"var(--text-2)"}}>
                   Cash Flow — Scadenze assegni
                 </span>
               </div>
@@ -2579,20 +2579,22 @@ function App() {
             {(()=>{
               // Raggruppa assegni per cliente
               const grouped = {};
-              assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a.stato)).forEach(a=>{
-                if(!grouped[a.cliente]) grouped[a.cliente]={pino:[],arch:[]};
-                if(a.stato==="CONSEGNATO A PINO") grouped[a.cliente].pino.push(a);
-                else grouped[a.cliente].arch.push(a);
+              assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a["STATO TITOLO"])).forEach(a=>{
+                const cli = a["CLIENTE"]||"";
+                const stato = a["STATO TITOLO"]||"";
+                if(!grouped[cli]) grouped[cli]={pino:[],arch:[]};
+                if(stato==="CONSEGNATO A PINO") grouped[cli].pino.push(a);
+                else grouped[cli].arch.push(a);
               });
               const clienti = Object.keys(grouped).sort();
-              const totAss = assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a.stato)).length;
-              const totImp = assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a.stato)).reduce((s,a)=>s+(parseFloat(a.importo)||0),0);
+              const totAss = assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a["STATO TITOLO"])).length;
+              const totImp = assegni.filter(a=>["IN ARCHIVIO","CONSEGNATO A PINO"].includes(a["STATO TITOLO"])).reduce((s,a)=>s+(parseFloat(a["IMPORTO TITOLO"])||0),0);
               return (
                 <div className="glass-card" style={{borderRadius:"var(--radius)",padding:"16px 18px"}}>
                   {/* Header */}
                   <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:12}}>
                     <div style={{display:"flex",alignItems:"center",gap:14}}>
-                      <span style={{fontSize:9,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",color:"var(--text-2)"}}>
+                      <span style={{fontSize:9.5,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase",color:"var(--text-2)"}}>
                         Assegni per ragione sociale
                       </span>
                       <span style={{display:"flex",alignItems:"center",gap:6}}>
@@ -2612,7 +2614,7 @@ function App() {
                     padding:"0 10px 6px",marginBottom:4,borderBottom:"1px solid var(--border-2)"}}>
                     {["Cliente","Stato","Importo","N°"].map((h,i)=>(
                       <span key={h} style={{fontSize:8.5,fontWeight:600,letterSpacing:".5px",
-                        textTransform:"uppercase",color:"var(--text-3)",
+                        textTransform:"uppercase",color:"var(--text-2)",
                         textAlign:i>0?"right":"left"}}>{h}</span>
                     ))}
                   </div>
@@ -2625,10 +2627,10 @@ function App() {
                   )}
                   {clienti.map((cli,idx)=>{
                     const g = grouped[cli];
-                    const totPino = g.pino.reduce((s,a)=>s+(parseFloat(a.importo)||0),0);
-                    const totArch = g.arch.reduce((s,a)=>s+(parseFloat(a.importo)||0),0);
+                    const totPino = g.pino.reduce((s,a)=>s+(parseFloat(a["IMPORTO TITOLO"])||0),0);
+                    const totArch = g.arch.reduce((s,a)=>s+(parseFloat(a["IMPORTO TITOLO"])||0),0);
                     const totTot  = totPino+totArch;
-                    const dateAll = [...g.pino,...g.arch].map(a=>a.data_titolo||a.data_incasso_prevista||"").filter(Boolean).sort();
+                    const dateAll = [...g.pino,...g.arch].map(a=>a["DATA TITOLO"]||"").filter(Boolean).sort();
                     const dMin = dateAll[0]||"";
                     const dMax = dateAll[dateAll.length-1]||"";
                     const fmt = d=>{ if(!d) return "—"; const p=d.split("-"); return p[1]+"/"+p[0].slice(2); };
@@ -2644,7 +2646,7 @@ function App() {
                         <div>
                           <div style={{fontSize:12,fontWeight:600,color:"var(--text-1)",
                             whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{cli}</div>
-                          <div style={{fontSize:9,color:"var(--text-3)",marginTop:1}}>
+                          <div style={{fontSize:9,color:"var(--text-2)",marginTop:1}}>
                             {fmt(dMin)}{dMax&&dMax!==dMin?" → "+fmt(dMax):""}
                           </div>
                         </div>
@@ -2676,7 +2678,7 @@ function App() {
                             <div key={lbl} style={{display:"flex",justifyContent:"space-between",
                               alignItems:"center",padding:"4px 0",
                               borderBottom:"1px solid var(--border-2)"}}>
-                              <span style={{fontSize:10,color:"var(--text-2)"}}>{lbl}</span>
+                              <span style={{fontSize:10.5,color:"var(--text-2)"}}>{lbl}</span>
                               <span style={{display:"flex",gap:8,alignItems:"center"}}>
                                 <span style={{fontSize:9,color:"var(--text-3)"}}>{n}</span>
                                 <span style={{fontFamily:"var(--mono)",fontSize:10.5,color:col,fontWeight:500}}>{imp}</span>
