@@ -389,6 +389,26 @@ function CashChart({assegni}) {
   const [mousePos, setMousePos] = React.useState({x:0,y:0});
   const svgRef = React.useRef(null);
 
+  // ── filtri ────────────────────────────────────────────────
+  const todayKey = new Date().toISOString().slice(0,10);
+  const PRESETS = [
+    {label:"30 gg",days:30},
+    {label:"60 gg",days:60},
+    {label:"90 gg",days:90},
+    {label:"6 mesi",days:180},
+    {label:"Tutto",days:999},
+  ];
+  const [preset,   setPreset]   = React.useState(1);
+  const [fromDate, setFromDate] = React.useState("");
+  const [toDate,   setToDate]   = React.useState("");
+  const [statoFil, setStatoFil] = React.useState("TUTTI");
+
+  const winFrom = fromDate || todayKey;
+  const winTo   = toDate   || (() => {
+    const d=new Date(); d.setDate(d.getDate()+PRESETS[preset].days);
+    return d.toISOString().slice(0,10);
+  })();
+
   // ── helpers date ──────────────────────────────────────────
   const parseDateKey = v => {
     if(!v) return null;
@@ -399,43 +419,89 @@ function CashChart({assegni}) {
     if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
     return null;
   };
-  const todayKey = new Date().toISOString().slice(0,10);
-  const tolMs    = 4 * 86400000;
-  const isInTol  = k => { const d=new Date(k+"T00:00:00")-new Date(todayKey+"T00:00:00"); return d<0&&d>=-tolMs; };
-  const cutoff   = (() => { const d=new Date(); d.setDate(d.getDate()+45); return d.toISOString().slice(0,10); })();
+  const tolMs   = 4 * 86400000;
+  const isInTol = k => { const d=new Date(k+"T00:00:00")-new Date(todayKey+"T00:00:00"); return d<0&&d>=-tolMs; };
 
-  // Formato data italiano completo
   const GIORNI = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
   const MESI   = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
   const MESI_L = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-  const fmtDay  = k => `${k.slice(8,10)}/${k.slice(5,7)}`;
-  const fmtFull = k => {
-    const d = new Date(k+"T00:00:00");
-    return `${GIORNI[d.getDay()]} ${String(d.getDate()).padStart(2,"0")} ${MESI[d.getMonth()]}`;
-  };
-  const fmtFullLong = k => {
-    const d = new Date(k+"T00:00:00");
-    return `${GIORNI[d.getDay()]} ${d.getDate()} ${MESI_L[d.getMonth()]} ${d.getFullYear()}`;
-  };
+  const fmtDay     = k => `${k.slice(8,10)}/${k.slice(5,7)}`;
+  const fmtFull    = k => { const d=new Date(k+"T00:00:00"); return `${GIORNI[d.getDay()]} ${String(d.getDate()).padStart(2,"0")} ${MESI[d.getMonth()]}`; };
+  const fmtFullLong= k => { const d=new Date(k+"T00:00:00"); return `${GIORNI[d.getDay()]} ${d.getDate()} ${MESI_L[d.getMonth()]} ${d.getFullYear()}`; };
 
-  // ── aggregazione per giorno ──────────────────────────────
+  // ── aggregazione tutti gli stati ──────────────────────────
   const byDay = {};
   (assegni||[]).forEach(a => {
-    if(!(a["STATO TITOLO"]||"").toUpperCase().includes("ARCHIVIO")) return;
+    const stato = (a["STATO TITOLO"]||"").toUpperCase();
+    if(statoFil==="IN ARCHIVIO"       && !stato.includes("ARCHIVIO")) return;
+    if(statoFil==="CONSEGNATO A PINO" && !stato.includes("PINO"))    return;
     const k = parseDateKey(a["DATA TITOLO"]);
-    if(!k || k < todayKey || k > cutoff) return;
-    if(!byDay[k]) byDay[k] = {total:0, items:[]};
-    byDay[k].total += parseNum(a["IMPORTO TITOLO"]);
+    if(!k || k < winFrom || k > winTo) return;
+    if(!byDay[k]) byDay[k] = {total:0, archivio:0, pino:0, items:[]};
+    const imp = parseNum(a["IMPORTO TITOLO"]);
+    byDay[k].total += imp;
+    if(stato.includes("ARCHIVIO")) byDay[k].archivio += imp;
+    else                           byDay[k].pino     += imp;
     byDay[k].items.push(a);
   });
   const entries = Object.entries(byDay).sort(([a],[b])=>a.localeCompare(b));
 
-  if(!entries.length) return (
-    <div style={{padding:"48px 0",textAlign:"center"}}>
-      <div style={{fontSize:32,marginBottom:8,opacity:.3}}>◈</div>
-      <div style={{color:"#334155",fontSize:12}}>Nessun assegno IN ARCHIVIO nei prossimi 45 giorni</div>
+  // ── UI filtri ─────────────────────────────────────────────
+  const FilBtn = ({label,active,onClick,color}) => (
+    React.createElement("button",{onClick,style:{
+      background:active?(color||"#1e3a5f"):"transparent",
+      border:`1px solid ${active?(color||"#3b82f6"):"#1e293b"}`,
+      color:active?"#f1f5f9":"#475569",
+      borderRadius:6,padding:"4px 10px",cursor:"pointer",
+      fontSize:10,fontWeight:active?700:400,
+      fontFamily:"IBM Plex Mono,monospace",transition:"all .12s",
+    }},label)
+  );
+
+  const filtriUI = (
+    <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:"flex",gap:3,background:"#070d18",border:"1px solid #0f1f35",borderRadius:8,padding:3}}>
+        {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
+          <FilBtn key={v} label={l} active={statoFil===v}
+            color={v==="IN ARCHIVIO"?"#78350f":v==="CONSEGNATO A PINO"?"#1e3a5f":"#1e293b"}
+            onClick={()=>setStatoFil(v)}/>
+        ))}
+      </div>
+      <div style={{width:1,height:20,background:"#1e293b",flexShrink:0}}/>
+      <div style={{display:"flex",gap:3,background:"#070d18",border:"1px solid #0f1f35",borderRadius:8,padding:3}}>
+        {PRESETS.map((p,i)=>(
+          <FilBtn key={i} label={p.label} color="#1e3a5f"
+            active={preset===i&&!fromDate&&!toDate}
+            onClick={()=>{setPreset(i);setFromDate("");setToDate("");}}/>
+        ))}
+      </div>
+      <div style={{display:"flex",gap:4,alignItems:"center"}}>
+        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}
+          style={{background:"#070d18",border:"1px solid #1e293b",borderRadius:6,
+            color:"#94a3b8",fontSize:10,padding:"4px 8px",fontFamily:"IBM Plex Mono,monospace"}}/>
+        <span style={{color:"#334155",fontSize:10}}>→</span>
+        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)}
+          style={{background:"#070d18",border:"1px solid #1e293b",borderRadius:6,
+            color:"#94a3b8",fontSize:10,padding:"4px 8px",fontFamily:"IBM Plex Mono,monospace"}}/>
+        {(fromDate||toDate)&&(
+          <button onClick={()=>{setFromDate("");setToDate("");}}
+            style={{background:"#1e293b",border:"none",color:"#ef4444",borderRadius:5,
+              padding:"3px 7px",cursor:"pointer",fontSize:11}}>✕</button>
+        )}
+      </div>
     </div>
   );
+
+  if(!entries.length) return (
+    <div>
+      {filtriUI}
+      <div style={{padding:"48px 0",textAlign:"center"}}>
+        <div style={{fontSize:32,marginBottom:8,opacity:.3}}>◈</div>
+        <div style={{color:"#334155",fontSize:12}}>Nessun assegno nel periodo selezionato</div>
+      </div>
+    </div>
+  );
+
 
   // ── layout SVG ──────────────────────────────────────────
   const W=820, H=220, P={t:24,r:20,b:44,l:72};
@@ -469,20 +535,23 @@ function CashChart({assegni}) {
   return (
     <div style={{userSelect:"none"}}>
 
-      {/* ── KPI strip ──────────────────────────────────────── */}
-      <div style={{display:"flex",gap:2,marginBottom:18,flexWrap:"wrap"}}>
+      {/* ── filtri ─────────────────────────────────────────── */}
+      {filtriUI}
+
+      {/* ── KPI strip ─────────────────────────────────────── */}
+      <div style={{display:"flex",gap:2,marginBottom:14,flexWrap:"wrap"}}>
         {[
-          {label:"Totale in scadenza", val:eur(totGlobale), color:"#4ade80"},
-          {label:"Assegni", val:nGlobale, color:"#94a3b8"},
-          {label:"Date distinte", val:entries.length, color:"#94a3b8"},
-          {label:"Prossima scadenza", val:fmtFull(entries[0][0]), color:"#60a5fa"},
+          {label:"Totale periodo",  val:eur(totGlobale), color:"#4ade80"},
+          {label:"In Archivio",     val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"#fb923c"},
+          {label:"Cons. a Pino",    val:eur(entries.reduce((s,[,v])=>s+v.pino,0)),     color:"#60a5fa"},
+          {label:"Assegni · Date",  val:`${nGlobale} · ${entries.length}`,             color:"#64748b"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 140px",background:"#070d18",
+          <div key={i} style={{flex:"1 1 130px",background:"#070d18",
             border:"1px solid #0f1f35",borderRadius:10,padding:"10px 16px"}}>
             <div style={{color:"#334155",fontSize:9,fontWeight:700,
               textTransform:"uppercase",letterSpacing:.8,marginBottom:4}}>{label}</div>
-            <div style={{color,fontSize:15,fontWeight:800,
-              fontFamily:"'IBM Plex Mono',monospace",lineHeight:1}}>{val}</div>
+            <div style={{color,fontSize:14,fontWeight:800,
+              fontFamily:"IBM Plex Mono,monospace",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
@@ -514,6 +583,16 @@ function CashChart({assegni}) {
               <stop offset="0%"   stopColor="#fdba74"/>
               <stop offset="100%" stopColor="#9a3412" stopOpacity=".7"/>
             </linearGradient>
+            {/* barra pino (consegnato) */}
+            <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#60a5fa" stopOpacity=".9"/>
+              <stop offset="100%" stopColor="#1e3a5f" stopOpacity=".5"/>
+            </linearGradient>
+            {/* barra pino hover */}
+            <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%"   stopColor="#93c5fd"/>
+              <stop offset="100%" stopColor="#1d4ed8" stopOpacity=".7"/>
+            </linearGradient>
           </defs>
 
           {/* area plot sfondo */}
@@ -531,48 +610,53 @@ function CashChart({assegni}) {
               </text>
             </g>
           ))}
-
-          {/* barre */}
+          {/* barre stackate: blu (pino) in basso, arancione/verde (archivio) sopra */}
           {entries.map(([k,v],i)=>{
-            const h=Math.max(2,(v.total/maxVal)*iH);
+            const hTot  = Math.max(2,(v.total/maxVal)*iH);
+            const hArch = v.total>0 ? Math.max(0,(v.archivio/v.total)*hTot) : 0;
+            const hPino = hTot - hArch;
             const x=xOf(i)-barW/2;
-            const y=P.t+iH-h;
+            const yTot=P.t+iH-hTot;
             const isHov=hoverIdx===i;
             const inTol=isInTol(k);
             const isToday=k===todayKey;
             const nA=v.items.length;
-            const grad=isHov?(inTol?"url(#ccBth)":"url(#ccBh)"):(inTol?"url(#ccBt)":"url(#ccBg)");
+            // Solo archivio presenti
+            const gradArch = isHov ? (inTol?"url(#ccBth)":"url(#ccBh)") : (inTol?"url(#ccBt)":"url(#ccBg)");
+            const gradPino = isHov ? "url(#ccBph)" : "url(#ccBp)";
             return (
               <g key={k}>
-                {/* colonna hover */}
-                {isHov&&<rect x={P.l} y={P.t} width={iW} height={iH} fill="none"/>}
+                {/* sfondo hover */}
                 {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH}
-                  fill={inTol?"#fb923c":"#22c55e"} opacity={.04} rx={2}/>}
+                  fill="#ffffff" opacity={.025} rx={2}/>}
 
                 {/* linea oggi */}
                 {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH}
                   stroke="#818cf8" strokeWidth={1} strokeDasharray="2,3" opacity={.4}/>}
 
-                {/* barra */}
-                <rect x={x} y={y} width={barW} height={h} rx={3}
-                  fill={grad} opacity={isHov?1:.85}/>
+                {/* segmento PINO (blu) — in basso */}
+                {hPino>0&&<rect x={x} y={yTot+hArch} width={barW} height={hPino}
+                  rx={hArch>0?0:3} fill={gradPino} opacity={isHov?1:.85}/>}
+                {/* segmento ARCHIVIO (arancio/verde) — sopra */}
+                {hArch>0&&<rect x={x} y={yTot} width={barW} height={hArch}
+                  rx={3} fill={gradArch} opacity={isHov?1:.85}/>}
 
-                {/* totale sopra la barra (quando in hover o sempre se poche barre) */}
+                {/* totale sopra la barra */}
                 {(isHov||(n<=8))&&(
-                  <text x={xOf(i)} y={y-6} textAnchor="middle"
-                    fill={inTol?"#fb923c":"#4ade80"} fontSize={8}
+                  <text x={xOf(i)} y={yTot-5} textAnchor="middle"
+                    fill={inTol?"#fb923c":v.archivio>0?"#4ade80":"#60a5fa"} fontSize={8}
                     fontFamily="IBM Plex Mono,monospace" fontWeight="bold">
                     {fmtY(v.total)}
                   </text>
                 )}
 
-                {/* badge numero assegni */}
+                {/* badge n° assegni */}
                 {nA>1&&!isHov&&(
                   <g>
-                    <circle cx={xOf(i)} cy={y-10} r={6}
-                      fill="#070d18" stroke={inTol?"#fb923c":"#334155"} strokeWidth={1}/>
-                    <text x={xOf(i)} y={y-6.5} textAnchor="middle"
-                      fill={inTol?"#fb923c":"#64748b"} fontSize={6.5}
+                    <circle cx={xOf(i)} cy={yTot-10} r={6}
+                      fill="#070d18" stroke="#1e293b" strokeWidth={1}/>
+                    <text x={xOf(i)} y={yTot-6.5} textAnchor="middle"
+                      fill="#475569" fontSize={6.5}
                       fontFamily="IBM Plex Mono,monospace" fontWeight="bold">{nA}</text>
                   </g>
                 )}
@@ -580,7 +664,7 @@ function CashChart({assegni}) {
                 {/* label asse X */}
                 {(i%labelStep===0||n<=15)&&(
                   <text x={xOf(i)} y={H-P.b+14} textAnchor="middle"
-                    fill={isToday?"#818cf8":isHov?(inTol?"#fdba74":"#94a3b8"):"#334155"}
+                    fill={isToday?"#818cf8":isHov?"#94a3b8":"#334155"}
                     fontSize={8.5} fontFamily="IBM Plex Mono,monospace"
                     fontWeight={isToday||isHov?"bold":"normal"}>
                     {fmtDay(k)}
@@ -722,20 +806,33 @@ function CashChart({assegni}) {
                 })}
               </div>
 
-              {/* footer: barra proporzione sul totale globale */}
+              {/* footer tooltip: breakdown archivio/pino + barra % */}
               <div style={{padding:"8px 14px",borderTop:"1px solid #080f1e",
                 background:"#050b17"}}>
+                {v.archivio>0&&v.pino>0&&(
+                  <div style={{display:"flex",justifyContent:"space-between",
+                    fontSize:9,marginBottom:5}}>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}>
+                      <span style={{width:6,height:6,borderRadius:1,background:"#fb923c",display:"inline-block"}}/>
+                      <span style={{color:"#64748b"}}>Arch. {eur(v.archivio)}</span>
+                    </span>
+                    <span style={{display:"flex",alignItems:"center",gap:4}}>
+                      <span style={{width:6,height:6,borderRadius:1,background:"#60a5fa",display:"inline-block"}}/>
+                      <span style={{color:"#64748b"}}>Pino {eur(v.pino)}</span>
+                    </span>
+                  </div>
+                )}
                 <div style={{display:"flex",justifyContent:"space-between",
-                  fontSize:9,color:"#334155",marginBottom:5}}>
-                  <span>% del totale</span>
-                  <span style={{color:"#475569",fontFamily:"'IBM Plex Mono',monospace"}}>
+                  fontSize:9,color:"#334155",marginBottom:4}}>
+                  <span>% sul totale periodo</span>
+                  <span style={{color:"#475569",fontFamily:"IBM Plex Mono,monospace"}}>
                     {((v.total/totGlobale)*100).toFixed(1)}%
                   </span>
                 </div>
                 <div style={{height:3,background:"#0f1f35",borderRadius:2,overflow:"hidden"}}>
                   <div style={{height:"100%",background:accentColor,
                     width:`${(v.total/totGlobale)*100}%`,
-                    borderRadius:2,transition:"width .2s"}}/>
+                    borderRadius:2}}/>
                 </div>
               </div>
             </div>
@@ -743,26 +840,31 @@ function CashChart({assegni}) {
         })()}
       </div>
 
-      {/* ── legenda footer ──────────────────────────────── */}
-      <div style={{display:"flex",gap:16,marginTop:12,
-        fontSize:10,color:"#334155",flexWrap:"wrap",alignItems:"center"}}>
+      {/* ── legenda footer ─────────────────────────────── */}
+      <div style={{display:"flex",gap:12,marginTop:10,
+        fontSize:10,color:"#475569",flexWrap:"wrap",alignItems:"center"}}>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:10,height:10,borderRadius:2,
-            background:"linear-gradient(#22c55e,#052e16)",display:"inline-block"}}/>
-          IN ARCHIVIO
+            background:"linear-gradient(#4ade80,#052e16)",display:"inline-block"}}/>
+          <span style={{color:"#64748b"}}>In Archivio</span>
+        </span>
+        <span style={{display:"flex",alignItems:"center",gap:5}}>
+          <span style={{width:10,height:10,borderRadius:2,
+            background:"linear-gradient(#60a5fa,#1e3a5f)",display:"inline-block"}}/>
+          <span style={{color:"#64748b"}}>Cons. a Pino</span>
         </span>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:10,height:10,borderRadius:2,
             background:"linear-gradient(#fb923c,#431407)",display:"inline-block"}}/>
-          Già scaduto (±4gg)
+          <span style={{color:"#64748b"}}>Scaduto ±4gg</span>
         </span>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           <span style={{width:2,height:10,background:"#818cf8",display:"inline-block"}}/>
-          Oggi
+          <span style={{color:"#64748b"}}>Oggi</span>
         </span>
-        <span style={{marginLeft:"auto",color:"#475569",
-          fontFamily:"'IBM Plex Mono',monospace",fontSize:9}}>
-          Finestra: oggi → +45 gg
+        <span style={{marginLeft:"auto",color:"#334155",fontSize:9,
+          fontFamily:"IBM Plex Mono,monospace"}}>
+          {winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} → {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}
         </span>
       </div>
     </div>
