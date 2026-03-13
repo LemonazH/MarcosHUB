@@ -505,7 +505,7 @@ function EditCell({value, onSave, numeric, display, color}) {
 /* ──────────────────────────────────────────────
    CASH FLOW SVG CHART — giorno per giorno
 ────────────────────────────────────────────── */
-function CashChart({assegni}) {
+function CashChart({assegni, onNavigate}) {
   const [hoverIdx, setHoverIdx] = React.useState(null);
   const [mousePos, setMousePos] = React.useState({x:0,y:0});
   const svgRef = React.useRef(null);
@@ -540,8 +540,13 @@ function CashChart({assegni}) {
     if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
     return null;
   };
-  const tolMs   = 4 * 86400000;
-  const isInTol = k => { const d=new Date(k+"T00:00:00")-new Date(todayKey+"T00:00:00"); return d<0&&d>=-tolMs; };
+  // Arancione se almeno un assegno del giorno non è ancora riconciliato (nessun incasso collegato)
+  const isInTol = (k, items) => {
+    if(!items || items.length===0) return false;
+    // Se gli items sono già calcolati li usiamo, altrimenti leggiamo da byDay
+    const list = items || (byDay[k]?.items || []);
+    return list.some(a => !a._incassoId);
+  };
 
   const GIORNI = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
   const MESI   = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
@@ -680,7 +685,7 @@ function CashChart({assegni}) {
       {/* ── grafico ──────────────────────────────────────── */}
       <div style={{position:"relative"}}>
         <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`}
-          style={{overflow:"visible",cursor:"crosshair",display:"block"}}
+          style={{overflow:"visible",cursor:"pointer",display:"block"}}
           onMouseMove={handleMouseMove}
           onMouseLeave={()=>setHoverIdx(null)}>
           <defs>
@@ -739,14 +744,18 @@ function CashChart({assegni}) {
             const x=xOf(i)-barW/2;
             const yTot=P.t+iH-hTot;
             const isHov=hoverIdx===i;
-            const inTol=isInTol(k);
+            const inTol=isInTol(k,v.items);
             const isToday=k===todayKey;
             const nA=v.items.length;
             // Solo archivio presenti
             const gradArch = isHov ? (inTol?"url(#ccBth)":"url(#ccBh)") : (inTol?"url(#ccBt)":"url(#ccBg)");
             const gradPino = isHov ? "url(#ccBph)" : "url(#ccBp)";
             return (
-              <g key={k}>
+              <g key={k} style={{cursor:"pointer"}}
+                onClick={()=>onNavigate&&onNavigate(k,v.items)}>
+                {/* area click invisibile sull'intera colonna */}
+                <rect x={x-3} y={P.t} width={barW+6} height={iH}
+                  fill="transparent" rx={2}/>
                 {/* sfondo hover */}
                 {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH}
                   fill="var(--text-1)" opacity={.025} rx={2}/>}
@@ -809,7 +818,7 @@ function CashChart({assegni}) {
           const pctX=xOf(hoverIdx)/W;
           const flipL=pctX>0.55;
           const TW=290;
-          const inTol=isInTol(k);
+          const inTol=isInTol(k,v.items);
           const accentColor=inTol?"#fb923c":"#22c55e";
           const accentBg=inTol?"var(--danger-s)":"var(--success-s)";
 
@@ -846,8 +855,17 @@ function CashChart({assegni}) {
                 </div>
               </div>
 
+              {/* hint click */}
+              <div style={{padding:"4px 14px",background:"#111116",
+                borderBottom:"1px solid #1C1C22",
+                display:"flex",alignItems:"center",gap:5}}>
+                <span style={{color:"#52525E",fontSize:8.5,fontFamily:"var(--mono)"}}>
+                  ↗ clicca per vedere nel registro assegni
+                </span>
+              </div>
+
               {/* lista assegni */}
-              <div style={{maxHeight:280,overflowY:"auto",
+              <div style={{maxHeight:260,overflowY:"auto",
                 scrollbarWidth:"thin",scrollbarColor:"#2A2A34 transparent"}}>
                 {v.items.map((a,j)=>{
                   const imp=parseNum(a["IMPORTO TITOLO"]);
@@ -883,9 +901,9 @@ function CashChart({assegni}) {
                         <span style={{color:"var(--text-2)",fontSize:8}}>·</span>
                         <span style={{
                           fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,
-                          background: inTol?"var(--danger-s)":"var(--success-s)",
-                          color:inTol?"#fb923c":"#22c55e",
-                          border:`1px solid ${inTol?"#F97316":"var(--success-s)"}`,
+                          background: a._incassoId?"var(--success-s)":"var(--danger-s)",
+                          color:a._incassoId?"#22c55e":"#fb923c",
+                          border:`1px solid ${a._incassoId?"var(--success-s)":"#F97316"}`,
                         }}>
                           {a["STATO TITOLO"]||""}
                         </span>
@@ -2164,6 +2182,8 @@ function App() {
   const selAccredito = accrediti[0] || null; // compat con codice esistente
   const [recoSearch,setRecoSearch]=useState(""); // ricerca fatture nel pannello
   const [storicoPopup,setStoricoPopup]=useState(null); // riconciliazione aperta in popup
+  const [storicoFiltroAssegno,setStoricoFiltroAssegno]=useState(null); // highlight da click grafico
+  const [storicoSezione,setStoricoSezione]=useState("incassi"); // "incassi" | "assegni"
   const [assShowAltri,setAssShowAltri]=useState(false); // espandi altri assegni in riconciliazione
   // ── Pannello assegni manuale ──
   const [assManData,setAssManData]=useState(()=>new Date().toISOString().slice(0,10)); // data selezionata
@@ -2261,8 +2281,10 @@ function App() {
         "FATTURE PAGATE": r.fatture_pagate || r.documenti_collegati || "",
         "NC SCALATE": r.nc_scalate,
         "STATO TITOLO": r.stato,
+        "DATA INCASSO PREVISTA": r.data_incasso_prevista || r.data_titolo || "",
         "DOCUMENTI COLLEGATI": r.documenti_collegati || r.fatture_pagate || "",
         _id: r.id,
+        _incassoId: r.incasso_id || null,   // null = non ancora riconciliato con un incasso
       })));
       // Normalizza riconciliazioni — campi reali dal Worker D1
       const ricoNorm = (rico_raw||[]).map(r => ({
@@ -2493,7 +2515,8 @@ function App() {
       }]);
       if(assegno)
         setAssegni(p=>[...p,{"CLIENTE":cliente,"N TITOLO":nAssegno,"DATA TITOLO":dataTitolo,
-          "IMPORTO TITOLO":amount,"FATTURE PAGATE":fveNums,"NC SCALATE":nacNums||"","STATO TITOLO":"IN ARCHIVIO"}]);
+          "IMPORTO TITOLO":amount,"FATTURE PAGATE":fveNums,"NC SCALATE":nacNums||"","STATO TITOLO":"IN ARCHIVIO",
+          _id:null, _incassoId:null}]);
       notify("Pagamento registrato ✓","success");
     } catch(e){ notify("Errore: "+e.message,"error"); }
   };
@@ -2901,7 +2924,7 @@ function App() {
                   Cash Flow — Scadenze assegni
                 </span>
               </div>
-              <CashChart assegni={assegni}/>
+              <CashChart assegni={assegni} onNavigate={(k,items)=>{ setTab("storico"); setStoricoSezione("assegni"); setStoricoFiltroAssegno(k); }}/>
             </div>
 
             {/* Assegni per ragione sociale */}
@@ -3797,85 +3820,210 @@ function App() {
           </div>
         )}
 
-        {/* STORICO RICONCILIAZIONI */}
-        {tab==="storico"&&(
+        {/* STORICO — due sezioni: Incassi e Assegni */}
+        {tab==="storico"&&(()=>{
+          const assegniOrdinati = [...assegni].sort((a,b)=>{
+            const da = a["DATA TITOLO"]||"";
+            const db = b["DATA TITOLO"]||"";
+            return db.localeCompare(da); // più recenti prima
+          });
+          // Filtra per data cliccata dal grafico (storicoFiltroAssegno = chiave ISO "YYYY-MM-DD")
+          const assegniVis = storicoFiltroAssegno
+            ? assegniOrdinati.filter(a=>{
+                const k = (a["DATA TITOLO"]||"").slice(0,10);
+                return k===storicoFiltroAssegno;
+              })
+            : assegniOrdinati;
+
+          const nRicNonRic = assegni.filter(a=>!a._incassoId).length;
+          const totNonRic  = assegni.filter(a=>!a._incassoId).reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
+
+          return (
           <div className="tab-content glass-card" style={{borderRadius:"var(--radius)",overflow:"hidden"}}>
-            <div style={{padding:"14px 18px",borderBottom:"1px solid var(--border)",
+
+            {/* ── HEADER con switcher sezione ── */}
+            <div style={{padding:"12px 18px",borderBottom:"1px solid var(--border)",
               display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
-              <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ STORICO RICONCILIAZIONI</span>
-              <div style={{display:"flex",gap:16,fontSize:11}}>
-                <span style={{color:"var(--accent)"}}>
-                  Bancarie: <strong>{riconciliazioni.filter(r=>r.tipo==="Banca"||(r.id||"").startsWith("RIC-")).length}</strong>
-                </span>
-                <span style={{color:"var(--success)"}}>
-                  Pagamenti: <strong>{riconciliazioni.filter(r=>r.tipo==="Pagamento"||(r.id||"").startsWith("INC-")).length}</strong>
-                </span>
-                <span style={{color:"var(--text-2)"}}>
-                  Totale incassato: <strong style={{color:"#0284C7"}}>{eur(riconciliazioni.reduce((s,r)=>s+(parseNum(r.accredito||r["ACCREDITO"]||0)),0))}</strong>
-                </span>
+              <div style={{display:"flex",gap:4,background:"var(--raised)",
+                border:"1px solid var(--border)",borderRadius:"var(--radius-s)",padding:3}}>
+                {[["incassi","◷ Incassi"],["assegni","🏷 Assegni"]].map(([s,lbl])=>(
+                  <button key={s} onClick={()=>{ setStoricoSezione(s); if(s==="incassi") setStoricoFiltroAssegno(null); }}
+                    style={{background:storicoSezione===s?"var(--accent)":"transparent",
+                      border:"none",borderRadius:5,padding:"5px 14px",
+                      color:storicoSezione===s?"#fff":"var(--text-2)",
+                      cursor:"pointer",fontSize:11,fontWeight:storicoSezione===s?700:400,
+                      transition:"all .12s"}}>
+                    {lbl}
+                  </button>
+                ))}
               </div>
+              {storicoSezione==="incassi"&&(
+                <div style={{display:"flex",gap:16,fontSize:11}}>
+                  <span style={{color:"var(--accent)"}}>Bancarie: <strong>{riconciliazioni.filter(r=>r.tipo==="Banca"||(r.id||"").startsWith("RIC-")).length}</strong></span>
+                  <span style={{color:"var(--success)"}}>Pagamenti: <strong>{riconciliazioni.filter(r=>r.tipo==="Pagamento"||(r.id||"").startsWith("INC-")).length}</strong></span>
+                  <span style={{color:"var(--text-2)"}}>Tot. incassato: <strong style={{color:"#0284C7"}}>{eur(riconciliazioni.reduce((s,r)=>s+(parseNum(r.accredito||0)),0))}</strong></span>
+                </div>
+              )}
+              {storicoSezione==="assegni"&&(
+                <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+                  {storicoFiltroAssegno&&(
+                    <div style={{display:"flex",alignItems:"center",gap:6,
+                      background:"var(--warn-s)",border:"1px solid var(--warn)",
+                      borderRadius:20,padding:"3px 10px"}}>
+                      <span style={{color:"var(--warn)",fontSize:10,fontWeight:600}}>
+                        📅 {storicoFiltroAssegno.slice(8,10)}/{storicoFiltroAssegno.slice(5,7)}/{storicoFiltroAssegno.slice(0,4)}
+                      </span>
+                      <button onClick={()=>setStoricoFiltroAssegno(null)}
+                        style={{background:"transparent",border:"none",color:"var(--warn)",
+                          cursor:"pointer",fontSize:11,lineHeight:1,padding:0}}>✕</button>
+                    </div>
+                  )}
+                  <span style={{color:"var(--text-2)",fontSize:11}}>
+                    Totale: <strong style={{color:"var(--text-1)"}}>{assegni.length}</strong>
+                  </span>
+                  {nRicNonRic>0&&(
+                    <span style={{color:"var(--warn)",fontSize:11}}>
+                      ⚠ Non riconciliati: <strong>{nRicNonRic}</strong> — {eur(totNonRic)}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
-            {riconciliazioni.length===0?(
-              <div style={{padding:60,textAlign:"center",color:"var(--text-2)",fontSize:12}}>
-                Nessuna riconciliazione registrata
-              </div>
-            ):(
-              <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
-                  <thead>
-                    <tr style={{background:"var(--bg)"}}>
-                      {["ID","Data","Accredito","Descrizione","Fatture/NAC collegate"].map(h=>(
-                        <th key={h} style={{padding:"10px 14px",textAlign:"left",
-                          color:"var(--text-2)",fontWeight:600,fontSize:11,borderBottom:"1px solid var(--border)"}}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...riconciliazioni].reverse().map((r,i)=>{
-                      const fatture    = Array.isArray(r.fatture) ? r.fatture : [];
-                      const accredito  = r.accredito || 0;
-                      const data       = r.data || "—";
-                      const desc       = r.descrizione || "—";
-                      const id         = r.id || "—";
-                      const tipo       = r.tipo || "Banca";
-                      return (
-                      <tr key={i} style={{borderBottom:"1px solid #f4f6ff",cursor:"pointer"}} className="row-hover"
-                        onClick={()=>setStoricoPopup({r, fatture, tipo, data, desc, accredito, id, descAdd:r.descAdd||"", utente:r.utente||""})}>
-                        <td style={{padding:"10px 14px"}}>
-                          <div style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--font)",marginBottom:2}}>{id}</div>
-                          <span style={{background:tipo==="Banca"?"var(--accent-s)":"var(--success-s)",
-                            border:`1px solid ${tipo==="Banca"?"var(--bg)":"#22c55e33"}`,
-                            borderRadius:4,padding:"1px 6px",
-                            color:tipo==="Banca"?"#60a5fa":"#4ade80",fontSize:9}}>
-                            {tipo}
-                          </span>
-                        </td>
-                        <td style={{padding:"10px 14px",color:"var(--text-2)",fontSize:12}}>{toIT(data)}</td>
-                        <td style={{padding:"10px 14px",color:"var(--success)",fontWeight:700,
-                          fontFamily:"var(--font)",fontSize:13}}>
-                          {accredito?eur(accredito):"—"}
-                        </td>
-                        <td style={{padding:"10px 14px",color:"var(--text-2)",fontSize:11,maxWidth:260,
-                          overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                          {desc}
-                        </td>
-                        <td style={{padding:"10px 14px"}}>
-                          {fatture.length>0 ? fatture.map((f,j)=>(
-                            <span key={j} style={{display:"inline-block",background:"var(--accent-s)",
-                              border:"1px solid var(--border)",borderRadius:4,padding:"1px 6px",
-                              color:"var(--accent)",fontSize:10,marginRight:4,marginBottom:2}}>
-                              {f}
-                            </span>
-                          )) : <span style={{color:"var(--text-2)"}}>—</span>}
-                        </td>
+
+            {/* ══ SEZIONE INCASSI ══ */}
+            {storicoSezione==="incassi"&&(
+              riconciliazioni.length===0?(
+                <div style={{padding:60,textAlign:"center",color:"var(--text-2)",fontSize:12}}>Nessuna riconciliazione registrata</div>
+              ):(
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                    <thead>
+                      <tr style={{background:"var(--raised)"}}>
+                        {["ID","Data","Accredito","Descrizione","Fatture/NAC collegate"].map(h=>(
+                          <th key={h} style={{padding:"10px 14px",textAlign:"left",
+                            color:"var(--text-2)",fontWeight:600,fontSize:11,
+                            borderBottom:"1px solid var(--border)"}}>{h}</th>
+                        ))}
                       </tr>
-                    );})}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody>
+                      {[...riconciliazioni].reverse().map((r,i)=>{
+                        const fatture   = Array.isArray(r.fatture)?r.fatture:[];
+                        const accredito = r.accredito||0;
+                        const data      = r.data||"—";
+                        const desc      = r.descrizione||"—";
+                        const id        = r.id||"—";
+                        const tipo      = r.tipo||"Banca";
+                        return (
+                          <tr key={i} style={{borderBottom:"1px solid var(--border-2)",cursor:"pointer"}}
+                            className="row-hover"
+                            onClick={()=>setStoricoPopup({r,fatture,tipo,data,desc,accredito,id,descAdd:r.descAdd||"",utente:r.utente||""})}>
+                            <td style={{padding:"10px 14px"}}>
+                              <div style={{color:"var(--text-2)",fontSize:9,marginBottom:2}}>{id}</div>
+                              <span style={{background:tipo==="Banca"?"var(--accent-s)":"var(--success-s)",
+                                borderRadius:4,padding:"1px 6px",
+                                color:tipo==="Banca"?"#60a5fa":"#4ade80",fontSize:9}}>{tipo}</span>
+                            </td>
+                            <td style={{padding:"10px 14px",color:"var(--text-2)",fontSize:12}}>{toIT(data)}</td>
+                            <td style={{padding:"10px 14px",color:"var(--success)",fontWeight:700,fontSize:13,fontFamily:"var(--mono)"}}>{accredito?eur(accredito):"—"}</td>
+                            <td style={{padding:"10px 14px",color:"var(--text-2)",fontSize:11,maxWidth:260,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{desc}</td>
+                            <td style={{padding:"10px 14px"}}>
+                              {fatture.length>0?fatture.map((f,j)=>(
+                                <span key={j} style={{display:"inline-block",background:"var(--accent-s)",
+                                  border:"1px solid var(--border)",borderRadius:4,padding:"1px 6px",
+                                  color:"var(--accent)",fontSize:10,marginRight:4,marginBottom:2}}>{f}</span>
+                              )):<span style={{color:"var(--text-3)"}}>—</span>}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
             )}
+
+            {/* ══ SEZIONE ASSEGNI ══ */}
+            {storicoSezione==="assegni"&&(
+              assegniVis.length===0?(
+                <div style={{padding:60,textAlign:"center",color:"var(--text-2)",fontSize:12}}>
+                  {storicoFiltroAssegno?"Nessun assegno per questa data":"Nessun assegno registrato"}
+                </div>
+              ):(
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                    <thead>
+                      <tr style={{background:"var(--raised)"}}>
+                        {["N° Assegno","Cliente","Data Titolo","Data Incasso","Importo","Fatture Pagate","NC Scalate","Stato","Ric."].map(h=>(
+                          <th key={h} style={{padding:"9px 12px",textAlign:h==="Importo"?"right":"left",
+                            color:"var(--text-2)",fontWeight:600,fontSize:10,
+                            borderBottom:"1px solid var(--border)",whiteSpace:"nowrap"}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {assegniVis.map((a,i)=>{
+                        const isRic = !!a._incassoId;
+                        const isHL  = storicoFiltroAssegno && (a["DATA TITOLO"]||"").slice(0,10)===storicoFiltroAssegno;
+                        const stato = a["STATO TITOLO"]||"";
+                        const statoC = assStatoColor(stato);
+                        return (
+                          <tr key={i}
+                            style={{borderBottom:"1px solid var(--border-2)",
+                              background:isHL?"#1A1A0A":i%2===0?"var(--raised)":"var(--surface)",
+                              borderLeft:isHL?"3px solid var(--warn)":"3px solid transparent"}}
+                            className="row-hover">
+                            <td style={{padding:"9px 12px",color:"#0284C7",fontWeight:700,
+                              fontFamily:"var(--mono)",fontSize:11,whiteSpace:"nowrap"}}>
+                              {a["N TITOLO"]||"—"}
+                            </td>
+                            <td style={{padding:"9px 12px",color:"var(--text-1)",fontSize:11}}>
+                              {a["CLIENTE"]||"—"}
+                            </td>
+                            <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11,whiteSpace:"nowrap"}}>
+                              {toIT(a["DATA TITOLO"])||"—"}
+                            </td>
+                            <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11,whiteSpace:"nowrap"}}>
+                              {toIT(a["DATA INCASSO PREVISTA"]||a["DATA TITOLO"])||"—"}
+                            </td>
+                            <td style={{padding:"9px 12px",textAlign:"right",color:"var(--success)",
+                              fontWeight:700,fontFamily:"var(--mono)",whiteSpace:"nowrap"}}>
+                              {eur(a["IMPORTO TITOLO"])}
+                            </td>
+                            <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:10,maxWidth:180,
+                              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}
+                              title={a["FATTURE PAGATE"]||""}>
+                              {a["FATTURE PAGATE"]||"—"}
+                            </td>
+                            <td style={{padding:"9px 12px",color:"#c084fc",fontSize:10}}>
+                              {a["NC SCALATE"]||"—"}
+                            </td>
+                            <td style={{padding:"9px 12px",whiteSpace:"nowrap"}}>
+                              <span style={{background:statoC+"22",color:statoC,
+                                borderRadius:4,padding:"2px 7px",fontSize:9,fontWeight:700}}>
+                                {stato}
+                              </span>
+                            </td>
+                            <td style={{padding:"9px 12px",textAlign:"center"}}>
+                              {isRic
+                                ? <span title="Collegato a un incasso"
+                                    style={{color:"var(--success)",fontSize:13}}>✓</span>
+                                : <span title="Non ancora riconciliato"
+                                    style={{color:"var(--warn)",fontSize:13}}>○</span>
+                              }
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )
+            )}
+
           </div>
-        )}
+          );
+        })()}
 
         {tab==="migrazione"&&(
           <div className="tab-content"><MigrazioneTab docs={docs} authed={authed} notify={notify} onComplete={loadData}/></div>
