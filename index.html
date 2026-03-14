@@ -4351,16 +4351,24 @@ function App() {
           return d ? {...d, _numRef:f} : null;
         }).filter(Boolean);
         const assCollegati = (() => {
-          // Cerca assegni che hanno quella data o che contengono quei numeri nelle fatture pagate
-          const byData = assegni.filter(a=>{
-            const normA = String(a["DATA TITOLO"]||"").slice(0,10);
-            return normA===String(data||"").slice(0,10);
-          });
+          // FIX: byFatt — confronto ESATTO per ogni numero documento
+          // (split su separatori e match uno-a-uno, non substring)
+          const fattureSet = new Set(fatture.map(f=>String(f).trim()));
           const byFatt = assegni.filter(a=>{
             const fp = String(a["FATTURE PAGATE"]||"");
-            return fatture.some(f=>fp.includes(f));
+            // Splitta FATTURE PAGATE sui separatori tipici (virgola, spazio, trattino)
+            const parts = fp.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean);
+            return parts.some(p=>fattureSet.has(p));
           });
-          const all = [...byData,...byFatt];
+          // FIX: byData — attivo solo se ci sono già assegni trovati per fattura
+          // (evita di mostrare assegni di clienti diversi per coincidenza di data)
+          const byData = byFatt.length === 0
+            ? assegni.filter(a=>{
+                const normA = String(a["DATA TITOLO"]||"").slice(0,10);
+                return normA===String(data||"").slice(0,10);
+              })
+            : [];
+          const all = [...byFatt, ...byData];
           return all.filter((a,i,arr)=>arr.findIndex(b=>b["N TITOLO"]===a["N TITOLO"])===i);
         })();
         return (
