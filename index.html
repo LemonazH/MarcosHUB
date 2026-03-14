@@ -2192,6 +2192,10 @@ function App() {
   const [assManStato,setAssManStato]=useState("TUTTI"); // filtro stato
   const [assManSearch,setAssManSearch]=useState(""); // ricerca cliente/numero
   const [assManSel,setAssManSel]=useState(null); // assegno selezionato per dettaglio
+  const [recoTab,setRecoTab]=useState("assegni"); // "assegni" | "bonifici"
+  const [incManDa,setIncManDa]=useState("");
+  const [incManA,setIncManA]=useState("");
+  const [incManSearch,setIncManSearch]=useState("");
   const [recoSel,setRecoSel]=useState({}); // {numDoc: importoAllocato}
   const [recoSaving,setRecoSaving]=useState(false);
   const [tab,setTab]=useState("dashboard");
@@ -2668,14 +2672,22 @@ function App() {
     if(!accrediti.length || Object.keys(recoSel).length===0) return;
     setRecoSaving(true);
     try {
-      const accredito    = accrediti[0];
-      const dataAccredito = accredito.data;
-      const totaleAccredito = accredito.avere;
-      // Assegni selezionati
+    const accredito = accrediti[0];
+    const dataAccredito = accredito.data;
+    const totaleAccredito = accredito.avere;
+
+    const dettaglio = [];
+    const aggiornamenti = [];
+    let causale = "";
+    let descAdd = "";
+    let nItems = 0;
+
+    if (recoTab === "assegni") {
       const assegniSel = assegni.filter(a=>String(a._id) in recoSel);
-      // Costruisci dettaglio: per ogni assegno, includi tutti i documenti collegati
-      const dettaglio = [];
-      const aggiornamenti = [];
+      nItems = assegniSel.length;
+      causale = assegniSel.map(a=>a["N TITOLO"]).join(" + ");
+      descAdd = assegniSel.map(a=>`${a["CLIENTE"]} — ${a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||""}`).join(" | ");
+
       for(const ass of assegniSel) {
         const docsCollegati = (ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"")
           .split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
@@ -2685,33 +2697,53 @@ function App() {
           const doc = docs[docIdx];
           if(!doc._id) continue;
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          // Permettiamo alla riconciliazione di linkare la fattura a prescindere dal suo stato attuale
-          const stato = (doc[COL.stato]||"").toUpperCase();
-          // const vecchiStatiValidi = ["DA INCASSARE","APERTO","PARZIALE"]; (limitazione rimossa)
-          dettaglio.push({
-            documento_id: doc._id,
-            importo: saldo,
-            tipo: doc[COL.tipoDocumento] || "FVE",
-          });
+          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: doc[COL.tipoDocumento] || "FVE" });
           aggiornamenti.push({ docIdx, saldo });
         }
       }
-      if(dettaglio.length === 0) {
-        notify("Nessun documento collegato agli assegni selezionati","error");
-        setRecoSaving(false); return;
+    } else {
+      // Bonifici/Incassi
+      const incassiSel = incs.filter(i=>String(i.incasso_id) in recoSel);
+      nItems = incassiSel.length;
+      causale = "BONIF " + incassiSel.map(i=>i["ID Incasso"]||i.incasso_id).join(" + ");
+      descAdd = incassiSel.map(i=>`${i["Cliente"]||""} — ${Array.isArray(i.fatture)?i.fatture.join(","):i.fatture||""}`).join(" | ");
+
+      for(const inc of incassiSel) {
+        const docsCollegati = Array.isArray(inc.fatture) ? inc.fatture : (inc.fatture||"").toString().split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
+        for(const numDoc of docsCollegati) {
+          const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
+          if(docIdx<0) continue;
+          const doc = docs[docIdx];
+          if(!doc._id) continue;
+          
+          // Solo se non è già chiuso, sennò l'incasso lo ha già chiuso a suo tempo
+          const saldo = parseNum(doc[COL.saldoResiduo]);
+          if(saldo > 0) {
+              dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: doc[COL.tipoDocumento] || "FVE" });
+              aggiornamenti.push({ docIdx, saldo });
+          } else {
+              // Se il saldo è già a zero perché il bonifico lo aveva azzerato, passiamo comunque il link 
+              // con importo simbolico (o il totale incassato) alla riconciliazione per fare la riga
+              dettaglio.push({ documento_id: doc._id, importo: 0, tipo: doc[COL.tipoDocumento] || "FVE" });
+          }
+        }
       }
-      // Causale: numeri assegni
-      const causale = assegniSel.map(a=>a["N TITOLO"]).join(" + ");
-      const descAdd  = assegniSel.map(a=>`${a["CLIENTE"]} — ${a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||""}`).join(" | ");
-      // POST riconciliazione
-      await d1API.postRiconciliazione({
-        data_accredito: dataAccredito,
-        importo: totaleAccredito,
-        causale: accredito.desc ? `${accredito.desc} [${causale}]` : causale,
-        descrizione_aggiuntiva: descAdd,
-        utente: authed,
-        dettaglio,
-      });
+    }
+
+    if(dettaglio.length === 0 && recoTab === "assegni") {
+      notify("Nessun documento collegato agli elementi selezionati","error");
+      setRecoSaving(false); return;
+    }
+
+    // POST riconciliazione
+    await d1API.postRiconciliazione({
+      data_accredito: dataAccredito,
+      importo: totaleAccredito,
+      causale: accredito.desc ? `${accredito.desc} [${causale}]` : causale,
+      descrizione_aggiuntiva: descAdd,
+      utente: authed,
+      dettaglio,
+    });
       // Aggiorna stato locale documenti → CHIUSO
       setDocs(p => {
         const d = [...p];
@@ -2723,12 +2755,11 @@ function App() {
         }
         return d;
       });
-      // Marca accredito come riconciliato nel file banca
       setBankRows(p => p.map(r => r.idx===accredito.idx ? {...r, riconciliato:true} : r));
       setAccrediti([]);
       setRecoSel({});
       setRecoSearch("");
-      notify(`✓ Riconciliato — ${assegniSel.length} assegn${assegniSel.length>1?"i":"o"}, ${dettaglio.length} document${dettaglio.length>1?"i":"o"} chiusi`, "success");
+      notify(`✓ Riconciliato — ${nItems} elementi, ${dettaglio.length} documenti collegati`, "success");
     } catch(err) {
       notify("Errore: "+err.message, "error");
       console.error("handleConfirmReco:", err);
@@ -3394,18 +3425,36 @@ function App() {
                 </div>
               )}
 
-              {/* ══ PANNELLO ASSEGNI MANUALE ══ */}
+              {/* ══ PANNELLO RICERCA MANUALE ══ */}
               <div style={{marginTop:18,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius)",overflow:"hidden"}}>
-                {/* Header */}
+                {/* Header con Toggle */}
                 <div style={{padding:"12px 18px",borderBottom:"1px solid var(--border)",
                   display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:10}}>
-                  <span style={{color:"var(--warn)",fontSize:12,fontWeight:700,letterSpacing:.5}}>
-                    📋 ASSEGNI — RICERCA MANUALE
-                  </span>
+                  
+                  <div style={{display:"flex",gap:4,background:"var(--bg)",padding:4,borderRadius:8,border:"1px solid var(--border)"}}>
+                    <button onClick={()=>setRecoTab("assegni")} style={{
+                      padding:"6px 14px", border:"none", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:700,
+                      background: recoTab==="assegni"?"var(--raised)":"transparent",
+                      color: recoTab==="assegni"?"var(--warn)":"var(--text-3)", transition:"all .15s"
+                    }}>
+                      🏷️ Cerca Assegni
+                    </button>
+                    <button onClick={()=>setRecoTab("bonifici")} style={{
+                      padding:"6px 14px", border:"none", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:700,
+                      background: recoTab==="bonifici"?"var(--raised)":"transparent",
+                      color: recoTab==="bonifici"?"#38bdf8":"var(--text-3)", transition:"all .15s"
+                    }}>
+                      💸 Cerca Altri Incassi
+                    </button>
+                  </div>
+
                   <span style={{color:"var(--text-2)",fontSize:10}}>
-                    {assegni.length} totali nel sistema
+                    {recoTab==="assegni"?`${assegni.length} assegni totali`:`${incs.length} incassi totali`}
                   </span>
                 </div>
+
+                {recoTab==="assegni" ? (
+                  <>
 
                 {/* Filtri */}
                 <div style={{padding:"12px 18px",borderBottom:"1px solid #f4f6ff",
@@ -3628,6 +3677,195 @@ function App() {
                     </div>
                   );
                 })()}
+
+                </>
+                ) : (
+                  <>
+                  {/* Filtri Incassi/Bonifici */}
+                  <div style={{padding:"12px 18px",borderBottom:"1px solid #f4f6ff",
+                    display:"flex",gap:10,flexWrap:"wrap",alignItems:"flex-end"}}>
+
+                    {/* Data Da */}
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      <label style={{color:"var(--text-2)",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Dal</label>
+                      <input type="date" value={incManDa} onChange={e=>setIncManDa(e.target.value)}
+                        style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                          padding:"5px 8px",color:"var(--text-2)",fontSize:11,fontFamily:"var(--font)"}}/>
+                    </div>
+
+                    {/* Data A */}
+                    <div style={{display:"flex",flexDirection:"column",gap:4}}>
+                      <label style={{color:"var(--text-2)",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Al</label>
+                      <input type="date" value={incManA} onChange={e=>setIncManA(e.target.value)}
+                        style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                          padding:"5px 8px",color:"var(--text-2)",fontSize:11,fontFamily:"var(--font)"}}/>
+                    </div>
+
+                    {/* Ricerca cliente/note */}
+                    <div style={{display:"flex",flexDirection:"column",gap:4,flex:1,minWidth:140}}>
+                      <label style={{color:"var(--text-2)",fontSize:9,textTransform:"uppercase",letterSpacing:.5}}>Cerca</label>
+                      <input type="text" value={incManSearch} onChange={e=>setIncManSearch(e.target.value)}
+                        placeholder="cliente o note..."
+                        style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                          padding:"5px 8px",color:"var(--text-1)",fontSize:11,width:"100%"}}/>
+                    </div>
+
+                    {/* Reset */}
+                    <button onClick={()=>{setIncManDa("");setIncManA("");setIncManSearch("");}}
+                      style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:6,
+                        padding:"5px 10px",color:"var(--text-2)",fontSize:10,cursor:"pointer",alignSelf:"flex-end"}}>
+                      ✕ Reset
+                    </button>
+                  </div>
+
+                  {/* Lista Incassi filtrata */}
+                  {(()=>{
+                    const s = incManSearch.toLowerCase();
+                    const filtered = incs.filter(i => {
+                      const dt = toISO(i["Data Ricezione"]) || "";
+                      if(incManDa && dt < incManDa) return false;
+                      if(incManA  && dt > incManA)  return false;
+                      if(s && !i["Cliente"]?.toLowerCase().includes(s) &&
+                         !i["Note"]?.toLowerCase().includes(s)) return false;
+                      // Escludiamo gli incassi parziali/aperti che non sono idonei a riconciliazione diretta?
+                      // No, mostriamoli tutti, l'importante è che se la fattura collegata è "CHIUSA" la tiriamo dentro.
+                      // Spesso i bonifici sono già chiusi nel sistema ("Incassato/Registrato").
+                      return true;
+                    }).sort((a,b)=>toISO(b["Data Ricezione"]).localeCompare(toISO(a["Data Ricezione"])));
+
+                    if(!filtered.length) return (
+                      <div style={{padding:30,textAlign:"center",color:"var(--text-2)",fontSize:12}}>
+                        Nessun incasso trovato con i filtri impostati
+                      </div>
+                    );
+
+                    const totale = filtered.reduce((s,i)=>s+parseNum(i["Importo Totale"]),0);
+
+                    return (
+                      <div>
+                        {/* Totale */}
+                        <div style={{padding:"8px 18px",background:"var(--bg)",
+                          display:"flex",justifyContent:"space-between",fontSize:11}}>
+                          <span style={{color:"var(--text-2)"}}>{filtered.length} incassi filtrati</span>
+                          <span style={{color:"var(--success)",fontWeight:800,fontFamily:"var(--font)"}}>
+                            {eur(totale)}
+                          </span>
+                        </div>
+
+                        {/* Righe */}
+                        <div style={{maxHeight:420,overflowY:"auto"}}>
+                          {filtered.map((inc,i)=>{
+                            const isSel = String(inc.incasso_id) in recoSel;
+                            return (
+                              <div key={i}
+                                onClick={()=>{
+                                  setRecoSel(p=>{
+                                    const n={...p};
+                                    if(String(inc.incasso_id) in n) delete n[String(inc.incasso_id)];
+                                    else {
+                                      n[String(inc.incasso_id)] = String(parseNum(inc["Importo Totale"]));
+                                      // Se nessun accredito selezionato, auto-seleziona quello della riga
+                                      if(!accrediti.length) {
+                                        setAccrediti([{
+                                          idx: `manual-inc-${inc.incasso_id}`,
+                                          data: toISO(inc["Data Ricezione"]),
+                                          avere: parseNum(inc["Importo Totale"]),
+                                          dare: 0,
+                                          desc: `${inc["Metodo"]} — ${inc["Cliente"]}`,
+                                          descAdd: `Note: ${inc["Note"]||""}`,
+                                          tipo: "bonifico",
+                                          riconciliato: false,
+                                        }]);
+                                      }
+                                    }
+                                    return n;
+                                  });
+                                }}
+                                style={{
+                                  padding:"10px 18px",
+                                  borderBottom:"1px solid #0a1220",
+                                  cursor:"pointer",
+                                  background: isSel?"var(--success-s)":"transparent",
+                                  borderLeft: isSel?"3px solid #38bdf8":"3px solid transparent",
+                                  transition:"background .15s",
+                                }}
+                                onMouseEnter={e=>{ if(!isSel) e.currentTarget.style.background="var(--bg)"; }}
+                                onMouseLeave={e=>{ if(!isSel) e.currentTarget.style.background="transparent"; }}
+                              >
+                                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                                  <div>
+                                    <div style={{color:"var(--text-1)",fontSize:12,fontWeight:700,marginBottom:3}}>
+                                      {inc["Cliente"]||"—"} 
+                                    </div>
+                                    <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                                      <span style={{color:"#38bdf8",fontSize:10,fontWeight:600}}>{inc["Metodo"]}</span>
+                                      <span style={{color:"var(--text-2)",fontSize:10}}>📅 {toIT(inc["Data Ricezione"])}</span>
+                                      {inc["Note"] && <span style={{color:"var(--text-3)",fontSize:9}}>📝 {inc["Note"]}</span>}
+                                    </div>
+                                    {inc.fatture && (
+                                      <div style={{color:"#c084fc",fontSize:9,fontFamily:"var(--font)",marginTop:4}}>
+                                        Fatture collegate: {Array.isArray(inc.fatture)?inc.fatture.join(", "):inc.fatture}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div style={{textAlign:"right",flexShrink:0,marginLeft:12}}>
+                                    <div style={{color:"var(--success)",fontSize:13,fontWeight:800,fontFamily:"var(--font)"}}>
+                                      {eur(inc["Importo Totale"])}
+                                    </div>
+                                    
+                                    {/* Bottone azione rapida */}
+                                    <div style={{marginTop:6}}>
+                                      <button
+                                        onClick={e=>{
+                                          e.stopPropagation();
+                                          if(!accrediti.length) {
+                                            setAccrediti([{
+                                              idx: `manual-inc-${inc.incasso_id}`,
+                                              data: toISO(inc["Data Ricezione"]),
+                                              avere: parseNum(inc["Importo Totale"]),
+                                              dare: 0,
+                                              desc: `${inc["Metodo"]} — ${inc["Cliente"]}`,
+                                              descAdd: `Note: ${inc["Note"]||""}`,
+                                              tipo: "bonifico",
+                                              riconciliato: false,
+                                            }]);
+                                            setRecoSel({[String(inc.incasso_id)]: String(parseNum(inc["Importo Totale"]))});
+                                          } else {
+                                            setRecoSel(p=>{
+                                              const n={...p};
+                                              if(String(inc.incasso_id) in n) delete n[String(inc.incasso_id)];
+                                              else n[String(inc.incasso_id)]=String(parseNum(inc["Importo Totale"]));
+                                              return n;
+                                            });
+                                          }
+                                          window.scrollTo({top:0,behavior:"smooth"});
+                                        }}
+                                        style={{
+                                          background: isSel
+                                            ? "linear-gradient(135deg,#7f1d1d,#ef4444)"
+                                            : accrediti.length>0
+                                              ? "linear-gradient(135deg,#1e40af,#3b82f6)"
+                                              : "linear-gradient(135deg,#059669,#10b981)",
+                                          color:"#fff",border:"none",borderRadius:7,
+                                          padding:"6px 14px",cursor:"pointer",fontSize:11,fontWeight:700}}>
+                                        {isSel
+                                          ? "✕ Rimuovi"
+                                          : accrediti.length>0
+                                            ? "☑ Abbina"
+                                            : "↑ Usa come accredito"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  </>
+                )}
               </div>
 
             </div>
