@@ -2685,9 +2685,9 @@ function App() {
           const doc = docs[docIdx];
           if(!doc._id) continue;
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          // Solo documenti DA INCASSARE o APERTO
+          // Solo documenti DA INCASSARE, APERTO o PARZIALE
           const stato = (doc[COL.stato]||"").toUpperCase();
-          if(!["DA INCASSARE","APERTO"].includes(stato)) continue;
+          if(!["DA INCASSARE","APERTO","PARZIALE"].includes(stato)) continue;
           dettaglio.push({
             documento_id: doc._id,
             importo: saldo,
