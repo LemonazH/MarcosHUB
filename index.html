@@ -467,6 +467,7 @@ function Badge({label}) {
     Chiuso:{bg:"#1C1C22",c:"#9898A6"},
     CHIUSO:{bg:"#1C1C22",c:"#9898A6"},
     "DA INCASSARE":{bg:"var(--danger-s)",c:"#fb923c"},
+    "DA RICONCILIARE":{bg:"#1a1a24",c:"#fb923c"},
     PARZIALE:{bg:"var(--danger-s)",c:"#fbbf24"},
     Bonifico:{bg:"var(--bg)",c:"#38bdf8"},
     "Assegno Postdatato":{bg:"var(--danger-s)",c:"#fb923c"},
@@ -2507,9 +2508,10 @@ function App() {
           const nuovaNota = f[COL.tipoDocumento]==="NAC"
             ? (d[i][COL.note]||"")
             : (noteDocPerDoc&&noteDocPerDoc[numDoc] ? noteDocPerDoc[numDoc] : notes);
-          if(isFull)
-            d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:"PAGATO",[COL.note]:nuovaNota};
-          else {
+          if(isFull) {
+            const nuovoStato = (method === "BONIFICO") ? "DA RICONCILIARE" : "PAGATO";
+            d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:nuovoStato,[COL.note]:nuovaNota};
+          } else {
             const ns=Math.max(0,parseNum(d[i][COL.saldoResiduo])-f.allocato).toFixed(2);
             d[i]={...d[i],[COL.saldoResiduo]:ns,[COL.stato]:"PARZIALE",[COL.note]:nuovaNota};
           }
@@ -2758,8 +2760,9 @@ function App() {
         const d = [...p];
         for(const {docIdx} of aggiornamenti) {
           const docCorrente = d[docIdx];
-          const statoCorrente = docCorrente?.[COL.stato];
+          const statoCorrente = docCorrente?.[COL.stato]?.toUpperCase();
           // Per i bonifici, non toccare documenti già CHIUSI o PAGATI (il server non li ha aggiornati)
+          // Ma permetti l'aggiornamento da DA RICONCILIARE a CHIUSO
           if(recoTab !== "assegni" && (statoCorrente === "CHIUSO" || statoCorrente === "PAGATO")) continue;
           d[docIdx] = {...docCorrente,
             [COL.saldoResiduo]: "0",
@@ -3111,7 +3114,7 @@ function App() {
               <input value={search} onChange={e=>setSearch(e.target.value)}
                 placeholder="🔍 Cerca..." style={{...S.input,width:220}}/>
               <select value={fState} onChange={e=>setFState(e.target.value)} style={{...S.input,width:130}}>
-                {["Tutti","APERTO","DA INCASSARE","CHIUSO","PARZIALE"].map(o=><option key={o}>{o}</option>)}
+                {["Tutti","APERTO","DA RICONCILIARE","DA INCASSARE","CHIUSO","PARZIALE"].map(o=><option key={o}>{o}</option>)}
               </select>
               <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:110}}>
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
@@ -3139,9 +3142,10 @@ function App() {
                   </thead>
                   <tbody>
                     {docSorted.map((doc,i)=>{
-                      const ov=doc[COL.stato]?.toUpperCase()==="APERTO"&&isOver(doc[COL.dataDocumento]);
-                      const wn=doc[COL.stato]?.toUpperCase()==="APERTO"&&isWarn(doc[COL.dataDocumento]);
-                      const di=doc[COL.stato]==="DA INCASSARE";
+                      const st = (doc[COL.stato]||"").toUpperCase();
+                      const ov=st==="APERTO"&&isOver(doc[COL.dataDocumento]);
+                      const wn=st==="APERTO"&&isWarn(doc[COL.dataDocumento]);
+                      const di=st==="DA INCASSARE" || st==="DA RICONCILIARE";
                       const origIdx=docs.indexOf(doc);
                       const base=ov?"var(--danger-s)":wn?"var(--warn-s)":i%2===0?"var(--raised)":"var(--surface)";
                       return (
@@ -3197,7 +3201,7 @@ function App() {
                                 outline: "none"
                               }}
                             >
-                              {["APERTO", "PARZIALE", "PAGATO", "STORNATO", "DA INCASSARE", "CHIUSO"].map(s => (
+                              {["APERTO", "PARZIALE", "PAGATO", "STORNATO", "DA INCASSARE", "DA RICONCILIARE", "CHIUSO"].map(s => (
                                 <option key={s} value={s}>{s}</option>
                               ))}
                             </select>
