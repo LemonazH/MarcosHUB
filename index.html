@@ -284,8 +284,8 @@ const assStatoColor = s => {
 // Formatta lista numeri doc come "29 - 127 - 158"
 const fmtDocList = (str) => {
   if (!str || !str.trim()) return "—";
-  // Split solo su virgola o punto e virgola, NON su spazi (per non rompere "AB - 90564")
-  const parts = str.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+  // Split su virgola, punto e virgola, trattino o spazi (formato originale richiesto dall'utente)
+  const parts = str.split(/[,\-\s;]+/).map(s => s.trim()).filter(Boolean);
   if (parts.length <= 1) return str.trim() || "—";
   return parts.join(" - ");
 };
@@ -2206,10 +2206,26 @@ function App() {
   const [fState,setFState]=useState("Tutti");
   const [fType,setFType]=useState("Tutti");
   const [search,setSearch]=useState("");
+  const [docDateDa,setDocDateDa]=useState("");
+  const [docDateA,setDocDateA]=useState("");
+  const [docDatePagDa,setDocDatePagDa]=useState("");
+  const [docDatePagA,setDocDatePagA]=useState("");
+  const [incDateDa,setIncDateDa]=useState("");
+  const [incDateA,setIncDateA]=useState("");
+  const [assDateDa,setAssDateDa]=useState("");
+  const [assDateA,setAssDateA]=useState("");
+  const [assDateIncDa,setAssDateIncDa]=useState("");
+  const [assDateIncA,setAssDateIncA]=useState("");
+  const [ricDateDa,setRicDateDa]=useState("");
+  const [ricDateA,setRicDateA]=useState("");
 
   const filtered=docs.filter(d=>{
     if(fState!=="Tutti"&&d[COL.stato]?.toUpperCase()!==fState) return false;
     if(fType!=="Tutti"&&d[COL.tipoDocumento]!==fType) return false;
+    if(docDateDa){ const k=toISO(d[COL.dataDocumento]); if(k<docDateDa) return false; }
+    if(docDateA){ const k=toISO(d[COL.dataDocumento]); if(k>docDateA) return false; }
+    if(docDatePagDa){ const k=toISO(d[COL.dataPagamento]); if(k<docDatePagDa) return false; }
+    if(docDatePagA){ const k=toISO(d[COL.dataPagamento]); if(k>docDatePagA) return false; }
     if(search){ const q=search.toLowerCase(); return Object.values(d).some(v=>String(v).toLowerCase().includes(q)); }
     return true;
   });
@@ -2227,8 +2243,28 @@ function App() {
   const toggleAssSort = k => { setAssSortKey(k); setAssSortDir(d=>k===assSortKey?(d==="asc"?"desc":"asc"):"asc"); };
 
   const docSorted = sortData(filtered, docSortKey, docSortDir);
-  const incSorted = sortData(incs, incSortKey, incSortDir);
-  const assSorted = sortData(assegni, assSortKey, assSortDir);
+
+  const filteredIncs = incs.filter(i=>{
+    if(incDateDa){ const k=toISO(i["Data Ricezione"]); if(k<incDateDa) return false; }
+    if(incDateA){ const k=toISO(i["Data Ricezione"]); if(k>incDateA) return false; }
+    return true;
+  });
+  const incSorted = sortData(filteredIncs, incSortKey, incSortDir);
+
+  const filteredAssegni = assegni.filter(a=>{
+    if(assDateDa){ const k=toISO(a["DATA TITOLO"]); if(k<assDateDa) return false; }
+    if(assDateA){ const k=toISO(a["DATA TITOLO"]); if(k>assDateA) return false; }
+    if(assDateIncDa){ const k=toISO(a["DATA INCASSO PREVISTA"]); if(k<assDateIncDa) return false; }
+    if(assDateIncA){ const k=toISO(a["DATA INCASSO PREVISTA"]); if(k>assDateIncA) return false; }
+    return true;
+  });
+  const assSorted = sortData(filteredAssegni, assSortKey, assSortDir);
+
+  const filteredRico = riconciliazioni.filter(r=>{
+    if(ricDateDa){ const k=toISO(r.data); if(k<ricDateDa) return false; }
+    if(ricDateA){ const k=toISO(r.data); if(k>ricDateA) return false; }
+    return true;
+  });
 
   const DocSortTh = makeSortTh(docSortKey, docSortDir, toggleDocSort);
   const IncSortTh = makeSortTh(incSortKey, incSortDir, toggleIncSort);
@@ -2694,18 +2730,30 @@ function App() {
       descAdd = assegniSel.map(a=>`${a["CLIENTE"]} — ${a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||""}`).join(" | ");
 
       for(const ass of assegniSel) {
-        const docsCollegati = (ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"")
-          .split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
-        for(const numDoc of docsCollegati) {
+        // Combinazione di fatture e NC scalate
+        const fveStr = ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"";
+        const nacStr = ass["NC SCALATE"]||"";
+        
+        // Regex di split originale come richiesto dall'utente per compatibilità pregressa
+        const fveList = fveStr.split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
+        const nacList = nacStr.split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
+
+        for(const numDoc of [...fveList, ...nacList]) {
           const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
           if(docIdx<0) continue;
           const doc = docs[docIdx];
           if(!doc._id) continue;
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: doc[COL.tipoDocumento] || "FVE" });
+          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: doc[COL.tipoDocumento] || (saldo < 0 ? "NAC" : "FVE") });
           aggiornamenti.push({ docIdx, saldo });
         }
       }
+      
+      // Miglioramento descrizione nel database per includere l'elenco documenti
+      descAdd = assegniSel.map(a => {
+        const dStr = [a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"], a["NC SCALATE"]].filter(Boolean).join(" | ");
+        return `${a["CLIENTE"]} — Docs: ${dStr}`;
+      }).join(" | ");
     } else {
       // Bonifici/Incassi
       const incassiSel = incs.filter(i=>String(i._id) in recoSel);
@@ -2722,7 +2770,7 @@ function App() {
         // codici documento tipo "AB - 90564" o "2024/00123"
         const docsCollegati = Array.isArray(inc.fatture)
           ? inc.fatture
-          : (inc.fatture||"").toString().split(/[,;]+/).map(s=>s.trim()).filter(Boolean);
+          : (inc.fatture||"").toString().split(/[,\-\s;]+/).map(s=>s.trim()).filter(Boolean);
         for(const numDoc of docsCollegati) {
           const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
           if(docIdx<0) continue;
@@ -3112,11 +3160,25 @@ function App() {
           <div className="tab-content">
             <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
               <input value={search} onChange={e=>setSearch(e.target.value)}
-                placeholder="🔍 Cerca..." style={{...S.input,width:220}}/>
+                placeholder="🔍 Cerca..." style={{...S.input,width:180}}/>
+              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA DOC:</span>
+                <input type="date" value={docDateDa} onChange={e=>setDocDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                <input type="date" value={docDateA} onChange={e=>setDocDateA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                {(docDateDa||docDateA) && <button onClick={()=>{setDocDateDa("");setDocDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:4}}>✕</button>}
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>SCADENZA:</span>
+                <input type="date" value={docDatePagDa} onChange={e=>setDocDatePagDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                <input type="date" value={docDatePagA} onChange={e=>setDocDatePagA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                {(docDatePagDa||docDatePagA) && <button onClick={()=>{setDocDatePagDa("");setDocDatePagA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:4}}>✕</button>}
+              </div>
               <select value={fState} onChange={e=>setFState(e.target.value)} style={{...S.input,width:130}}>
                 {["Tutti","APERTO","DA RICONCILIARE","DA INCASSARE","CHIUSO","PARZIALE"].map(o=><option key={o}>{o}</option>)}
               </select>
-              <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:110}}>
+              <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:90}}>
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
               </select>
               <span style={{color:"var(--text-2)",fontSize:11,marginLeft:"auto"}}>
@@ -4143,7 +4205,7 @@ function App() {
 
         {/* STORICO — due sezioni: Incassi e Assegni */}
         {tab==="storico"&&(()=>{
-          const assegniOrdinati = [...assegni].sort((a,b)=>{
+          const assegniOrdinati = [...filteredAssegni].sort((a,b)=>{
             const da = a["DATA TITOLO"]||"";
             const db = b["DATA TITOLO"]||"";
             return db.localeCompare(da); // più recenti prima
@@ -4179,14 +4241,37 @@ function App() {
                 ))}
               </div>
               {storicoSezione==="incassi"&&(
-                <div style={{display:"flex",gap:16,fontSize:11}}>
-                  <span style={{color:"var(--accent)"}}>Bancarie: <strong>{riconciliazioni.filter(r=>r.tipo==="Banca"||(r.id||"").startsWith("RIC-")).length}</strong></span>
-                  <span style={{color:"var(--success)"}}>Pagamenti: <strong>{riconciliazioni.filter(r=>r.tipo==="Pagamento"||(r.id||"").startsWith("INC-")).length}</strong></span>
-                  <span style={{color:"var(--text-2)"}}>Tot. incassato: <strong style={{color:"#0284C7"}}>{eur(riconciliazioni.reduce((s,r)=>s+(parseNum(r.accredito||0)),0))}</strong></span>
+                <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,background:"var(--surface)",padding:"2px 8px",borderRadius:8,border:"1px solid var(--border)"}}>
+                    <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>DAL:</span>
+                    <input type="date" value={ricDateDa} onChange={e=>setRicDateDa(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
+                    <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>AL:</span>
+                    <input type="date" value={ricDateA} onChange={e=>setRicDateA(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
+                    {(ricDateDa||ricDateA) && <button onClick={()=>{setRicDateDa("");setRicDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:2}}>✕</button>}
+                  </div>
+                  <div style={{display:"flex",gap:16,fontSize:11}}>
+                    <span style={{color:"var(--accent)"}}>Bancarie: <strong>{filteredRico.filter(r=>r.tipo==="Banca"||(r.id||"").startsWith("RIC-")).length}</strong></span>
+                    <span style={{color:"var(--success)"}}>Pagamenti: <strong>{filteredRico.filter(r=>r.tipo==="Pagamento"||(r.id||"").startsWith("INC-")).length}</strong></span>
+                    <span style={{color:"var(--text-2)"}}>Totale: <strong style={{color:"#0284C7"}}>{eur(filteredRico.reduce((s,r)=>s+(parseNum(r.accredito||0)),0))}</strong></span>
+                  </div>
                 </div>
               )}
               {storicoSezione==="assegni"&&(
                 <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:5,background:"var(--surface)",padding:"2px 8px",borderRadius:8,border:"1px solid var(--border)"}}>
+                    <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>DATA TITOLO:</span>
+                    <input type="date" value={assDateDa} onChange={e=>setAssDateDa(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
+                    <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                    <input type="date" value={assDateA} onChange={e=>setAssDateA(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
+                    {(assDateDa||assDateA) && <button onClick={()=>{setAssDateDa("");setAssDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:2}}>✕</button>}
+                  </div>
+                  <div style={{display:"flex",alignItems:"center",gap:5,background:"var(--surface)",padding:"2px 8px",borderRadius:8,border:"1px solid var(--border)"}}>
+                    <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>DATA INCASSO:</span>
+                    <input type="date" value={assDateIncDa} onChange={e=>setAssDateIncDa(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
+                    <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                    <input type="date" value={assDateIncA} onChange={e=>setAssDateIncA(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
+                    {(assDateIncDa||assDateIncA) && <button onClick={()=>{setAssDateIncDa("");setAssDateIncA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:2}}>✕</button>}
+                  </div>
                   {storicoFiltroAssegno&&(
                     <div style={{display:"flex",alignItems:"center",gap:6,
                       background:"var(--warn-s)",border:"1px solid var(--warn)",
@@ -4200,7 +4285,7 @@ function App() {
                     </div>
                   )}
                   <span style={{color:"var(--text-2)",fontSize:11}}>
-                    Totale: <strong style={{color:"var(--text-1)"}}>{assegni.length}</strong>
+                    Totale: <strong style={{color:"var(--text-1)"}}>{filteredAssegni.length}</strong>
                   </span>
                   {nRicNonRic>0&&(
                     <span style={{color:"var(--warn)",fontSize:11}}>
@@ -4228,7 +4313,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...riconciliazioni].reverse().map((r,i)=>{
+                      {[...filteredRico].reverse().map((r,i)=>{
                         const fatture   = Array.isArray(r.fatture)?r.fatture:[];
                         const accredito = r.accredito||0;
                         const data      = r.data||"—";
