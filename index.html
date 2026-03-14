@@ -2685,7 +2685,7 @@ function App() {
     if (recoTab === "assegni") {
       const assegniSel = assegni.filter(a=>String(a._id) in recoSel);
       nItems = assegniSel.length;
-      causale = assegniSel.map(a=>a["N TITOLO"]).join(" + ");
+      causale = assegniSel.map(a=>a["N TITOLO"]).filter(Boolean).join(" + ");
       descAdd = assegniSel.map(a=>`${a["CLIENTE"]} — ${a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||""}`).join(" | ");
 
       for(const ass of assegniSel) {
@@ -2703,9 +2703,9 @@ function App() {
       }
     } else {
       // Bonifici/Incassi
-      const incassiSel = incs.filter(i=>String(i.incasso_id) in recoSel);
+      const incassiSel = incs.filter(i=>String(i._id) in recoSel);
       nItems = incassiSel.length;
-      causale = "BONIF " + incassiSel.map(i=>i["ID Incasso"]||i.incasso_id).join(" + ");
+      causale = "BONIF " + incassiSel.map(i=>i["ID Incasso"]||i._id).join(" + ");
       descAdd = incassiSel.map(i=>`${i["Cliente"]||""} — ${Array.isArray(i.fatture)?i.fatture.join(","):i.fatture||""}`).join(" | ");
 
       for(const inc of incassiSel) {
@@ -2718,7 +2718,7 @@ function App() {
           
           // Solo se non è già chiuso, sennò l'incasso lo ha già chiuso a suo tempo
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          const imp = saldo > 0 ? saldo : parseNum(doc[COL.importoTotale] || 0.01);
+          const imp = saldo > 0 ? saldo : parseNum(doc[COL.importoDocumento] || 0.01);
           dettaglio.push({ documento_id: doc._id, importo: imp, tipo: doc[COL.tipoDocumento] || "FVE" });
           aggiornamenti.push({ docIdx, saldo: 0 });
         }
@@ -3717,14 +3717,12 @@ function App() {
                   {(()=>{
                     const s = incManSearch.toLowerCase();
                     const filtered = incs.filter(i => {
+                      if(i["Metodo"] === "Assegno") return false; // Nascondi assegni da questa lista
                       const dt = toISO(i["Data Ricezione"]) || "";
                       if(incManDa && dt < incManDa) return false;
                       if(incManA  && dt > incManA)  return false;
                       if(s && !i["Cliente"]?.toLowerCase().includes(s) &&
                          !i["Note"]?.toLowerCase().includes(s)) return false;
-                      // Escludiamo gli incassi parziali/aperti che non sono idonei a riconciliazione diretta?
-                      // No, mostriamoli tutti, l'importante è che se la fattura collegata è "CHIUSA" la tiriamo dentro.
-                      // Spesso i bonifici sono già chiusi nel sistema ("Incassato/Registrato").
                       return true;
                     }).sort((a,b)=>toISO(b["Data Ricezione"]).localeCompare(toISO(a["Data Ricezione"])));
 
@@ -3750,19 +3748,19 @@ function App() {
                         {/* Righe */}
                         <div style={{maxHeight:420,overflowY:"auto"}}>
                           {filtered.map((inc,i)=>{
-                            const isSel = String(inc.incasso_id) in recoSel;
+                            const isSel = String(inc._id) in recoSel;
                             return (
                               <div key={i}
                                 onClick={()=>{
                                   setRecoSel(p=>{
                                     const n={...p};
-                                    if(String(inc.incasso_id) in n) delete n[String(inc.incasso_id)];
+                                    if(String(inc._id) in n) delete n[String(inc._id)];
                                     else {
-                                      n[String(inc.incasso_id)] = String(parseNum(inc["Importo Totale"]));
+                                      n[String(inc._id)] = String(parseNum(inc["Importo Totale"]));
                                       // Se nessun accredito selezionato, auto-seleziona quello della riga
                                       if(!accrediti.length) {
                                         setAccrediti([{
-                                          idx: `manual-inc-${inc.incasso_id}`,
+                                          idx: `manual-inc-${inc._id}`,
                                           data: toISO(inc["Data Ricezione"]),
                                           avere: parseNum(inc["Importo Totale"]),
                                           dare: 0,
@@ -3815,7 +3813,7 @@ function App() {
                                           e.stopPropagation();
                                           if(!accrediti.length) {
                                             setAccrediti([{
-                                              idx: `manual-inc-${inc.incasso_id}`,
+                                              idx: `manual-inc-${inc._id}`,
                                               data: toISO(inc["Data Ricezione"]),
                                               avere: parseNum(inc["Importo Totale"]),
                                               dare: 0,
@@ -3824,12 +3822,12 @@ function App() {
                                               tipo: "bonifico",
                                               riconciliato: false,
                                             }]);
-                                            setRecoSel({[String(inc.incasso_id)]: String(parseNum(inc["Importo Totale"]))});
+                                            setRecoSel({[String(inc._id)]: String(parseNum(inc["Importo Totale"]))});
                                           } else {
                                             setRecoSel(p=>{
                                               const n={...p};
-                                              if(String(inc.incasso_id) in n) delete n[String(inc.incasso_id)];
-                                              else n[String(inc.incasso_id)]=String(parseNum(inc["Importo Totale"]));
+                                              if(String(inc._id) in n) delete n[String(inc._id)];
+                                              else n[String(inc._id)]=String(parseNum(inc["Importo Totale"]));
                                               return n;
                                             });
                                           }
@@ -3862,7 +3860,6 @@ function App() {
                   </>
                 )}
               </div>
-
             </div>
 
             {/* COLONNA DESTRA — Pannello abbinamento */}
@@ -3895,23 +3892,32 @@ function App() {
                     </div>
                   </div>
 
-                  {/* ── 2. ASSEGNI DA ABBINARE ── */}
+                  {/* ── 2. ELEMENTI DA ABBINARE ── */}
                   {(()=>{
                     const totAcc = accrediti[0].avere;
-                    // Assegni selezionati (da recoSel — usiamo gli id assegno)
-                    const assSelIds = new Set(Object.keys(recoSel));
-                    const totAssegni = assegni
-                      .filter(a=>assSelIds.has(String(a._id)))
-                      .reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
-                    const diff = totAcc - totAssegni;
+                    // Elementi selezionati (da recoSel)
+                    const selIds = new Set(Object.keys(recoSel));
+                    
+                    let totSelezionati = 0;
+                    if(recoTab === "assegni") {
+                      totSelezionati = assegni
+                        .filter(a=>selIds.has(String(a._id)))
+                        .reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
+                    } else {
+                      totSelezionati = incs
+                        .filter(i=>selIds.has(String(i._id)))
+                        .reduce((s,i)=>s+parseNum(i["Importo Totale"]),0);
+                    }
+                    
+                    const diff = totAcc - totSelezionati;
                     const isDone = Math.abs(diff)<0.01;
 
                     return (
                       <>
                         {/* Riepilogo abbinamento */}
                         <div style={{
-                          background: isDone?"var(--success-s)":assSelIds.size>0?"var(--danger-s)":"var(--raised)",
-                          border:`1px solid ${isDone?"#22c55e":assSelIds.size>0?"#d97706":"#e2e8f0"}`,
+                          background: isDone?"var(--success-s)":selIds.size>0?"var(--danger-s)":"var(--raised)",
+                          border:`1px solid ${isDone?"#22c55e":selIds.size>0?"#d97706":"#e2e8f0"}`,
                           borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:12,fontSize:11}}>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                             <span style={{color:"var(--text-2)"}}>Accredito banca:</span>
@@ -3920,9 +3926,11 @@ function App() {
                             </span>
                           </div>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
-                            <span style={{color:"var(--text-2)"}}>Assegni abbinati ({assSelIds.size}):</span>
+                            <span style={{color:"var(--text-2)"}}>
+                                {recoTab==="assegni"?"Assegni abbinati":"Incassi abbinati"} ({selIds.size}):
+                            </span>
                             <span style={{color:"var(--text-1)",fontWeight:700,fontFamily:"var(--font)"}}>
-                              {eur(totAssegni)}
+                              {eur(totSelezionati)}
                             </span>
                           </div>
                           <div style={{display:"flex",justifyContent:"space-between",
@@ -3935,108 +3943,146 @@ function App() {
                           </div>
                         </div>
 
-                        {/* Ricerca assegni */}
-                        <input value={recoSearch} onChange={e=>setRecoSearch(e.target.value)}
-                          placeholder="🔍 Cerca per cliente, n° assegno o fattura..."
-                          style={{...S.input,marginBottom:8,fontSize:11}}/>
+                        {/* Elenco dettagliato selezionati (scroallabile) */}
+                        <div style={{maxHeight:150,overflowY:"auto",marginBottom:16,display:"flex",flexDirection:"column",gap:4}}>
+                          {Array.from(selIds).map(id=>{
+                            let label = `ID: ${id}`;
+                            let imp = 0;
+                            
+                            if(recoTab === "assegni") {
+                               const ass = assegni.find(a=>String(a._id)===id);
+                               if(ass) {
+                                 label = `${ass["N TITOLO"]||"Assegno"} - ${ass["CLIENTE"]}`;
+                                 imp = parseNum(ass["IMPORTO TITOLO"]);
+                               }
+                            } else {
+                               const inc = incs.find(i=>String(i._id)===id);
+                               if(inc) {
+                                  label = `${inc["Metodo"]} - ${inc["Cliente"]}`;
+                                  imp = parseNum(inc["Importo Totale"]);
+                               }
+                            }
 
-                        {/* Lista assegni */}
-                        <div style={{maxHeight:360,overflowY:"auto",marginBottom:12}}>
-                          {(()=>{
-                            const q = recoSearch.toLowerCase();
-                            const lista = assegni
-                              .filter(a=>{
-                                if(q && !a["CLIENTE"]?.toLowerCase().includes(q) &&
-                                   !a["N TITOLO"]?.toLowerCase().includes(q) &&
-                                   !(a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||"").toLowerCase().includes(q)) return false;
-                                return true;
-                              })
-                              .sort((a,b)=>{
-                                // Prima: assegni con data vicina all'accredito bancario
-                                const da = toISO(a["DATA TITOLO"])||"";
-                                const db = toISO(b["DATA TITOLO"])||"";
-                                const dataAcc = accrediti[0].data||"";
-                                const diffA = Math.abs(new Date(da)-new Date(dataAcc));
-                                const diffB = Math.abs(new Date(db)-new Date(dataAcc));
-                                if(diffA!==diffB) return diffA-diffB;
-                                return 0;
-                              });
-
-                            if(!lista.length) return (
-                              <div style={{padding:20,textAlign:"center",color:"var(--text-2)",fontSize:11}}>
-                                Nessun assegno trovato
+                            return (
+                              <div key={id} style={{display:"flex",justifyContent:"space-between",
+                                background:"var(--bg)",padding:"5px 8px",borderRadius:4,fontSize:10}}>
+                                <span style={{color:"var(--text-2)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",flex:1,paddingRight:6}}>
+                                  {label}
+                                </span>
+                                <span style={{color:"var(--text-1)",fontWeight:600}}>{eur(imp)}</span>
+                                <button onClick={()=>setRecoSel(p=>{const n={...p}; delete n[id]; return n;})}
+                                  style={{background:"transparent",border:"none",color:"var(--danger)",
+                                    cursor:"pointer",marginLeft:8,padding:0,fontSize:14,lineHeight:1}}>×</button>
                               </div>
                             );
-
-                            return lista.map((a,i)=>{
-                              const aid = String(a._id);
-                              const checked = assSelIds.has(aid);
-                              const imp = parseNum(a["IMPORTO TITOLO"]);
-                              const docs2 = a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||"";
-                              const statoColor = a["STATO TITOLO"]==="IN ARCHIVIO"?"#fb923c":"#4ade80";
-                              const nearDate = toISO(a["DATA TITOLO"])===accrediti[0].data;
-                              return (
-                                <div key={i}
-                                  onClick={()=>setRecoSel(p=>{
-                                    const n={...p};
-                                    if(aid in n) delete n[aid];
-                                    else n[aid]=String(imp);
-                                    return n;
-                                  })}
-                                  style={{
-                                    padding:"9px 11px",marginBottom:6,borderRadius:"var(--radius-s)",cursor:"pointer",
-                                    border:`1px solid ${checked?"#3b82f6":nearDate?"#d9770644":"#e2e8f0"}`,
-                                    background:checked?"var(--bg)":nearDate?"var(--danger-s)":"transparent",
-                                    transition:"background .12s",
-                                  }}>
-                                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
-                                    <div style={{flex:1,minWidth:0}}>
-                                      <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
-                                        <span style={{color:checked?"#60a5fa":"#94a3b8",fontSize:12,fontWeight:700}}>
-                                          {checked?"☑":"☐"}
-                                        </span>
-                                        <span style={{color:"var(--text-1)",fontSize:11,fontWeight:600,
-                                          whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:160}}>
-                                          {a["CLIENTE"]}
-                                        </span>
-                                        <span style={{background:"var(--bg)",color:statoColor,
-                                          fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,whiteSpace:"nowrap"}}>
-                                          {a["STATO TITOLO"]}
-                                        </span>
-                                        {nearDate&&!checked&&<span style={{color:"#fbbf24",fontSize:8,
-                                          background:"var(--danger-s)",padding:"1px 5px",borderRadius:3}}>
-                                          stessa data
-                                        </span>}
-                                      </div>
-                                      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-                                        <span style={{color:"#0284C7",fontSize:9,fontFamily:"var(--font)"}}>
-                                          {a["N TITOLO"]}
-                                        </span>
-                                        <span style={{color:"var(--text-2)",fontSize:9}}>
-                                          {toIT(a["DATA TITOLO"])}
-                                        </span>
-                                      </div>
-                                      {docs2&&<div style={{color:"var(--text-2)",fontSize:9,marginTop:2}}>
-                                        Fatt: <span style={{color:checked?"#94a3b8":"#475569"}}>
-                                          {fmtDocList(docs2)}
-                                        </span>
-                                      </div>}
-                                    </div>
-                                    <div style={{flexShrink:0,marginLeft:10,textAlign:"right"}}>
-                                      <div style={{color:checked?"#4ade80":"#f1f5f9",fontSize:13,fontWeight:800,
-                                        fontFamily:"var(--font)"}}>
-                                        {eur(imp)}
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            });
-                          })()}
+                          })}
                         </div>
                       </>
                     );
                   })()}
+
+                  {recoTab === "assegni" && (
+                          <>
+                            {/* Ricerca assegni */}
+                            <input value={recoSearch} onChange={e=>setRecoSearch(e.target.value)}
+                              placeholder="🔍 Cerca per cliente, n° assegno o fattura..."
+                              style={{...S.input,marginBottom:8,fontSize:11}}/>
+
+                            {/* Lista assegni */}
+                            <div style={{maxHeight:360,overflowY:"auto",marginBottom:12}}>
+                              {(()=>{
+                                const q = recoSearch.toLowerCase();
+                                const lista = assegni
+                                  .filter(a=>{
+                                    if(q && !a["CLIENTE"]?.toLowerCase().includes(q) &&
+                                       !a["N TITOLO"]?.toLowerCase().includes(q) &&
+                                       !(a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||"").toLowerCase().includes(q)) return false;
+                                    return true;
+                                  })
+                                  .sort((a,b)=>{
+                                    const da = toISO(a["DATA TITOLO"])||"";
+                                    const db = toISO(b["DATA TITOLO"])||"";
+                                    const dataAcc = accrediti[0].data||"";
+                                    const diffA = Math.abs(new Date(da)-new Date(dataAcc));
+                                    const diffB = Math.abs(new Date(db)-new Date(dataAcc));
+                                    if(diffA!==diffB) return diffA-diffB;
+                                    return 0;
+                                  });
+
+                                if(!lista.length) return (
+                                  <div style={{padding:20,textAlign:"center",color:"var(--text-2)",fontSize:11}}>
+                                    Nessun assegno trovato
+                                  </div>
+                                );
+
+                                return lista.map((a,i)=>{
+                                  const aid = String(a._id);
+                                  const checked = selIds.has(aid);
+                                  const imp = parseNum(a["IMPORTO TITOLO"]);
+                                  const docs2 = a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||"";
+                                  const statoColor = a["STATO TITOLO"]==="IN ARCHIVIO"?"#fb923c":"#4ade80";
+                                  const nearDate = toISO(a["DATA TITOLO"])===accrediti[0].data;
+                                  return (
+                                    <div key={i}
+                                      onClick={()=>setRecoSel(p=>{
+                                        const n={...p};
+                                        if(aid in n) delete n[aid];
+                                        else n[aid]=String(imp);
+                                        return n;
+                                      })}
+                                      style={{
+                                        padding:"9px 11px",marginBottom:6,borderRadius:"var(--radius-s)",cursor:"pointer",
+                                        border:`1px solid ${checked?"#3b82f6":nearDate?"#d9770644":"#e2e8f0"}`,
+                                        background:checked?"var(--bg)":nearDate?"var(--danger-s)":"transparent",
+                                        transition:"background .12s",
+                                      }}>
+                                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                                        <div style={{flex:1,minWidth:0}}>
+                                          <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:2}}>
+                                            <span style={{color:checked?"#60a5fa":"#94a3b8",fontSize:12,fontWeight:700}}>
+                                              {checked?"☑":"☐"}
+                                            </span>
+                                            <span style={{color:"var(--text-1)",fontSize:11,fontWeight:600,
+                                              whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",maxWidth:160}}>
+                                              {a["CLIENTE"]}
+                                            </span>
+                                            <span style={{background:"var(--bg)",color:statoColor,
+                                              fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,whiteSpace:"nowrap"}}>
+                                              {a["STATO TITOLO"]}
+                                            </span>
+                                            {nearDate&&!checked&&<span style={{color:"#fbbf24",fontSize:8,
+                                              background:"var(--danger-s)",padding:"1px 5px",borderRadius:3}}>
+                                              stessa data
+                                            </span>}
+                                          </div>
+                                          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                                            <span style={{color:"#0284C7",fontSize:9,fontFamily:"var(--font)"}}>
+                                              {a["N TITOLO"]}
+                                            </span>
+                                            <span style={{color:"var(--text-2)",fontSize:9}}>
+                                              {toIT(a["DATA TITOLO"])}
+                                            </span>
+                                          </div>
+                                          {docs2&&<div style={{color:"var(--text-2)",fontSize:9,marginTop:2}}>
+                                            Fatt: <span style={{color:checked?"#94a3b8":"#475569"}}>
+                                              {fmtDocList(docs2)}
+                                            </span>
+                                          </div>}
+                                        </div>
+                                        <div style={{flexShrink:0,marginLeft:10,textAlign:"right"}}>
+                                          <div style={{color:checked?"#4ade80":"#f1f5f9",fontSize:13,fontWeight:800,
+                                            fontFamily:"var(--font)"}}>
+                                            {eur(imp)}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </>
+                        )}
 
                   {/* ── 3. CONFERMA ── */}
                   <button onClick={handleConfirmReco}
@@ -4050,8 +4096,8 @@ function App() {
                       fontFamily:"var(--font)",marginBottom:8}}>
                     {recoSaving?"Salvataggio...":
                       Object.keys(recoSel).length>0
-                        ?`✓ Conferma — ${Object.keys(recoSel).length} assegn${Object.keys(recoSel).length>1?"i":"o"}`
-                        :"Seleziona almeno un assegno"}
+                        ?`✓ Conferma — ${Object.keys(recoSel).length} ${recoTab==="assegni"?"assegn":"incass"}${Object.keys(recoSel).length>1?(recoTab==="assegni"?"i":"i"):(recoTab==="assegni"?"o":"o")}`
+                        :`Seleziona almeno un ${recoTab==="assegni"?"assegno":"incasso"}`}
                   </button>
                   <button onClick={()=>{setAccrediti([]);setRecoSel({});setRecoSearch("");}}
                     style={{width:"100%",background:"transparent",border:"1px solid var(--border)",
