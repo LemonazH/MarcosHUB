@@ -2197,6 +2197,7 @@ function App() {
   const [incManA,setIncManA]=useState("");
   const [incManSearch,setIncManSearch]=useState("");
   const [recoSel,setRecoSel]=useState({}); // {numDoc: importoAllocato}
+  const selIds = new Set(Object.keys(recoSel));
   const [recoSaving,setRecoSaving]=useState(false);
   const [tab,setTab]=useState("dashboard");
   const [toast,setToast]=useState(null);
@@ -3896,7 +3897,6 @@ function App() {
                   {(()=>{
                     const totAcc = accrediti[0].avere;
                     // Elementi selezionati (da recoSel)
-                    const selIds = new Set(Object.keys(recoSel));
                     
                     let totSelezionati = 0;
                     if(recoTab === "assegni") {
