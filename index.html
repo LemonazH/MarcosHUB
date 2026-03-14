@@ -2751,11 +2751,17 @@ function App() {
       utente: authed,
       dettaglio,
     });
-      // Aggiorna stato locale documenti → CHIUSO
+      // Aggiorna stato locale documenti:
+      // - Assegni: tutti i doc collegati passano a CHIUSO
+      // - Bonifici: solo i doc che erano DA INCASSARE; gli altri erano già CHIUSI dal PayModal
       setDocs(p => {
         const d = [...p];
         for(const {docIdx} of aggiornamenti) {
-          d[docIdx] = {...d[docIdx],
+          const docCorrente = d[docIdx];
+          const statoCorrente = docCorrente?.[COL.stato];
+          // Per i bonifici, non toccare documenti già CHIUSI o PAGATI (il server non li ha aggiornati)
+          if(recoTab !== "assegni" && (statoCorrente === "CHIUSO" || statoCorrente === "PAGATO")) continue;
+          d[docIdx] = {...docCorrente,
             [COL.saldoResiduo]: "0",
             [COL.stato]: "CHIUSO",
           };
