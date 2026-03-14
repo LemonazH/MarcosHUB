@@ -2718,14 +2718,9 @@ function App() {
           
           // Solo se non è già chiuso, sennò l'incasso lo ha già chiuso a suo tempo
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          if(saldo > 0) {
-              dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: doc[COL.tipoDocumento] || "FVE" });
-              aggiornamenti.push({ docIdx, saldo });
-          } else {
-              // Se il saldo è già a zero perché il bonifico lo aveva azzerato, passiamo comunque il link 
-              // con importo simbolico (o il totale incassato) alla riconciliazione per fare la riga
-              dettaglio.push({ documento_id: doc._id, importo: 0, tipo: doc[COL.tipoDocumento] || "FVE" });
-          }
+          const imp = saldo > 0 ? saldo : parseNum(doc[COL.importoTotale] || 0.01);
+          dettaglio.push({ documento_id: doc._id, importo: imp, tipo: doc[COL.tipoDocumento] || "FVE" });
+          aggiornamenti.push({ docIdx, saldo: 0 });
         }
       }
     }
