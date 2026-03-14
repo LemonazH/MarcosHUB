@@ -2685,9 +2685,9 @@ function App() {
           const doc = docs[docIdx];
           if(!doc._id) continue;
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          // Solo documenti DA INCASSARE, APERTO o PARZIALE
+          // Permettiamo alla riconciliazione di linkare la fattura a prescindere dal suo stato attuale
           const stato = (doc[COL.stato]||"").toUpperCase();
-          if(!["DA INCASSARE","APERTO","PARZIALE"].includes(stato)) continue;
+          // const vecchiStatiValidi = ["DA INCASSARE","APERTO","PARZIALE"]; (limitazione rimossa)
           dettaglio.push({
             documento_id: doc._id,
             importo: saldo,
