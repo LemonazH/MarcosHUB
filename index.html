@@ -2680,7 +2680,7 @@ function App() {
         const docsCollegati = (ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"")
           .split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
         for(const numDoc of docsCollegati) {
-          const docIdx = docs.findIndex(d=>d[COL.numeroDocumento]===numDoc);
+          const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
           if(docIdx<0) continue;
           const doc = docs[docIdx];
           if(!doc._id) continue;
@@ -3131,23 +3131,44 @@ function App() {
                             <EditCell value={doc[COL.note]||""} onSave={v=>handleEdit(origIdx,COL.note,v)}/>
                           </td>
                           {/* Stato — cliccabile se PAGATO per riaprire */}
+                          {/* Stato — Menu a tendina per modifca manuale statto */}
                           <td style={{padding:"9px 11px"}}>
-                            {(doc[COL.stato]==="PAGATO"||doc[COL.stato]==="PARZIALE"||doc[COL.stato]==="CHIUSO"||doc[COL.stato]==="DA INCASSARE") ? (
-                              <span
-                                title="Clicca per riaprire il documento"
-                                onClick={async()=>{
-                                  if(!window.confirm(`Riaprire il documento ${doc[COL.numeroDocumento]}?\nLo stato tornerà APERTO e il saldo verrà ripristinato all'importo originale.`)) return;
-                                  const imp = parseNum(doc[COL.importoDocumento]);
-                                  await handleEdit(origIdx, COL.saldoResiduo, String(imp));
-                                  await handleEdit(origIdx, COL.stato, "APERTO");
-                                  notify("Documento riaperto ✓","success");
-                                }}
-                                style={{cursor:"pointer",display:"inline-block"}}>
-                                <Badge label={doc[COL.stato]}/>
-                                <span style={{display:"block",fontSize:8,color:"var(--text-2)",textAlign:"center",marginTop:1}}>clicca x riaprire</span>
-                              </span>
-                            ) : (
-                              <Badge label={doc[COL.stato]}/>
+                            <select
+                              value={doc[COL.stato] || "APERTO"}
+                              onChange={e => {
+                                if(window.confirm(`Stai per forzare lo stato a "${e.target.value}". Sei sicuro?`)){
+                                  handleEdit(origIdx, COL.stato, e.target.value);
+                                }
+                              }}
+                              style={{
+                                background: "var(--surface)",
+                                color: "var(--text-1)",
+                                border: "1px solid var(--border)",
+                                borderRadius: "var(--radius-s)",
+                                padding: "4px 8px",
+                                fontSize: "10px",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                                width: "100%",
+                                outline: "none"
+                              }}
+                            >
+                              {["APERTO", "PARZIALE", "PAGATO", "STORNATO", "DA INCASSARE", "CHIUSO"].map(s => (
+                                <option key={s} value={s}>{s}</option>
+                              ))}
+                            </select>
+                            {(doc[COL.stato]==="PAGATO"||doc[COL.stato]==="PARZIALE"||doc[COL.stato]==="CHIUSO"||doc[COL.stato]==="DA INCASSARE") && (
+                               <span
+                                 onClick={async()=>{
+                                   if(!window.confirm(`Vuoi azzerare il saldo e rimetterlo ad APERTO?`)) return;
+                                   const imp = parseNum(doc[COL.importoDocumento]);
+                                   await handleEdit(origIdx, COL.saldoResiduo, String(imp));
+                                   await handleEdit(origIdx, COL.stato, "APERTO");
+                                   notify("Documento riaperto ✓","success");
+                                 }}
+                                 style={{cursor:"pointer",display:"block",fontSize:8,color:"var(--accent)",textAlign:"left",marginTop:4,textDecoration:"underline"}}>
+                                 Ripristina saldo e riapri
+                               </span>
                             )}
                           </td>
                         </tr>
