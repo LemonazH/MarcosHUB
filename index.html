@@ -2157,7 +2157,7 @@ function App() {
     if(u && t){ d1API.user=u; d1API.token=t; }
     return u||"";
   });
-  const isAdmin = sessionStorage.getItem("cf_ruolo")==="admin" || authed==="Marco";
+  const isAdmin = sessionStorage.getItem("cf_ruolo")==="admin";
   const [loginUser, setLoginUser] = useState("");
   const [loginPass, setLoginPass] = useState("");
   const [loginErr, setLoginErr] = useState("");
@@ -2305,7 +2305,7 @@ function App() {
         [COL.stato]:             row.stato,
         _id: row.id,
       });
-      setDocs((docs_raw||[]).map(normalize));
+      setDocs((docs_raw?.rows || docs_raw || []).map(normalize));
       setIncs((incs_raw||[]).filter(r=>r&&r.id).map(r=>({
         "ID Incasso":     r.id,
         "Metodo":         r.metodo,
@@ -2502,6 +2502,18 @@ function App() {
     } catch(e) { notify("Errore: "+e.message,"error"); }
   };
 
+  const handleDeleteIncasso = async (idx) => {
+    const inc = incs[idx];
+    if (!inc?._id) { notify("ID incasso mancante","error"); return; }
+    if (!window.confirm(`Eliminare definitivamente l'incasso ${inc["ID Incasso"]}?\nI saldi dei documenti collegati verranno ripristinati.`)) return;
+    try {
+      await d1API.call(`/api/incassi/${inc._id}`, "DELETE", { utente: authed });
+      setIncs(p => p.filter((_,i) => i !== idx));
+      notify("Incasso eliminato e saldi ripristinati ✓","success");
+      await loadData();
+    } catch(e) { notify("Errore eliminazione: "+e.message,"error"); }
+  };
+
   const handleSavePay=async({method,amount,cid,date,notes,noteAssegno,noteDocPerDoc,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
     try {
       const cliente = docs.find(d=>d[COL.codiceCliente]===cid)?.[COL.ragioneSociale]||"";
@@ -2545,8 +2557,10 @@ function App() {
             ? (d[i][COL.note]||"")
             : (noteDocPerDoc&&noteDocPerDoc[numDoc] ? noteDocPerDoc[numDoc] : notes);
           if(isFull) {
-            const nuovoStato = (method === "BONIFICO") ? "DA RICONCILIARE" : "PAGATO";
-            d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:nuovoStato,[COL.note]:nuovaNota};
+            // Assegno: stato DA INCASSARE (saldo invariato, attende riconciliazione bancaria)
+            // Bonifico: stato DA RICONCILIARE (saldo azzerato, attende conferma estratto conto)
+            const nuovoStato = (method === "ASSEGNO") ? "DA INCASSARE" : "DA RICONCILIARE";
+            d[i]={...d[i],[COL.saldoResiduo]: method==="ASSEGNO" ? d[i][COL.saldoResiduo] : "0",[COL.stato]:nuovoStato,[COL.note]:nuovaNota};
           } else {
             const ns=Math.max(0,parseNum(d[i][COL.saldoResiduo])-f.allocato).toFixed(2);
             d[i]={...d[i],[COL.saldoResiduo]:ns,[COL.stato]:"PARZIALE",[COL.note]:nuovaNota};
@@ -2573,15 +2587,9 @@ function App() {
     const rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: false });
     if (rows.length < 1) throw new Error("File vuoto");
 
-    // Debug
-    console.log("=== BANK FILE DEBUG ===");
-    console.log("Fogli:", wb.SheetNames, "| Righe:", rows.length);
+    // Debug rimosso
     // Rileggi raw:true per avere i numeri veri (raw:false li converte in stringhe formattate)
     const rowsRaw = window.XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
-
-    console.log("=== BANK FILE DEBUG ===");
-    console.log("Fogli:", wb.SheetNames, "| Righe:", rowsRaw.length);
-    rowsRaw.slice(0, 12).forEach((r, i) => console.log(`R${i}:`, JSON.stringify(r)));
 
     // ── Converti data: stringa "09.03.2026", "09/03/2026", seriale Excel, Date JS ──
     const toDateStr = v => {
@@ -3182,7 +3190,9 @@ function App() {
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
               </select>
               <span style={{color:"var(--text-2)",fontSize:11,marginLeft:"auto"}}>
-                {filtered.length} doc • <span style={{color:"var(--accent)"}}>doppio click = modifica</span>
+                {filtered.length} doc visualizzati
+                {docs.length >= 2000 && <span style={{color:"var(--warn)",marginLeft:6}}>⚠ Limite 2000 — usa i filtri per cercare</span>}
+                {" "} • <span style={{color:"var(--accent)"}}>doppio click = modifica</span>
               </span>
             </div>
             <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
@@ -3310,6 +3320,7 @@ function App() {
                     <IncSortTh label="Importo"    colKey="Importo Totale" style={{textAlign:"right"}}/>
                     <IncSortTh label="Cliente"    colKey="Cliente"/>
                     <IncSortTh label="Note"       colKey="Note"/>
+                    {isAdmin && <th style={{padding:"10px 13px",textAlign:"center",color:"var(--text-2)",fontSize:11,fontWeight:600}}>Azioni</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -3324,6 +3335,16 @@ function App() {
                       <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
+                      {isAdmin && (
+                        <td style={{padding:"10px 13px",textAlign:"center"}}>
+                          <button
+                            title="Elimina incasso e ripristina saldi"
+                            onClick={()=>handleDeleteIncasso(origIdx)}
+                            style={{background:"transparent",border:"1px solid var(--danger)",color:"var(--danger)",borderRadius:"var(--radius-s)",padding:"3px 8px",cursor:"pointer",fontSize:13,lineHeight:1}}>
+                            🗑
+                          </button>
+                        </td>
+                      )}
                     </tr>
                     );
                   })}
