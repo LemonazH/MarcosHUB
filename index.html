@@ -2745,18 +2745,32 @@ function App() {
         const fveStr = ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"";
         const nacStr = ass["NC SCALATE"]||"";
         
-        // Split solo su virgola: i numeri documento possono contenere spazi o trattini
-        // (es. "FVE 001", "NAC-2024-001") e il join usa ", " come separatore
         const fveList = fveStr.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
         const nacList = nacStr.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
 
-        for(const numDoc of [...fveList, ...nacList]) {
-          const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
+        // Cerca prima per numero+tipo (evita confusione FVE 32 vs NAC 32), poi solo numero come fallback
+        const findDoc = (numDoc, tipo) => {
+          let idx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc) && d[COL.tipoDocumento]===tipo);
+          if(idx<0) idx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
+          return idx;
+        };
+
+        for(const numDoc of fveList) {
+          const docIdx = findDoc(numDoc, "FVE");
           if(docIdx<0) continue;
           const doc = docs[docIdx];
           if(!doc._id) continue;
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: doc[COL.tipoDocumento] || (saldo < 0 ? "NAC" : "FVE") });
+          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: "FVE" });
+          aggiornamenti.push({ docIdx, saldo });
+        }
+        for(const numDoc of nacList) {
+          const docIdx = findDoc(numDoc, "NAC");
+          if(docIdx<0) continue;
+          const doc = docs[docIdx];
+          if(!doc._id) continue;
+          const saldo = parseNum(doc[COL.saldoResiduo]);
+          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: "NAC" });
           aggiornamenti.push({ docIdx, saldo });
         }
       }
