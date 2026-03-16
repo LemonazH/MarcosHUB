@@ -2339,7 +2339,10 @@ function App() {
         descAdd:     r.descrizione_aggiuntiva || "",
         utente:      r.utente || "",
         tipo:        (r.id||"").startsWith("RIC-") ? "Banca" : "Pagamento",
+        // fatture = numeri documento (per matching assegni)
         fatture:     (r.documenti||"").split(",").map(x=>x.trim()).filter(Boolean),
+        // fattureIds = ID documento univoci (per display corretto di FVE+NAC con stesso numero)
+        fattureIds:  (r.documento_ids||"").split(",").map(x=>x.trim()).filter(Boolean),
         created_at:  r.created_at || "",
       }));
       setRiconciliazioni(ricoNorm);
@@ -2742,9 +2745,10 @@ function App() {
         const fveStr = ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"";
         const nacStr = ass["NC SCALATE"]||"";
         
-        // Regex di split originale come richiesto dall'utente per compatibilità pregressa
-        const fveList = fveStr.split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
-        const nacList = nacStr.split(/[,\-\s]+/).map(s=>s.trim()).filter(Boolean);
+        // Split solo su virgola: i numeri documento possono contenere spazi o trattini
+        // (es. "FVE 001", "NAC-2024-001") e il join usa ", " come separatore
+        const fveList = fveStr.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
+        const nacList = nacStr.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
 
         for(const numDoc of [...fveList, ...nacList]) {
           const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
@@ -4335,7 +4339,8 @@ function App() {
                     </thead>
                     <tbody>
                       {[...filteredRico].reverse().map((r,i)=>{
-                        const fatture   = Array.isArray(r.fatture)?r.fatture:[];
+                         const fatture   = Array.isArray(r.fatture)?r.fatture:[];
+                        const fattureIds = Array.isArray(r.fattureIds)&&r.fattureIds.length ? r.fattureIds : fatture;
                         const accredito = r.accredito||0;
                         const data      = r.data||"—";
                         const desc      = r.descrizione||"—";
@@ -4344,7 +4349,7 @@ function App() {
                         return (
                           <tr key={i} style={{borderBottom:"1px solid var(--border-2)",cursor:"pointer"}}
                             className="row-hover"
-                            onClick={()=>setStoricoPopup({r,fatture,tipo,data,desc,accredito,id,descAdd:r.descAdd||"",utente:r.utente||""})}>
+                            onClick={()=>setStoricoPopup({r,fatture,fattureIds,tipo,data,desc,accredito,id,descAdd:r.descAdd||"",utente:r.utente||""})}>
                             <td style={{padding:"10px 14px"}}>
                               <div style={{color:"var(--text-2)",fontSize:9,marginBottom:2}}>{id}</div>
                               <span style={{background:tipo==="Banca"?"var(--accent-s)":"var(--success-s)",
@@ -4460,11 +4465,12 @@ function App() {
 
       {/* ── POPUP DETTAGLIO RICONCILIAZIONE ── */}
       {storicoPopup&&(()=>{
-        const {r, fatture, tipo, data, desc, accredito, id, descAdd, utente} = storicoPopup;
-        // Incrocia fatture con documenti e assegni
-        const docCollegati = fatture.map(f=>{
-          const d = docs.find(d=>d[COL.numeroDocumento]===f||String(d._id)===f);
-          return d ? {...d, _numRef:f} : null;
+        const {r, fatture, fattureIds, tipo, data, desc, accredito, id, descAdd, utente} = storicoPopup;
+        // Incrocia per ID (fattureIds) → preciso anche quando FVE e NAC hanno stesso numero
+        const lookupIds = fattureIds||fatture;
+        const docCollegati = lookupIds.map(f=>{
+          const d = docs.find(d=>String(d._id)===String(f)||d[COL.numeroDocumento]===f||String(d[COL.numeroDocumento])===String(f));
+          return d ? {...d, _numRef: d[COL.numeroDocumento]} : null;
         }).filter(Boolean);
         const assCollegati = (() => {
           // byFatt — confronto ESATTO per ogni numero documento
@@ -4472,7 +4478,8 @@ function App() {
           const match = assegni.filter(a=>{
             const fp = String(a["FATTURE PAGATE"]||"");
             // 1. Match per Numero Fattura
-            const parts = fp.split(/[,;\s]+/).map(s=>s.trim()).filter(Boolean);
+            // Split solo su virgola per preservare numeri con spazi/trattini
+            const parts = fp.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
             const invoiceMatch = parts.some(p=>fattureSet.has(p));
             // 2. Match per Numero Titolo (se presente nella causale della riconciliazione)
             const nTitolo = String(a["N TITOLO"]||"").trim();
