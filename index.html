@@ -2745,8 +2745,8 @@ function App() {
         const fveStr = ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"";
         const nacStr = ass["NC SCALATE"]||"";
         
-        const fveList = fveStr.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
-        const nacList = nacStr.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
+        const fveList = fveStr.split(/\s*,\s*|\s+-\s+/).map(s=>s.trim()).filter(Boolean);
+        const nacList = nacStr.split(/\s*,\s*|\s+-\s+/).map(s=>s.trim()).filter(Boolean);
 
         // Cerca prima per numero+tipo (evita confusione FVE 32 vs NAC 32), poi solo numero come fallback
         const findDoc = (numDoc, tipo) => {
