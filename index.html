@@ -2259,6 +2259,7 @@ function App() {
     return true;
   });
   const assSorted = sortData(filteredAssegni, assSortKey, assSortDir);
+  const assegniRiconciliabili = assegni.filter(a => (a["STATO TITOLO"] || "").toUpperCase() !== "INCASSATO");
 
   const filteredRico = riconciliazioni.filter(r=>{
     if(ricDateDa){ const k=toISO(r.data); if(k<ricDateDa) return false; }
@@ -2486,6 +2487,20 @@ function App() {
       await d1API.call(`/api/assegni/${ass._id}`, "PUT", { [d1field]: val, utente: authed });
       notify("Assegno aggiornato ✓","success");
     } catch(e) { notify("Errore: "+e.message,"error"); }
+  };
+
+  const handleEditRicStorico = async (assegno, value) => {
+    if (!assegno?._id) { notify("ID assegno mancante","error"); return; }
+    const nuovoStato = value === "SI"
+      ? "INCASSATO"
+      : ((assegno["STATO TITOLO"] || "").toUpperCase() === "INCASSATO" ? "CONSEGNATO A PINO" : (assegno["STATO TITOLO"] || "IN ARCHIVIO"));
+    try {
+      await d1API.updateAssegno(assegno._id, { stato: nuovoStato, utente: authed });
+      setAssegni(p => p.map(a => a._id === assegno._id ? { ...a, "STATO TITOLO": nuovoStato } : a));
+      notify("Stato riconciliazione assegno aggiornato ✓","success");
+    } catch (e) {
+      notify("Errore: " + e.message, "error");
+    }
   };
 
   // Edit inline incassi
@@ -2735,7 +2750,7 @@ function App() {
     let nItems = 0;
 
     if (recoTab === "assegni") {
-      const assegniSel = assegni.filter(a=>String(a._id) in recoSel);
+      const assegniSel = assegniRiconciliabili.filter(a=>String(a._id) in recoSel);
       nItems = assegniSel.length;
       causale = assegniSel.map(a=>a["N TITOLO"]).filter(Boolean).join(" + ");
       descAdd = assegniSel.map(a=>`${a["CLIENTE"]} — ${a["DOCUMENTI COLLEGATI"]||a["FATTURE PAGATE"]||""}`).join(" | ");
@@ -2826,6 +2841,9 @@ function App() {
       descrizione_aggiuntiva: descAdd,
       utente: authed,
       dettaglio,
+      assegni_ids: recoTab === "assegni"
+        ? assegniRiconciliabili.filter(a => String(a._id) in recoSel).map(a => a._id)
+        : [],
     });
       // Aggiorna stato locale documenti:
       // - Assegni: tutti i doc collegati passano a CHIUSO
@@ -2846,6 +2864,10 @@ function App() {
         return d;
       });
       setBankRows(p => p.map(r => r.idx===accredito.idx ? {...r, riconciliato:true} : r));
+      if (recoTab === "assegni") {
+        const sel = new Set(Object.keys(recoSel));
+        setAssegni(p => p.map(a => sel.has(String(a._id)) ? { ...a, "STATO TITOLO": "INCASSATO" } : a));
+      }
       setAccrediti([]);
       setRecoSel({});
       setRecoSearch("");
@@ -3567,7 +3589,7 @@ function App() {
                   </div>
 
                   <span style={{color:"var(--text-2)",fontSize:10}}>
-                    {recoTab==="assegni"?`${assegni.length} assegni totali`:`${incs.length} incassi totali`}
+                    {recoTab==="assegni"?`${assegniRiconciliabili.length} assegni da riconciliare`:`${incs.length} incassi totali`}
                   </span>
                 </div>
 
@@ -3626,7 +3648,7 @@ function App() {
                 {/* Lista assegni filtrata */}
                 {(()=>{
                   const s = assManSearch.toLowerCase();
-                  const filtered = assegni.filter(a => {
+                  const filtered = assegniRiconciliabili.filter(a => {
                     const dt = toISO(a["DATA TITOLO"]) || "";
                     if(assManDa && dt < assManDa) return false;
                     if(assManA  && dt > assManA)  return false;
@@ -4114,7 +4136,7 @@ function App() {
                             <div style={{maxHeight:360,overflowY:"auto",marginBottom:12}}>
                               {(()=>{
                                 const q = recoSearch.toLowerCase();
-                                const lista = assegni
+                                const lista = assegniRiconciliabili
                                   .filter(a=>{
                                     if(q && !a["CLIENTE"]?.toLowerCase().includes(q) &&
                                        !a["N TITOLO"]?.toLowerCase().includes(q) &&
@@ -4257,8 +4279,8 @@ function App() {
               })
             : assegniOrdinati;
 
-          const nRicNonRic = assegni.filter(a=>!a._incassoId).length;
-          const totNonRic  = assegni.filter(a=>!a._incassoId).reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
+          const nRicNonRic = assegni.filter(a=>(a["STATO TITOLO"]||"").toUpperCase()!="INCASSATO").length;
+          const totNonRic  = assegni.filter(a=>(a["STATO TITOLO"]||"").toUpperCase()!="INCASSATO").reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
 
           return (
           <div className="tab-content glass-card" style={{borderRadius:"var(--radius)",overflow:"hidden"}}>
@@ -4400,7 +4422,7 @@ function App() {
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"var(--raised)"}}>
-                        {["N° Assegno","Cliente","Data Titolo","Data Incasso","Importo","Fatture Pagate","NC Scalate","Stato","Ric."].map(h=>(
+                        {["N° Assegno","Cliente","Data Titolo","Data Incasso","Importo","Fatture Pagate","NC Scalate","Stato","RIC"].map(h=>(
                           <th key={h} style={{padding:"9px 12px",textAlign:h==="Importo"?"right":"left",
                             color:"var(--text-2)",fontWeight:600,fontSize:10,
                             borderBottom:"1px solid var(--border)",whiteSpace:"nowrap"}}>{h}</th>
@@ -4409,7 +4431,7 @@ function App() {
                     </thead>
                     <tbody>
                       {assegniVis.map((a,i)=>{
-                        const isRic = !!a._incassoId;
+                        const isRic = (a["STATO TITOLO"]||"").toUpperCase()==="INCASSATO";
                         const isHL  = storicoFiltroAssegno && (a["DATA TITOLO"]||"").slice(0,10)===storicoFiltroAssegno;
                         const stato = a["STATO TITOLO"]||"";
                         const statoC = assStatoColor(stato);
@@ -4451,12 +4473,26 @@ function App() {
                               </span>
                             </td>
                             <td style={{padding:"9px 12px",textAlign:"center"}}>
-                              {isRic
-                                ? <span title="Collegato a un incasso"
-                                    style={{color:"var(--success)",fontSize:13}}>✓</span>
-                                : <span title="Non ancora riconciliato"
-                                    style={{color:"var(--warn)",fontSize:13}}>○</span>
-                              }
+                              <select
+                                value={isRic ? "SI" : "NO"}
+                                onChange={e => {
+                                  if (window.confirm(`Confermi aggiornamento RIC a "${e.target.value}" per assegno ${a["N TITOLO"] || ""}?`)) {
+                                    handleEditRicStorico(a, e.target.value);
+                                  }
+                                }}
+                                style={{
+                                  background:"var(--surface)",
+                                  color:isRic ? "var(--success)" : "var(--warn)",
+                                  border:"1px solid var(--border)",
+                                  borderRadius:"var(--radius-s)",
+                                  fontSize:10,
+                                  fontWeight:700,
+                                  padding:"3px 6px",
+                                  cursor:"pointer",
+                                }}>
+                                <option value="NO">NO</option>
+                                <option value="SI">SI</option>
+                              </select>
                             </td>
                           </tr>
                         );
