@@ -290,6 +290,27 @@ const fmtDocList = (str) => {
   return parts.join(" - ");
 };
 
+// Parser retrocompatibile per riferimenti documento:
+// supporta liste separate da virgole/; e, in formato storico, da spazi/punti solo se sono numeri.
+const parseDocRefs = (value) => {
+  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  const base = raw.split(/[;,\n\r|]+/).map(s => s.trim()).filter(Boolean);
+  if (base.length > 1) return base;
+
+  if (/^\d+(?:[\s.]+\d+)+$/.test(raw)) {
+    return raw.split(/[\s.]+/).map(s => s.trim()).filter(Boolean);
+  }
+
+  if (/\s+-\s+/.test(raw)) {
+    return raw.split(/\s+-\s+/).map(s => s.trim()).filter(Boolean);
+  }
+
+  return [raw];
+};
+
 /* ──────────────────────────────────────────────
    ALGORITMO PREDIZIONE PAGAMENTI
 ────────────────────────────────────────────── */
@@ -2760,8 +2781,8 @@ function App() {
         const fveStr = ass["DOCUMENTI COLLEGATI"]||ass["FATTURE PAGATE"]||"";
         const nacStr = ass["NC SCALATE"]||"";
         
-        const fveList = fveStr.split(/\s*,\s*|\s+-\s+/).map(s=>s.trim()).filter(Boolean);
-        const nacList = nacStr.split(/\s*,\s*|\s+-\s+/).map(s=>s.trim()).filter(Boolean);
+        const fveList = parseDocRefs(fveStr);
+        const nacList = parseDocRefs(nacStr);
 
         // Cerca prima per numero+tipo (evita confusione FVE 32 vs NAC 32), poi solo numero come fallback
         const findDoc = (numDoc, tipo) => {
@@ -2809,9 +2830,7 @@ function App() {
       for(const inc of incassiSel) {
         // FIX 3: split solo su virgola — non su trattino/spazio per non spezzare
         // codici documento tipo "AB - 90564" o "2024/00123"
-        const docsCollegati = Array.isArray(inc.fatture)
-          ? inc.fatture
-          : (inc.fatture||"").toString().split(/[,\-\s;]+/).map(s=>s.trim()).filter(Boolean);
+        const docsCollegati = parseDocRefs(inc.fatture);
         for(const numDoc of docsCollegati) {
           const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
           if(docIdx<0) continue;
