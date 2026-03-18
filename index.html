@@ -2030,6 +2030,7 @@ function App() {
   const selAccredito = accrediti[0] || null; // compat con codice esistente
   const [recoSearch,setRecoSearch]=useState(""); // ricerca fatture nel pannello
   const [storicoPopup,setStoricoPopup]=useState(null); // riconciliazione aperta in popup
+  const [pathPopup,setPathPopup]=useState(null); // popup percorsi connessi da row click
   const [storicoFiltroAssegno,setStoricoFiltroAssegno]=useState(null); // highlight da click grafico
   const [storicoSezione,setStoricoSezione]=useState("incassi"); // "incassi" | "assegni"
   const [assShowAltri,setAssShowAltri]=useState(false); // espandi altri assegni in riconciliazione
@@ -2126,10 +2127,13 @@ function App() {
   const [incSortDir, setIncSortDir] = useState("desc");
   const [assSortKey, setAssSortKey] = useState("DATA TITOLO");
   const [assSortDir, setAssSortDir] = useState("desc");
+  const [ricoSortKey, setRicoSortKey] = useState("data");
+  const [ricoSortDir, setRicoSortDir] = useState("desc");
 
   const toggleDocSort = k => { setDocSortKey(k); setDocSortDir(d=>k===docSortKey?(d==="asc"?"desc":"asc"):"asc"); };
   const toggleIncSort = k => { setIncSortKey(k); setIncSortDir(d=>k===incSortKey?(d==="asc"?"desc":"asc"):"asc"); };
   const toggleAssSort = k => { setAssSortKey(k); setAssSortDir(d=>k===assSortKey?(d==="asc"?"desc":"asc"):"asc"); };
+  const toggleRicoSort = k => { setRicoSortKey(k); setRicoSortDir(d=>k===ricoSortKey?(d==="asc"?"desc":"asc"):"asc"); };
 
   const docSorted = sortData(filtered, docSortKey, docSortDir);
 
@@ -2180,6 +2184,7 @@ function App() {
     if(!matchesGlobal(r)) return false;
     return true;
   });
+  const ricoSorted = sortData(filteredRico, ricoSortKey, ricoSortDir);
 
   const bankRowsFiltered = bankRows.filter(r => {
     const k = toISO(r.data || "");
@@ -2192,13 +2197,130 @@ function App() {
   const docVisible = docSorted.slice(0, docRowsLimit);
   const incVisible = incSorted.slice(0, incRowsLimit);
   const assVisible = assSorted.slice(0, assRowsLimit);
-  const ricoVisible = [...filteredRico].reverse().slice(0, ricRowsLimit);
+  const ricoVisible = ricoSorted.slice(0, ricRowsLimit);
 
   const DocSortTh = makeSortTh(docSortKey, docSortDir, toggleDocSort);
   const IncSortTh = makeSortTh(incSortKey, incSortDir, toggleIncSort);
   const AssSortTh = makeSortTh(assSortKey, assSortDir, toggleAssSort);
+  const RicoSortTh = makeSortTh(ricoSortKey, ricoSortDir, toggleRicoSort);
 
   const notify=(msg,type="info")=>setToast({msg,type});
+
+  const sameRef = (a,b) => String(a||"").trim() === String(b||"").trim();
+  const uniqBy = (arr, keyFn) => {
+    const seen = new Set();
+    return (arr||[]).filter(x => {
+      const k = keyFn(x);
+      if (!k || seen.has(k)) return false;
+      seen.add(k);
+      return true;
+    });
+  };
+  const interAny = (arrA, arrB) => {
+    const b = new Set((arrB||[]).map(v => String(v||"").trim()).filter(Boolean));
+    return (arrA||[]).some(v => b.has(String(v||"").trim()));
+  };
+  const assegnoRefs = a => {
+    const fve = parseDocRefs(a?.["DOCUMENTI COLLEGATI"] || a?.["FATTURE PAGATE"] || "");
+    const nac = parseDocRefs(a?.["NC SCALATE"] || "");
+    return uniqBy([...fve, ...nac], v => String(v||"").trim());
+  };
+  const ricoMatchesByDocs = (docNums, docIds=[]) => {
+    return (riconciliazioni||[]).filter(r => {
+      const nums = parseDocRefs(r?.fatture || "");
+      const ids = parseDocRefs(r?.fattureIds || "");
+      return interAny(docNums, nums) || interAny(docIds, ids);
+    });
+  };
+
+  const openPathPopup = (kind, row) => {
+    let docsL = [];
+    let incsL = [];
+    let assL = [];
+    let ricoL = [];
+    let title = "";
+    let subtitle = "";
+
+    if (kind === "documento") {
+      const num = String(row?.[COL.numeroDocumento] || "").trim();
+      const did = String(row?._id || "").trim();
+      const nums = num ? [num] : [];
+      const ids = did ? [did] : [];
+
+      docsL = [row];
+      assL = (assegni||[]).filter(a => interAny(nums, assegnoRefs(a)));
+      incsL = (incs||[]).filter(i => {
+        const refs = parseDocRefs(i?.fatture || "");
+        return interAny(nums, refs) || (row?.[COL.nAssegno] && sameRef(i?.["N Assegno"], row?.[COL.nAssegno]));
+      });
+      ricoL = ricoMatchesByDocs(nums, ids);
+
+      title = `Documento ${num || "-"}`;
+      subtitle = `${row?.[COL.ragioneSociale] || "Cliente n/d"} · ${row?.[COL.tipoDocumento] || ""}`;
+    }
+
+    if (kind === "incasso") {
+      const refs = parseDocRefs(row?.fatture || "");
+      const nTitolo = String(row?.["N Assegno"] || "").trim();
+      docsL = (docs||[]).filter(d => refs.some(r => sameRef(d?.[COL.numeroDocumento], r)));
+      const docNums = docsL.map(d => String(d?.[COL.numeroDocumento] || "").trim()).filter(Boolean);
+      const docIds = docsL.map(d => String(d?._id || "").trim()).filter(Boolean);
+
+      incsL = [row];
+      assL = (assegni||[]).filter(a => {
+        const byRefs = interAny(docNums, assegnoRefs(a));
+        const byTit = nTitolo && sameRef(a?.["N TITOLO"], nTitolo);
+        return byRefs || byTit;
+      });
+      ricoL = (riconciliazioni||[]).filter(r => {
+        const byId = sameRef(r?.id, row?._id) || sameRef(r?.id, row?.["ID Incasso"]);
+        const byDoc = interAny(parseDocRefs(r?.fatture || ""), docNums) || interAny(parseDocRefs(r?.fattureIds || ""), docIds);
+        return byId || byDoc;
+      });
+
+      title = `Incasso ${row?.["ID Incasso"] || row?._id || "-"}`;
+      subtitle = `${row?.["Cliente"] || "Cliente n/d"} · ${row?.["Metodo"] || "Metodo n/d"}`;
+    }
+
+    if (kind === "assegno") {
+      const refs = assegnoRefs(row);
+      const titolo = String(row?.["N TITOLO"] || "").trim();
+      docsL = (docs||[]).filter(d => refs.some(r => sameRef(d?.[COL.numeroDocumento], r)));
+      const docNums = docsL.map(d => String(d?.[COL.numeroDocumento] || "").trim()).filter(Boolean);
+      const docIds = docsL.map(d => String(d?._id || "").trim()).filter(Boolean);
+
+      assL = [row];
+      incsL = (incs||[]).filter(i => {
+        const byRefs = interAny(parseDocRefs(i?.fatture || ""), docNums);
+        const byTit = titolo && sameRef(i?.["N Assegno"], titolo);
+        return byRefs || byTit;
+      });
+      ricoL = (riconciliazioni||[]).filter(r => {
+        const byDocs = interAny(parseDocRefs(r?.fatture || ""), docNums) || interAny(parseDocRefs(r?.fattureIds || ""), docIds);
+        const txt = `${r?.descrizione || ""} ${r?.descAdd || ""}`.toLowerCase();
+        const byTit = titolo && txt.includes(titolo.toLowerCase());
+        return byDocs || byTit;
+      });
+
+      title = `Assegno ${titolo || "-"}`;
+      subtitle = `${row?.["CLIENTE"] || "Cliente n/d"} · ${toIT(row?.["DATA TITOLO"]) || "Data n/d"}`;
+    }
+
+    setPathPopup({
+      kind,
+      title,
+      subtitle,
+      docs: uniqBy(docsL, d => String(d?._id || d?.[COL.numeroDocumento] || "")),
+      incs: uniqBy(incsL, i => String(i?._id || i?.["ID Incasso"] || "")),
+      ass: uniqBy(assL, a => String(a?._id || a?.["N TITOLO"] || "")),
+      rico: uniqBy(ricoL, r => String(r?.id || "")),
+    });
+  };
+
+  const onDataRowClick = (e, kind, row) => {
+    if (e.target.closest("input,select,textarea,button,a")) return;
+    openPathPopup(kind, row);
+  };
 
   const downloadRowsXlsx = (rows, fileName, sheetName) => {
     if (!rows || !rows.length) {
@@ -3313,7 +3435,9 @@ function App() {
                       const base=ov?"var(--danger-s)":wn?"var(--warn-s)":i%2===0?"var(--raised)":"var(--surface)";
                       return (
                         <tr key={doc[COL.numeroDocumento]+i} className="row-hover"
-                          style={{borderBottom:"1px solid var(--border-2)",background:base}}>
+                          onClick={e=>onDataRowClick(e, "documento", doc)}
+                          title="Clicca per vedere percorsi collegati"
+                          style={{borderBottom:"1px solid var(--border-2)",background:base,cursor:"pointer"}}>
                           <td style={{padding:"9px 11px"}}><Badge label={doc[COL.tipoDocumento]}/></td>
                           <td style={{padding:"9px 11px",color:"var(--accent)",fontWeight:600}}>
                             <EditCell value={doc[COL.numeroDocumento]} onSave={v=>handleEdit(origIdx,COL.numeroDocumento,v)}/>
@@ -3447,7 +3571,9 @@ function App() {
                     const origIdx = incs.indexOf(inc);
                     return (
                     <tr key={inc["ID Incasso"]||i} className="row-hover"
-                      style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)"}}>
+                      onClick={e=>onDataRowClick(e, "incasso", inc)}
+                      title="Clicca per vedere percorsi collegati"
+                      style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
                       <td style={{padding:"10px 13px",color:"var(--accent)",fontFamily:"var(--font)",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
@@ -3538,7 +3664,9 @@ function App() {
                     const origIdxA = assegni.indexOf(a);
                     return (
                       <tr key={i} className="row-hover"
-                        style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)"}}>
+                        onClick={e=>onDataRowClick(e, "assegno", a)}
+                        title="Clicca per vedere percorsi collegati"
+                        style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
                         <td style={{padding:"9px 13px",color:"#0284C7",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
@@ -4487,11 +4615,11 @@ function App() {
                   <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"var(--raised)"}}>
-                        {["ID","Data","Accredito","Descrizione","Fatture/NAC collegate"].map(h=>(
-                          <th key={h} style={{padding:"10px 14px",textAlign:"left",
-                            color:"var(--text-2)",fontWeight:600,fontSize:11,
-                            borderBottom:"1px solid var(--border)"}}>{h}</th>
-                        ))}
+                        <RicoSortTh label="ID" colKey="id"/>
+                        <RicoSortTh label="Data" colKey="data"/>
+                        <RicoSortTh label="Accredito" colKey="accredito" style={{textAlign:"right"}}/>
+                        <RicoSortTh label="Descrizione" colKey="descrizione"/>
+                        <RicoSortTh label="Fatture/NAC collegate" colKey="fatture"/>
                       </tr>
                     </thead>
                     <tbody>
@@ -4839,6 +4967,89 @@ function App() {
           </div>
         );
       })()}
+
+      {/* ── POPUP PERCORSI CONNESSI ── */}
+      {pathPopup&&(
+        <div
+          style={{position:"fixed",inset:0,background:"rgba(0,0,0,.66)",zIndex:510,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+          onClick={()=>setPathPopup(null)}>
+          <div
+            style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,width:"100%",maxWidth:860,maxHeight:"86vh",display:"flex",flexDirection:"column",boxShadow:"0 24px 80px #00000099"}}
+            onClick={e=>e.stopPropagation()}>
+            <div style={{padding:"16px 20px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
+              <div>
+                <div style={{color:"var(--text-1)",fontSize:18,fontWeight:800}}>{pathPopup.title}</div>
+                <div style={{color:"var(--text-2)",fontSize:11,marginTop:3}}>{pathPopup.subtitle}</div>
+                <div style={{display:"flex",gap:10,marginTop:8,flexWrap:"wrap"}}>
+                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Documenti: {pathPopup.docs.length}</span>
+                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Incassi: {pathPopup.incs.length}</span>
+                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Assegni: {pathPopup.ass.length}</span>
+                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Riconciliazioni: {pathPopup.rico.length}</span>
+                </div>
+              </div>
+              <button onClick={()=>setPathPopup(null)} style={{background:"var(--accent-s)",border:"none",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
+            </div>
+
+            <div style={{overflowY:"auto",padding:"16px 20px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Documenti collegati</div>
+                {pathPopup.docs.length ? pathPopup.docs.map((d,idx)=>(
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+                      <span style={{color:"var(--accent)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{d[COL.numeroDocumento]||"—"}</span>
+                      <span style={{color:"var(--text-2)",fontSize:10}}>{d[COL.tipoDocumento]||"—"}</span>
+                    </div>
+                    <div style={{color:"var(--text-1)",fontSize:11,marginTop:2}}>{d[COL.ragioneSociale]||"—"}</div>
+                    <div style={{color:"var(--text-2)",fontSize:10,marginTop:2}}>Saldo: {eur(d[COL.saldoResiduo])} · Stato: {d[COL.stato]||"—"}</div>
+                  </div>
+                )) : <div style={{color:"var(--text-3)",fontSize:11}}>Nessun documento collegato</div>}
+              </div>
+
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Incassi collegati</div>
+                {pathPopup.incs.length ? pathPopup.incs.map((inc,idx)=>(
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+                      <span style={{color:"#38bdf8",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{inc["ID Incasso"]||inc._id||"—"}</span>
+                      <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(inc["Importo Totale"]||0)}</span>
+                    </div>
+                    <div style={{color:"var(--text-1)",fontSize:11,marginTop:2}}>{inc["Cliente"]||"—"}</div>
+                    <div style={{color:"var(--text-2)",fontSize:10,marginTop:2}}>{inc["Metodo"]||"—"} · {toIT(inc["Data Ricezione"])||"—"}</div>
+                  </div>
+                )) : <div style={{color:"var(--text-3)",fontSize:11}}>Nessun incasso collegato</div>}
+              </div>
+
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Assegni collegati</div>
+                {pathPopup.ass.length ? pathPopup.ass.map((a,idx)=>(
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+                      <span style={{color:"#60a5fa",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{a["N TITOLO"]||"—"}</span>
+                      <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(a["IMPORTO TITOLO"]||0)}</span>
+                    </div>
+                    <div style={{color:"var(--text-1)",fontSize:11,marginTop:2}}>{a["CLIENTE"]||"—"}</div>
+                    <div style={{color:"var(--text-2)",fontSize:10,marginTop:2}}>{toIT(a["DATA TITOLO"])||"—"} · <span style={{color:assStatoColor(a["STATO TITOLO"]),fontWeight:700}}>{a["STATO TITOLO"]||"—"}</span></div>
+                  </div>
+                )) : <div style={{color:"var(--text-3)",fontSize:11}}>Nessun assegno collegato</div>}
+              </div>
+
+              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Riconciliazioni collegate</div>
+                {pathPopup.rico.length ? pathPopup.rico.map((r,idx)=>(
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                    <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
+                      <span style={{color:"var(--accent)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{r.id||"—"}</span>
+                      <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(r.accredito||0)}</span>
+                    </div>
+                    <div style={{color:"var(--text-2)",fontSize:10,marginTop:2}}>{toIT(r.data)||"—"} · {r.tipo||"—"}</div>
+                    <div style={{color:"var(--text-2)",fontSize:10,marginTop:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.descrizione||"—"}</div>
+                  </div>
+                )) : <div style={{color:"var(--text-3)",fontSize:11}}>Nessuna riconciliazione collegata</div>}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showPay&&<PayModal docs={docs} onSave={handleSavePay} onClose={()=>setShowPay(false)} user={authed} onLogout={handleLogout}/>}
       {toast&&<Toast msg={toast.msg} type={toast.type} onClose={()=>setToast(null)}/>}
