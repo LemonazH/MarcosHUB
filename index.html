@@ -4577,6 +4577,18 @@ function App() {
           return d ? {...d, _numRef: d[COL.numeroDocumento]} : null;
         }).filter(Boolean);
         const assCollegati = (() => {
+          const titoloInCausaleSet = (() => {
+            const src = String(desc || "");
+            const m = src.match(/\[([^\]]+)\]\s*$/);
+            if (!m) return new Set();
+            return new Set(
+              m[1]
+                .split("+")
+                .map(s => String(s||"").replace(/^[\s\[(]+|[\s\])]+$/g, "").trim())
+                .filter(Boolean)
+            );
+          })();
+
           // byFatt con tipo documento: evita collisioni tra FVE/NAC con stesso numero
           const fattureSet = new Set((fatture||[]).map(f=>String(f).trim()).filter(Boolean));
           const fveSet = new Set(
@@ -4594,15 +4606,18 @@ function App() {
           const hasTypedRefs = fveSet.size>0 || nacSet.size>0;
 
           const match = assegni.filter(a=>{
+            const nTitolo = String(a["N TITOLO"]||"").trim();
+            if (titoloInCausaleSet.size > 0) {
+              return titoloInCausaleSet.has(nTitolo);
+            }
+
             const fveRefs = parseDocRefs(a["FATTURE PAGATE"]||"");
             const nacRefs = parseDocRefs(a["NC SCALATE"]||"");
             const invoiceMatch = hasTypedRefs
               ? (fveRefs.some(p=>fveSet.has(String(p).trim())) || nacRefs.some(p=>nacSet.has(String(p).trim())))
               : ([...fveRefs, ...nacRefs].some(p=>fattureSet.has(String(p).trim())));
-            // 2. Match per Numero Titolo (se presente nella causale della riconciliazione)
-            const nTitolo = String(a["N TITOLO"]||"").trim();
-            const titoloMatch = nTitolo && desc && desc.includes(nTitolo);
-            return invoiceMatch || titoloMatch;
+            const isIncassato = (a["STATO TITOLO"]||"").toUpperCase() === "INCASSATO";
+            return invoiceMatch && isIncassato;
           });
           // Rimosso byData (matching per sola data) perché causava falsi positivi.
           return match.filter((a,i,arr)=>arr.findIndex(b=>b["N TITOLO"]===a["N TITOLO"])===i);
