@@ -167,6 +167,7 @@
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="./state-rules.js"></script>
+  <script src="./parsers.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -315,17 +316,10 @@ const allowedTransitions = CF_STATE.allowedTransitions || ((rules, fromState) =>
   return Array.isArray(allowed) ? allowed : [];
 });
 
-// Formatta lista numeri doc come "29 - 127 - 158"
-const fmtDocList = (str) => {
-  if (!str || !str.trim()) return "—";
-  const parts = parseDocRefs(str);
-  if (parts.length <= 1) return str.trim() || "—";
-  return parts.join(" - ");
-};
+// Fase C2: parser/formatter centralizzati in modulo esterno (con fallback interno)
+const CF_PARSERS = window.CFParsers || {};
 
-// Parser retrocompatibile per riferimenti documento:
-// supporta liste separate da virgole/; e, in formato storico, da spazi/punti solo se sono numeri.
-const parseDocRefs = (value) => {
+const parseDocRefs = CF_PARSERS.parseDocRefs || ((value) => {
   if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
   const raw = String(value || "").trim();
   if (!raw) return [];
@@ -342,7 +336,45 @@ const parseDocRefs = (value) => {
   }
 
   return [raw];
-};
+});
+
+const parseNum = CF_PARSERS.parseNum || ((s) => {
+  if (s===null||s===undefined||s==="") return 0;
+  const str = String(s).trim();
+  if (str.includes(",")) return parseFloat(str.replace(/\./g,"").replace(",",".")) || 0;
+  return parseFloat(str) || 0;
+});
+
+const toISO = CF_PARSERS.toISO || ((v) => {
+  if(!v) return "";
+  const s = String(v).trim();
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+  const it = s.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{4})/);
+  if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
+  if(typeof v==="number"&&v>40000) {
+    const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);
+    return isNaN(d)?"":d.toISOString().slice(0,10);
+  }
+  return s;
+});
+
+const toIT = CF_PARSERS.toIT || ((v) => {
+  if(!v) return "—";
+  const iso = toISO(v);
+  if(!iso) return String(v);
+  const [y,m,d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+});
+
+const eur = CF_PARSERS.eur || (n => new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(parseNum(n)));
+
+// Formatta lista numeri doc come "29 - 127 - 158"
+const fmtDocList = CF_PARSERS.fmtDocList || ((str) => {
+  if (!str || !str.trim()) return "—";
+  const parts = parseDocRefs(str);
+  if (parts.length <= 1) return str.trim() || "—";
+  return parts.join(" - ");
+});
 
 /* ──────────────────────────────────────────────
    ALGORITMO PREDIZIONE PAGAMENTI
@@ -394,36 +426,6 @@ const MOCK_INCS = [
 /* ──────────────────────────────────────────────
    UTILS
 ────────────────────────────────────────────── */
-// Converte stringa numerica italiana (virgola decimale) o inglese (punto) in float
-const parseNum = s => {
-  if(s===null||s===undefined||s==="") return 0;
-  const str = String(s).trim();
-  // Formato italiano: 1.234,56 → rimuovi punti migliaia, sostituisci virgola con punto
-  if(str.includes(",")) return parseFloat(str.replace(/\./g,"").replace(",",".")) || 0;
-  // Formato standard con punto decimale
-  return parseFloat(str) || 0;
-};
-const eur = n => new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(parseNum(n));
-// Converti qualsiasi formato data → gg/mm/aaaa (display)
-const toISO = v => {
-  if(!v) return "";
-  const s = String(v).trim();
-  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);           // già ISO
-  const it = s.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{4})/);
-  if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
-  if(typeof v==="number"&&v>40000) {                                   // seriale Excel
-    const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);
-    return isNaN(d)?"":d.toISOString().slice(0,10);
-  }
-  return s;
-};
-const toIT = v => {
-  if(!v) return "—";
-  const iso = toISO(v);
-  if(!iso) return String(v);
-  const [y,m,d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-};
 const dFmt = toIT; // alias per compatibilità
 const ageDays = s => (Date.now()-new Date(s))/(86400000);
 const isOver  = s => ageDays(s)>90;
