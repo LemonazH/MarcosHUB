@@ -202,383 +202,12 @@ const COL = {
   nAssegno:         "N ASSEGNO",
   stato:            "STATO",
 };
-
-/* ──────────────────────────────────────────────
-   GOOGLE SHEETS API LAYER
-────────────────────────────────────────────── */
-const WORKER_URL = "https://creditflow-api.m-torinese99.workers.dev";
-
-/* ── D1 API — sostituisce completamente sheetsAPI ── */
-const d1API = {
-  user:  null,
-  token: null,
-
-  async call(path, method="GET", body=null) {
-    const headers = { "Content-Type": "application/json" };
-    if (this.token) headers["Authorization"] = `Bearer ${this.token}`;
-    const opts = { method, headers };
-    if (body) opts.body = JSON.stringify({ ...body, utente: this.user });
-    const r = await fetch(`${WORKER_URL}${path}`, opts);
-    if (r.status === 401) {
-      // Sessione scaduta — forza logout
-      this.clear();
-      sessionStorage.removeItem("cf_token");
-      sessionStorage.removeItem("cf_user");
-      window.location.reload();
-      return;
-    }
-    let data = null;
-    try {
-      data = await r.json();
-    } catch(_) {
-      data = null;
-    }
-    if (!r.ok) {
-      const base = data?.error || data?.message || "Errore API";
-      throw new Error(`${base} [${r.status} ${method} ${path}]`);
-    }
-    return data;
-  },
-
-  clear() { this.user = null; this.token = null; },
-
-  async auth(username, password) {
-    const res = await fetch(`${WORKER_URL}/api/auth`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-    });
-    const data = await res.json();
-    if (data.error) throw new Error(data.error);
-    if (!res.ok) throw new Error(`Auth failed [${res.status}]`);
-    this.user  = data.username;
-    this.token = data.token;
-    return data;
-  },
-
-  async logout() {
-    try { await this.call("/api/auth/logout", "POST"); } catch(_) {}
-    this.clear();
-  },
-
-  async getDashboard()    { return this.call("/api/dashboard"); },
-  async getDocumenti(params={}) {
-    const qs = new URLSearchParams(params).toString();
-    return this.call("/api/documenti" + (qs ? "?" + qs : ""));
-  },
-  async updateDocumento(id, fields) {
-    return this.call(`/api/documenti/${id}`, "PUT", { ...fields, utente: this.user });
-  },
-  async getIncassi()       { return this.call("/api/incassi"); },
-  async postIncasso(body)  { return this.call("/api/incassi", "POST", body); },
-  async getAssegni()       { return this.call("/api/assegni"); },
-  async updateAssegno(id, fields) {
-    return this.call(`/api/assegni/${id}`, "PUT", { ...fields, utente: this.user });
-  },
-  async getRiconciliazioni() { return this.call("/api/riconciliazioni"); },
-  async postRiconciliazione(body) { return this.call("/api/riconciliazioni", "POST", body); },
-  async getAudit(docId)   { return this.call(`/api/audit/documenti/${docId}`); },
-  async migrate(table, rows) { return this.call("/api/migrate", "POST", { table, rows }); },
-  async deleteRiconciliazione(id) { return this.call(`/api/riconciliazioni/${id}`, "DELETE"); },
-};
-
-// Alias per compatibilità — non usato nella nuova versione
-const sheetsAPI = d1API;
-
-// Colore stato assegno
-const assStatoColor = s => {
-  if (!s) return "#475569";
-  const u = s.toUpperCase();
-  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "#4ade80";   // verde — lavoro terminato
-  if (u.includes("ARCHIVIO"))  return "#fb923c";                           // arancione — transitorio
-  return "#94a3b8";                                                         // grigio — altro
-};
-
-// Fase B1: regole transizione stato centralizzate (enforcement graduale)
-const CF_STATE = window.CFStateRules || {};
-const DOC_STATUS_TRANSITIONS = CF_STATE.DOC_STATUS_TRANSITIONS || {
-  "APERTO": ["APERTO","PARZIALE","DA INCASSARE","DA RICONCILIARE","CHIUSO","PAGATO","STORNATO"],
-  "PARZIALE": ["PARZIALE","APERTO","DA INCASSARE","DA RICONCILIARE","CHIUSO","PAGATO","STORNATO"],
-  "DA INCASSARE": ["DA INCASSARE","PARZIALE","CHIUSO","APERTO"],
-  "DA RICONCILIARE": ["DA RICONCILIARE","CHIUSO","APERTO"],
-  "CHIUSO": ["CHIUSO","APERTO","DA RICONCILIARE"],
-  "PAGATO": ["PAGATO","APERTO","CHIUSO"],
-  "STORNATO": ["STORNATO","APERTO"],
-};
-
-const ASS_STATUS_TRANSITIONS = CF_STATE.ASS_STATUS_TRANSITIONS || {
-  "IN ARCHIVIO": ["IN ARCHIVIO","CONSEGNATO A PINO","INCASSATO"],
-  "CONSEGNATO A PINO": ["CONSEGNATO A PINO","IN ARCHIVIO","INCASSATO"],
-  "INCASSATO": ["INCASSATO","CONSEGNATO A PINO"],
-};
-
-const canTransition = CF_STATE.canTransition || ((rules, fromState, toState) => {
-  const from = String(fromState||"").toUpperCase();
-  const to = String(toState||"").toUpperCase();
-  if (!to || !from || from === to) return true;
-  const allowed = rules[from];
-  if (!Array.isArray(allowed)) return true;
-  return allowed.includes(to);
-});
-
-const allowedTransitions = CF_STATE.allowedTransitions || ((rules, fromState) => {
-  const from = String(fromState || "").toUpperCase();
-  const allowed = rules[from];
-  return Array.isArray(allowed) ? allowed : [];
-});
-
-// Fase C2: parser/formatter centralizzati in modulo esterno (con fallback interno)
-const CF_PARSERS = window.CFParsers || {};
-
-const parseDocRefs = CF_PARSERS.parseDocRefs || ((value) => {
-  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean);
-  const raw = String(value || "").trim();
-  if (!raw) return [];
-
-  const base = raw.split(/[;,\n\r|]+/).map(s => s.trim()).filter(Boolean);
-  if (base.length > 1) return base;
-
-  if (/^\d+(?:[\s.]+\d+)+$/.test(raw)) {
-    return raw.split(/[\s.]+/).map(s => s.trim()).filter(Boolean);
-  }
-
-  if (/\s+-\s+/.test(raw)) {
-    return raw.split(/\s+-\s+/).map(s => s.trim()).filter(Boolean);
-  }
-
-  return [raw];
-});
-
-const parseNum = CF_PARSERS.parseNum || ((s) => {
-  if (s===null||s===undefined||s==="") return 0;
-  const str = String(s).trim();
-  if (str.includes(",")) return parseFloat(str.replace(/\./g,"").replace(",",".")) || 0;
-  return parseFloat(str) || 0;
-});
-
-const toISO = CF_PARSERS.toISO || ((v) => {
-  if(!v) return "";
-  const s = String(v).trim();
-  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
-  const it = s.match(/^(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{4})/);
-  if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
-  if(typeof v==="number"&&v>40000) {
-    const d=new Date(Date.UTC(1899,11,30)+Math.round(v)*86400000);
-    return isNaN(d)?"":d.toISOString().slice(0,10);
-  }
-  return s;
-});
-
-const toIT = CF_PARSERS.toIT || ((v) => {
-  if(!v) return "—";
-  const iso = toISO(v);
-  if(!iso) return String(v);
-  const [y,m,d] = iso.split("-");
-  return `${d}/${m}/${y}`;
-});
-
-const eur = CF_PARSERS.eur || (n => new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(parseNum(n)));
-
-// Formatta lista numeri doc come "29 - 127 - 158"
-const fmtDocList = CF_PARSERS.fmtDocList || ((str) => {
-  if (!str || !str.trim()) return "—";
-  const parts = parseDocRefs(str);
-  if (parts.length <= 1) return str.trim() || "—";
-  return parts.join(" - ");
-});
-
-/* ──────────────────────────────────────────────
-   ALGORITMO PREDIZIONE PAGAMENTI
-────────────────────────────────────────────── */
-function findExact(target, docs, i=0, acc=[]) {
-  if (Math.abs(target) < 0.01) return acc;
-  if (i >= docs.length || target < 0) return null;
-  const s = parseNum(docs[i][COL.saldoResiduo]);
-  return findExact(target-s, docs, i+1, [...acc, docs[i]]) || findExact(target, docs, i+1, acc);
-}
-
-function predictAllocation(amount, clientId, docs) {
-  const mine = docs.filter(d => d[COL.codiceCliente]===clientId && d[COL.stato]?.toUpperCase()==="APERTO");
-  const nacs = mine.filter(d => d[COL.tipoDocumento]==="NAC");
-  const nacTotal = nacs.reduce((s,d) => s+parseNum(d[COL.saldoResiduo]), 0);
-  const net = amount - nacTotal;
-
-  const fves = mine
-    .filter(d => d[COL.tipoDocumento]==="FVE")
-    .sort((a,b) => new Date(a[COL.dataDocumento])-new Date(b[COL.dataDocumento]));
-
-  let rem = net;
-  const full=[], partial=[];
-  for (const f of fves) {
-    if (rem<=0) break;
-    const s = parseNum(f[COL.saldoResiduo]);
-    if (rem>=s) { full.push({...f,allocato:s}); rem-=s; }
-    else         { partial.push({...f,allocato:rem}); rem=0; }
-  }
-  const uncovered = fves.filter(f => ![...full,...partial].find(c=>c[COL.numeroDocumento]===f[COL.numeroDocumento]));
-  const exact = rem>0.01 ? findExact(rem, uncovered) : null;
-
-  return { nacs, nacTotal, net, full, partial, exact, residual: Math.max(0,rem) };
-}
-
-/* ──────────────────────────────────────────────
-   MOCK DATA
-────────────────────────────────────────────── */
-const MOCK_DOCS = [
-  {"NUMERO DOCUMENTO":"154","TIPO DOCUMENTO":"FVE","DATA DOCUMENTO":"10/02/2025","CODICE CLIENTE":"600983","RAGIONE SOCIALE":"MOTTA S.A.S.","IMPORTO TOTALE":"319,74","DATA PAGAMENTO PREVISTA":"","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"","PAGAMENTO 1":"","DATA ACCREDITO 2":"","PAGAMENTO 2":"","DATA ACCREDITO 3":"","PAGAMENTO 3":"","DATA ACCREDITO 4":"","PAGAMENTO 4":"","NOTE":"","SALDO RESIDUO":"319,74","N ASSEGNO":"","STATO":"APERTO"},
-  {"NUMERO DOCUMENTO":"16","TIPO DOCUMENTO":"NAC","DATA DOCUMENTO":"10/01/2025","CODICE CLIENTE":"705100","RAGIONE SOCIALE":"FRANCESCO MOREA","IMPORTO TOTALE":"-18,24","DATA PAGAMENTO PREVISTA":"","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"","PAGAMENTO 1":"","DATA ACCREDITO 2":"","PAGAMENTO 2":"","DATA ACCREDITO 3":"","PAGAMENTO 3":"","DATA ACCREDITO 4":"","PAGAMENTO 4":"","NOTE":"","SALDO RESIDUO":"-18,24","N ASSEGNO":"","STATO":"APERTO"},
-  {"NUMERO DOCUMENTO":"1057","TIPO DOCUMENTO":"FVE","DATA DOCUMENTO":"21/08/2025","CODICE CLIENTE":"705075","RAGIONE SOCIALE":"P.A.R. SUPERMERCATI SRL","IMPORTO TOTALE":"4390,37","DATA PAGAMENTO PREVISTA":"11/10/2025","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"02/02/2026","PAGAMENTO 1":"266,19","DATA ACCREDITO 2":"28/02/2026","PAGAMENTO 2":"1500","DATA ACCREDITO 3":"31/03/2026","PAGAMENTO 3":"1500","DATA ACCREDITO 4":"30/04/2026","PAGAMENTO 4":"1124,18","NOTE":"ASSEGNO SOSTITUITO CON B/B","SALDO RESIDUO":"4124,18","N ASSEGNO":"AB - 90564","STATO":"APERTO"},
-  {"NUMERO DOCUMENTO":"1048","TIPO DOCUMENTO":"FVE","DATA DOCUMENTO":"20/08/2025","CODICE CLIENTE":"705075","RAGIONE SOCIALE":"P.A.R. SUPERMERCATI SRL","IMPORTO TOTALE":"677,17","DATA PAGAMENTO PREVISTA":"11/10/2025","GIORNI DILAZIONE":"","DATA ACCREDITO 1":"02/02/2026","PAGAMENTO 1":"677,17","DATA ACCREDITO 2":"","PAGAMENTO 2":"","DATA ACCREDITO 3":"","PAGAMENTO 3":"","DATA ACCREDITO 4":"","PAGAMENTO 4":"","NOTE":"ASSEGNO SOSTITUITO CON B/B","SALDO RESIDUO":"0","N ASSEGNO":"AB - 90564","STATO":"CHIUSO"},
-];
-const MOCK_INCS = [
-  {"ID Incasso":"INC-001",Metodo:"Bonifico","Data Ricezione":"2024-03-01","Importo Totale":"16480.00",Note:"Pagamento fatture gen-feb"},
-];
-
-/* ──────────────────────────────────────────────
-   UTILS
-────────────────────────────────────────────── */
-const dFmt = toIT; // alias per compatibilità
-const CF_VIEW = window.CFViewUtils || {};
-const ageDays = CF_VIEW.ageDays || (s => (Date.now()-new Date(s))/(86400000));
-const isOver  = CF_VIEW.isOver || (s => ageDays(s)>90);
-const isWarn  = CF_VIEW.isWarn || (s => ageDays(s)>60 && ageDays(s)<=90);
-
-/* ──────────────────────────────────────────────
-   SORT HOOK — riutilizzabile per tutte le tabelle
-────────────────────────────────────────────── */
-// Funzione pura di ordinamento (senza hook interni)
-const sortData = CF_VIEW.sortData || function(data, sortKey, sortDir) {
-  const parseDate = v => {
-    const s = String(v||"").trim();
-    const itMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-    if (itMatch) return new Date(itMatch[3], itMatch[2]-1, itMatch[1]);
-    const isoMatch = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (isoMatch) return new Date(isoMatch[1], isoMatch[2]-1, isoMatch[3]);
-    return null;
-  };
-  if(!sortKey) return [...data];
-  return [...data].sort((a,b)=>{
-    const av=a[sortKey]||"", bv=b[sortKey]||"";
-    const ad=parseDate(av), bd=parseDate(bv);
-    let cmp;
-    if(ad&&bd) cmp=ad-bd;
-    else {
-      const an=parseFloat(String(av).replace(/\./g,"").replace(",","."));
-      const bn=parseFloat(String(bv).replace(/\./g,"").replace(",","."));
-      if(!isNaN(an)&&!isNaN(bn)) cmp=an-bn;
-      else cmp=String(av).localeCompare(String(bv),"it");
-    }
-    return sortDir==="asc"?cmp:-cmp;
-  });
-};
-
-function makeSortTh(sortKey, sortDir, toggleSort) {
-  return function SortTh({label, colKey, style={}}) {
-    const active = colKey===sortKey;
-    return (
-      <th onClick={()=>toggleSort(colKey)}
-        style={{padding:"11px 13px",textAlign:"left",fontWeight:600,fontSize:11,
-          whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",
-          color:active?"#f1f5f9":"#475569",
-          background:active?"var(--bg)":"transparent",
-          transition:"color .15s,background .15s",...style}}>
-        <span style={{display:"flex",alignItems:"center",gap:5}}>
-          {label}
-          <span style={{fontSize:10,color:active?"#6366f1":"var(--bg)"}}>
-            {active?(sortDir==="asc"?"▲":"▼"):"⇅"}
-          </span>
-        </span>
-      </th>
-    );
-  };
-}
-
-/* ──────────────────────────────────────────────
-   SHARED STYLES
-────────────────────────────────────────────── */
-const S = {
-  input: { background:"var(--surface)", border:"1px solid var(--border)", color:"var(--text-1)",
-           padding:"9px 12px", borderRadius:"var(--radius-s)", fontFamily:"var(--font)",
-           fontSize:13, width:"100%" },
-  btn:   { border:"none", borderRadius:"var(--radius-s)", padding:"9px 18px", cursor:"pointer",
-           fontFamily:"var(--font)", fontWeight:700, fontSize:12 },
-};
-
-/* ──────────────────────────────────────────────
-   MICRO-COMPONENTS
-────────────────────────────────────────────── */
-function Toast({msg,type,onClose}) {
-  useEffect(()=>{ const t=setTimeout(onClose,3800); return ()=>clearTimeout(t); },[onClose]);
-  const accent={success:"#22c55e",error:"#ef4444",info:"#6366f1",warn:"#fb923c"}[type]||"#6366f1";
-  return (
-    <div style={{position:"fixed",bottom:28,right:28,zIndex:9999,background:"var(--accent-s)",
-      color:"var(--text-1)",padding:"13px 20px",borderRadius:10,borderLeft:`4px solid ${accent}`,
-      boxShadow:"0 8px 32px rgba(0,0,0,.6)",fontSize:13,maxWidth:360,
-      animation:"slideUp .3s ease",fontFamily:"var(--font)"}}>
-      {msg}
-    </div>
-  );
-}
-
-function Spinner({size=16}) {
-  return <span style={{display:"inline-block",width:size,height:size,
-    border:"2px solid rgba(99,102,241,.3)",borderTop:"2px solid #6366f1",
-    borderRadius:"50%",animation:"spin .7s linear infinite",verticalAlign:"middle"}} />;
-}
-
-function Badge({label}) {
-  const map = {
-    FVE:   {bg:"var(--bg)",c:"#60a5fa"},
-    NAC:   {bg:"var(--bg)",c:"#c084fc"},
-    Aperto:{bg:"var(--success-s)",c:"#4ade80"},
-    APERTO:{bg:"var(--success-s)",c:"#4ade80"},
-    Chiuso:{bg:"#1C1C22",c:"#9898A6"},
-    CHIUSO:{bg:"#1C1C22",c:"#9898A6"},
-    "DA INCASSARE":{bg:"var(--danger-s)",c:"#fb923c"},
-    "DA RICONCILIARE":{bg:"#1a1a24",c:"#fb923c"},
-    PARZIALE:{bg:"var(--danger-s)",c:"#fbbf24"},
-    Bonifico:{bg:"var(--bg)",c:"#38bdf8"},
-    "Assegno Postdatato":{bg:"var(--danger-s)",c:"#fb923c"},
-  };
-  const s = map[label]||{bg:"#1C1C22",c:"#9898A6"};
-  return <span style={{background:s.bg,color:s.c,padding:"2px 8px",borderRadius:5,
-    fontSize:11,fontWeight:600,letterSpacing:.4}}>{label}</span>;
-}
-
-function EditCell({value, onSave, numeric, display, color}) {
-  const [ed,setEd]=useState(false);
-  const [v,setV]=useState(value);
-  const ref=useRef();
-  useEffect(()=>{ setV(value); },[value]);
-  useEffect(()=>{ if(ed&&ref.current) ref.current.focus(); },[ed]);
-  const commit=()=>{ setEd(false); if(String(v)!==String(value)) onSave(v); };
-  if(ed) return (
-    <input ref={ref} value={v} type={numeric?"number":"text"}
-      onChange={e=>setV(e.target.value)}
-      onBlur={commit}
-      onKeyDown={e=>{ if(e.key==="Enter")commit(); if(e.key==="Escape"){setV(value);setEd(false);} }}
-      style={{...S.input,padding:"3px 7px",width:"100%",fontSize:12,color:color||"inherit"}} />
-  );
-  const shown = display !== undefined ? display : (value||"—");
-  return (
-    <span onDoubleClick={()=>setEd(true)} title="Doppio click per modificare"
-      style={{cursor:"text",display:"block",padding:"2px 3px",borderRadius:4,
-              color:color||"inherit",transition:"background .15s"}}
-      onMouseEnter={e=>e.target.style.background="var(--raised)"}
-      onMouseLeave={e=>e.target.style.background="transparent"}>
-      {shown}
-    </span>
-  );
-}
-
-/* ──────────────────────────────────────────────
-   CASH FLOW SVG CHART — giorno per giorno
-────────────────────────────────────────────── */
-function CashChart({assegni, onNavigate}) {
-  const [hoverIdx, setHoverIdx] = React.useState(null);
-  const [mousePos, setMousePos] = React.useState({x:0,y:0});
-  const svgRef = React.useRef(null);
-  const hideTimerRef = React.useRef(null);
+function CashChart({assegni,onNavigate}) {
+  const [hoverIdx,setHoverIdx] = useState(null);
+  const [pinnedIdx,setPinnedIdx] = useState(null);
+  const [mousePos,setMousePos] = useState({x:0,y:0});
+  const svgRef = useRef(null);
+  const hideTimerRef = useRef(null);
 
   const clearHideTimer = () => {
     if (hideTimerRef.current) {
@@ -588,13 +217,13 @@ function CashChart({assegni, onNavigate}) {
   };
 
   const scheduleHideTooltip = () => {
+    if (pinnedIdx !== null) return;
     clearHideTimer();
     hideTimerRef.current = setTimeout(() => setHoverIdx(null), 260);
   };
 
-  React.useEffect(() => () => clearHideTimer(), []);
+  useEffect(() => () => clearHideTimer(), []);
 
-  // ── filtri ────────────────────────────────────────────────
   const todayKey = new Date().toISOString().slice(0,10);
   const PRESETS = [
     {label:"30 gg",days:30},
@@ -603,18 +232,19 @@ function CashChart({assegni, onNavigate}) {
     {label:"6 mesi",days:180},
     {label:"Tutto",days:999},
   ];
-  const [preset,   setPreset]   = React.useState(1);
-  const [fromDate, setFromDate] = React.useState("");
-  const [toDate,   setToDate]   = React.useState("");
-  const [statoFil, setStatoFil] = React.useState("TUTTI");
+
+  const [preset,setPreset] = useState(1);
+  const [fromDate,setFromDate] = useState("");
+  const [toDate,setToDate] = useState("");
+  const [statoFil,setStatoFil] = useState("TUTTI");
 
   const winFrom = fromDate || todayKey;
-  const winTo   = toDate   || (() => {
-    const d=new Date(); d.setDate(d.getDate()+PRESETS[preset].days);
+  const winTo = toDate || (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + PRESETS[preset].days);
     return d.toISOString().slice(0,10);
   })();
 
-  // ── helpers date ──────────────────────────────────────────
   const parseDateKey = v => {
     if(!v) return null;
     const s = String(v).trim();
@@ -624,51 +254,45 @@ function CashChart({assegni, onNavigate}) {
     if(it) return `${it[3]}-${it[2].padStart(2,"0")}-${it[1].padStart(2,"0")}`;
     return null;
   };
-  // Arancione se almeno un assegno del giorno non è ancora riconciliato (nessun incasso collegato)
-  const isInTol = (k, items) => {
-    if(!items || items.length===0) return false;
-    // Se gli items sono già calcolati li usiamo, altrimenti leggiamo da byDay
-    const list = items || (byDay[k]?.items || []);
-    return list.some(a => {
-      const isIncassato = (String(a["STATO TITOLO"] || "").toUpperCase() === "INCASSATO");
-      return !a._incassoId && !isIncassato;
-    });
-  };
 
-  const GIORNI = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
-  const MESI   = ["gen","feb","mar","apr","mag","giu","lug","ago","set","ott","nov","dic"];
-  const MESI_L = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
-  const fmtDay     = k => `${k.slice(8,10)}/${k.slice(5,7)}`;
-  const fmtFull    = k => { const d=new Date(k+"T00:00:00"); return `${GIORNI[d.getDay()]} ${String(d.getDate()).padStart(2,"0")} ${MESI[d.getMonth()]}`; };
-  const fmtFullLong= k => { const d=new Date(k+"T00:00:00"); return `${GIORNI[d.getDay()]} ${d.getDate()} ${MESI_L[d.getMonth()]} ${d.getFullYear()}`; };
+  const isIncassato = a => !!a?._incassoId || String(a?.["STATO TITOLO"]||"").toUpperCase()==="INCASSATO";
 
-  // ── aggregazione tutti gli stati ──────────────────────────
   const byDay = {};
   (assegni||[]).forEach(a => {
-    const stato = (a["STATO TITOLO"]||"").toUpperCase();
-    if(statoFil==="IN ARCHIVIO"       && !stato.includes("ARCHIVIO")) return;
-    if(statoFil==="CONSEGNATO A PINO" && !stato.includes("PINO"))    return;
+    const stato = String(a["STATO TITOLO"] || "").toUpperCase();
+    if(statoFil==="IN ARCHIVIO" && !stato.includes("ARCHIVIO")) return;
+    if(statoFil==="CONSEGNATO A PINO" && !stato.includes("PINO")) return;
     const k = parseDateKey(a["DATA TITOLO"]);
     if(!k || k < winFrom || k > winTo) return;
     if(!byDay[k]) byDay[k] = {total:0, archivio:0, pino:0, items:[]};
     const imp = parseNum(a["IMPORTO TITOLO"]);
     byDay[k].total += imp;
     if(stato.includes("ARCHIVIO")) byDay[k].archivio += imp;
-    else                           byDay[k].pino     += imp;
+    else byDay[k].pino += imp;
     byDay[k].items.push(a);
   });
-  const entries = Object.entries(byDay).sort(([a],[b])=>a.localeCompare(b));
 
-  // ── UI filtri ─────────────────────────────────────────────
+  const entries = Object.entries(byDay).sort(([a],[b]) => a.localeCompare(b));
+  const activeIdx = pinnedIdx !== null ? pinnedIdx : hoverIdx;
+  const isInTol = items => (items || []).some(a => !isIncassato(a));
+
+  const GIORNI = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
+  const MESI_L = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  const fmtDay = k => `${k.slice(8,10)}/${k.slice(5,7)}`;
+  const fmtFullLong = k => {
+    const d = new Date(k+"T00:00:00");
+    return `${GIORNI[d.getDay()]} ${d.getDate()} ${MESI_L[d.getMonth()]} ${d.getFullYear()}`;
+  };
+  const fmtY = v => v>=10000?`${(v/1000).toFixed(0)}k`:v>=1000?`${(v/1000).toFixed(1)}k`:Math.round(v).toString();
+
   const FilBtn = ({label,active,onClick,color}) => (
-    React.createElement("button",{onClick,style:{
+    <button onClick={onClick} style={{
       background:active?(color||"var(--bg)"):"transparent",
       border:`1px solid ${active?(color||"#3b82f6"):"var(--border)"}`,
       color:active?"var(--raised)":"var(--text-2)",
       borderRadius:6,padding:"4px 10px",cursor:"pointer",
-      fontSize:10,fontWeight:active?700:400,
-      fontFamily:"var(--mono)",transition:"all .12s",
-    }},label)
+      fontSize:10,fontWeight:active?700:400,fontFamily:"var(--mono)",transition:"all .12s",
+    }}>{label}</button>
   );
 
   const filtriUI = (
@@ -689,34 +313,26 @@ function CashChart({assegni, onNavigate}) {
         ))}
       </div>
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
-        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)}
-          style={{background:"#1C1C22",border:"1px solid #2A2A34",borderRadius:6,
-            color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
-        <span style={{color:"var(--text-2)",fontSize:10}}>→</span>
-        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)}
-          style={{background:"#1C1C22",border:"1px solid #2A2A34",borderRadius:6,
-            color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
-        {(fromDate||toDate)&&(
-          <button onClick={()=>{setFromDate("");setToDate("");}}
-            style={{background:"var(--accent-s)",border:"none",color:"var(--danger)",borderRadius:5,
-              padding:"3px 7px",cursor:"pointer",fontSize:11}}>✕</button>
-        )}
+        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"#1C1C22",border:"1px solid #2A2A34",borderRadius:6,color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
+        <span style={{color:"var(--text-2)",fontSize:10}}>-&gt;</span>
+        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"#1C1C22",border:"1px solid #2A2A34",borderRadius:6,color:"var(--text-2)",fontSize:10,padding:"4px 8px",fontFamily:"var(--mono)"}}/>
+        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"var(--accent-s)",border:"none",color:"var(--danger)",borderRadius:5,padding:"3px 7px",cursor:"pointer",fontSize:11}}>✕</button>}
       </div>
     </div>
   );
 
-  if(!entries.length) return (
-    <div>
-      {filtriUI}
-      <div style={{padding:"48px 0",textAlign:"center"}}>
-        <div style={{fontSize:32,marginBottom:8,opacity:.3}}>◈</div>
-        <div style={{color:"var(--text-2)",fontSize:12}}>Nessun assegno nel periodo selezionato</div>
+  if(!entries.length) {
+    return (
+      <div>
+        {filtriUI}
+        <div style={{padding:"48px 0",textAlign:"center"}}>
+          <div style={{fontSize:32,marginBottom:8,opacity:.3}}>◈</div>
+          <div style={{color:"var(--text-2)",fontSize:12}}>Nessun assegno nel periodo selezionato</div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
 
-
-  // ── layout SVG ──────────────────────────────────────────
   const W=820, H=220, P={t:24,r:20,b:44,l:72};
   const iW=W-P.l-P.r, iH=H-P.t-P.b;
   const n=entries.length;
@@ -725,15 +341,10 @@ function CashChart({assegni, onNavigate}) {
   const xOf=i=>P.l+i*gap+gap/2;
   const maxVal=Math.max(...entries.map(([,v])=>v.total),1);
   const labelStep=Math.max(1,Math.ceil(n/12));
-
-  // griglia Y — 4 livelli
-  const gridLines=[0.25,0.5,0.75,1].map(r=>({
-    r, y:P.t+iH*r, val:maxVal*(1-r)
-  }));
-  const fmtY=v=>v>=10000?`${(v/1000).toFixed(0)}k`:v>=1000?`${(v/1000).toFixed(1)}k`:Math.round(v).toString();
+  const gridLines=[0.25,0.5,0.75,1].map(r=>({r, y:P.t+iH*r, val:maxVal*(1-r)}));
 
   const handleMouseMove = e => {
-    if(!svgRef.current) return;
+    if(!svgRef.current || pinnedIdx !== null) return;
     clearHideTimer();
     const rect=svgRef.current.getBoundingClientRect();
     const mx=(e.clientX-rect.left)*(W/rect.width);
@@ -744,291 +355,167 @@ function CashChart({assegni, onNavigate}) {
   };
 
   const totGlobale = entries.reduce((s,[,v])=>s+v.total,0);
-  const nGlobale   = entries.reduce((s,[,v])=>s+v.items.length,0);
+  const nGlobale = entries.reduce((s,[,v])=>s+v.items.length,0);
 
   return (
     <div style={{userSelect:"none"}}>
-
-      {/* ── filtri ─────────────────────────────────────────── */}
       {filtriUI}
 
-      {/* ── KPI strip ─────────────────────────────────────── */}
       <div style={{display:"flex",gap:2,marginBottom:14,flexWrap:"wrap"}}>
         {[
-          {label:"Totale periodo",  val:eur(totGlobale), color:"var(--success)"},
-          {label:"In Archivio",     val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"var(--warn)"},
-          {label:"Cons. a Pino",    val:eur(entries.reduce((s,[,v])=>s+v.pino,0)),     color:"var(--accent)"},
-          {label:"Assegni · Date",  val:`${nGlobale} · ${entries.length}`,             color:"var(--text-2)"},
+          {label:"Totale periodo", val:eur(totGlobale), color:"var(--success)"},
+          {label:"In Archivio", val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"var(--warn)"},
+          {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"var(--accent)"},
+          {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"var(--text-2)"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 130px",background:"#1C1C22",
-            border:"1px solid #0f1f35",borderRadius:10,padding:"10px 16px"}}>
-            <div style={{color:"var(--text-2)",fontSize:9,fontWeight:700,
-              textTransform:"uppercase",letterSpacing:.8,marginBottom:4}}>{label}</div>
-            <div style={{color,fontSize:14,fontWeight:800,
-              fontFamily:"var(--mono)",lineHeight:1}}>{val}</div>
+          <div key={i} style={{flex:"1 1 130px",background:"#1C1C22",border:"1px solid #0f1f35",borderRadius:10,padding:"10px 16px"}}>
+            <div style={{color:"var(--text-2)",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:.8,marginBottom:4}}>{label}</div>
+            <div style={{color,fontSize:14,fontWeight:800,fontFamily:"var(--mono)",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
 
-      {/* ── grafico ──────────────────────────────────────── */}
       <div style={{position:"relative"}}>
-        <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`}
-          style={{overflow:"visible",cursor:"pointer",display:"block"}}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={scheduleHideTooltip}>
+        <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible",cursor:"pointer",display:"block"}} onMouseMove={handleMouseMove} onMouseLeave={scheduleHideTooltip}>
           <defs>
-            {/* barra normale */}
+            <linearGradient id="ccPlotBg" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#17171D"/>
+              <stop offset="100%" stopColor="#131319"/>
+            </linearGradient>
             <linearGradient id="ccBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#22c55e" stopOpacity=".9"/>
+              <stop offset="0%" stopColor="#22c55e" stopOpacity=".9"/>
               <stop offset="100%" stopColor="#052e16" stopOpacity=".5"/>
             </linearGradient>
-            {/* barra hover */}
             <linearGradient id="ccBh" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#4ade80"/>
+              <stop offset="0%" stopColor="#4ade80"/>
               <stop offset="100%" stopColor="#22C55E" stopOpacity=".7"/>
             </linearGradient>
-            {/* barra tolleranza */}
             <linearGradient id="ccBt" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#fb923c" stopOpacity=".9"/>
-              <stop offset="100%" stopColor="var(--danger-s)" stopOpacity=".5"/>
+              <stop offset="0%" stopColor="#fb923c" stopOpacity=".9"/>
+              <stop offset="100%" stopColor="#431407" stopOpacity=".6"/>
             </linearGradient>
-            {/* barra tolleranza hover */}
             <linearGradient id="ccBth" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#fdba74"/>
-              <stop offset="100%" stopColor="#F97316" stopOpacity=".7"/>
+              <stop offset="0%" stopColor="#fdba74"/>
+              <stop offset="100%" stopColor="#F97316" stopOpacity=".75"/>
             </linearGradient>
-            {/* barra pino (consegnato) */}
             <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#60a5fa" stopOpacity=".9"/>
-              <stop offset="100%" stopColor="#0E0E11" stopOpacity=".5"/>
+              <stop offset="0%" stopColor="#60a5fa" stopOpacity=".9"/>
+              <stop offset="100%" stopColor="#0f2645" stopOpacity=".6"/>
             </linearGradient>
-            {/* barra pino hover */}
             <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%"   stopColor="#93c5fd"/>
-              <stop offset="100%" stopColor="#3B82F6" stopOpacity=".7"/>
+              <stop offset="0%" stopColor="#93c5fd"/>
+              <stop offset="100%" stopColor="#3B82F6" stopOpacity=".75"/>
             </linearGradient>
           </defs>
 
-          {/* area plot sfondo */}
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#0E0E11" rx={4}/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#0E0E11" rx={5}/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={6} stroke="#2A2A34"/>
 
-          {/* linee griglia */}
           {gridLines.map(({r,y,val})=>(
             <g key={r}>
-              <line x1={P.l} x2={P.l+iW} y1={y} y2={y}
-                stroke={r===1?"#2563EB":"#1C1C22"} strokeWidth={1}
-                strokeDasharray={r===1?"":"4,5"}/>
-              <text x={P.l-6} y={y+3.5} textAnchor="end"
-                fill="#9898A6" fontSize={9} fontFamily="var(--mono)">
-                {fmtY(val)}
-              </text>
+              <line x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke={r===1?"#31548a":"#21212a"} strokeWidth={1} strokeDasharray={r===1?"":"4,5"}/>
+              <text x={P.l-6} y={y+3.5} textAnchor="end" fill="#9898A6" fontSize={9} fontFamily="var(--mono)">{fmtY(val)}</text>
             </g>
           ))}
-          {/* barre stackate: blu (pino) in basso, arancione/verde (archivio) sopra */}
+
           {entries.map(([k,v],i)=>{
-            const hTot  = Math.max(2,(v.total/maxVal)*iH);
-            const hArch = v.total>0 ? Math.max(0,(v.archivio/v.total)*hTot) : 0;
-            const hPino = hTot - hArch;
+            const hTot=Math.max(2,(v.total/maxVal)*iH);
+            const hArch=v.total>0?Math.max(0,(v.archivio/v.total)*hTot):0;
+            const hPino=hTot-hArch;
             const x=xOf(i)-barW/2;
             const yTot=P.t+iH-hTot;
-            const isHov=hoverIdx===i;
-            const inTol=isInTol(k,v.items);
+            const isHov=activeIdx===i;
+            const inTol=isInTol(v.items);
             const isToday=k===todayKey;
             const nA=v.items.length;
-            // Solo archivio presenti
             const gradArch = isHov ? (inTol?"url(#ccBth)":"url(#ccBh)") : (inTol?"url(#ccBt)":"url(#ccBg)");
             const gradPino = isHov ? "url(#ccBph)" : "url(#ccBp)";
+
             return (
-              <g key={k} style={{cursor:"pointer"}}
-                onClick={()=>onNavigate&&onNavigate(k,v.items)}>
-                {/* area click invisibile sull'intera colonna */}
-                <rect x={x-3} y={P.t} width={barW+6} height={iH}
-                  fill="transparent" rx={2}/>
-                {/* sfondo hover */}
-                {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH}
-                  fill="var(--text-1)" opacity={.025} rx={2}/>}
-
-                {/* linea oggi */}
-                {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH}
-                  stroke="#818cf8" strokeWidth={1} strokeDasharray="2,3" opacity={.4}/>}
-
-                {/* segmento PINO (blu) — in basso */}
-                {hPino>0&&<rect x={x} y={yTot+hArch} width={barW} height={hPino}
-                  rx={hArch>0?0:3} fill={gradPino} opacity={isHov?1:.85}/>}
-                {/* segmento ARCHIVIO (arancio/verde) — sopra */}
-                {hArch>0&&<rect x={x} y={yTot} width={barW} height={hArch}
-                  rx={3} fill={gradArch} opacity={isHov?1:.85}/>}
-
-                {/* totale sopra la barra */}
-                {(isHov||(n<=8))&&(
-                  <text x={xOf(i)} y={yTot-5} textAnchor="middle"
-                    fill={inTol?"#fb923c":v.archivio>0?"#4ade80":"#60a5fa"} fontSize={8}
-                    fontFamily="var(--mono)" fontWeight="bold">
-                    {fmtY(v.total)}
-                  </text>
-                )}
-
-                {/* badge n° assegni */}
-                {nA>1&&!isHov&&(
-                  <g>
-                    <circle cx={xOf(i)} cy={yTot-10} r={6}
-                      fill="var(--bg)" stroke="#2A2A34" strokeWidth={1}/>
-                    <text x={xOf(i)} y={yTot-6.5} textAnchor="middle"
-                      fill="#9898A6" fontSize={6.5}
-                      fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
-                  </g>
-                )}
-
-                {/* label asse X */}
-                {(i%labelStep===0||n<=15)&&(
-                  <text x={xOf(i)} y={H-P.b+14} textAnchor="middle"
-                    fill={isToday?"#818cf8":isHov?"#F0F0F4":"#9898A6"}
-                    fontSize={8.5} fontFamily="var(--mono)"
-                    fontWeight={isToday||isHov?"bold":"normal"}>
-                    {fmtDay(k)}
-                  </text>
-                )}
+              <g key={k} style={{cursor:"pointer"}} onClick={()=>onNavigate&&onNavigate(k,v.items)}>
+                <rect x={x-3} y={P.t} width={barW+6} height={iH} fill="transparent" rx={2}/>
+                {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH} fill="var(--text-1)" opacity={.03} rx={2}/>}
+                {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH} stroke="#818cf8" strokeWidth={1} strokeDasharray="2,3" opacity={.4}/>}
+                {hPino>0&&<rect x={x} y={yTot+hArch} width={barW} height={hPino} rx={hArch>0?0:3} fill={gradPino} opacity={isHov?1:.85}/>}
+                {hArch>0&&<rect x={x} y={yTot} width={barW} height={hArch} rx={3} fill={gradArch} opacity={isHov?1:.85}/>}
+                {(isHov||(n<=8))&&<text x={xOf(i)} y={yTot-5} textAnchor="middle" fill={inTol?"#fb923c":v.archivio>0?"#4ade80":"#60a5fa"} fontSize={8} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>}
+                {nA>1&&!isHov&&(<g><circle cx={xOf(i)} cy={yTot-10} r={6} fill="var(--bg)" stroke="#2A2A34" strokeWidth={1}/><text x={xOf(i)} y={yTot-6.5} textAnchor="middle" fill="#9898A6" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text></g>)}
+                {(i%labelStep===0||n<=15)&&<text x={xOf(i)} y={H-P.b+14} textAnchor="middle" fill={isToday?"#818cf8":isHov?"#F0F0F4":"#9898A6"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
               </g>
             );
           })}
 
-          {/* asse sinistro */}
           <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#2A2A34" strokeWidth={1}/>
-          {/* asse inferiore */}
           <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="var(--accent-s)" strokeWidth={1}/>
         </svg>
 
-        {/* ── TOOLTIP ──────────────────────────────────────── */}
-        {hoverIdx!==null&&(()=>{
-          const [k,v]=entries[hoverIdx];
+        {activeIdx!==null&&(()=>{
+          const [k,v]=entries[activeIdx];
           if(!svgRef.current) return null;
           const svgRect=svgRef.current.getBoundingClientRect();
-          const pctX=xOf(hoverIdx)/W;
-          const flipL=pctX>0.55;
-          const TW=290;
-          const inTol=isInTol(k,v.items);
+          const containerW = svgRect.width || 820;
+          const containerH = svgRect.height || 220;
+          const TW = Math.max(260, Math.min(380, Math.floor(containerW * 0.45)));
+          const margin = 8;
+          const estTooltipH = 390;
+          let leftPx = mousePos.x + 14;
+          if (leftPx + TW > containerW - margin) leftPx = mousePos.x - TW - 14;
+          leftPx = Math.max(margin, Math.min(leftPx, containerW - TW - margin));
+          let topPx = Math.max(margin, mousePos.y - 20);
+          topPx = Math.min(topPx, Math.max(margin, containerH - estTooltipH - margin));
+
+          const inTol=isInTol(v.items);
           const accentColor=inTol?"#fb923c":"#22c55e";
           const accentBg=inTol?"var(--danger-s)":"var(--success-s)";
 
           return (
-            <div style={{
-              position:"absolute",
-              top:Math.max(4, mousePos.y-20),
-              left:flipL?`calc(${pctX*100}% - ${TW+14}px)`:`calc(${pctX*100}% + 14px)`,
-              width:TW,
-              background:"#1C1C22",
-              border:`1px solid ${accentColor}33`,
-              borderRadius:12,
-              boxShadow:`0 20px 60px #00000099, 0 0 0 1px ${accentColor}11`,
-              zIndex:300,
-              pointerEvents:"auto",
-              overflow:"hidden",
-            }}
-            onMouseEnter={clearHideTimer}
-            onMouseLeave={scheduleHideTooltip}>
-
-              {/* header data */}
-              <div style={{background:accentBg,padding:"11px 14px",
-                borderBottom:`1px solid ${accentColor}22`}}>
-                <div style={{color:accentColor,fontSize:11,fontWeight:800,
-                  letterSpacing:.3,marginBottom:5}}>
-                  {fmtFullLong(k)}
-                </div>
+            <div style={{position:"absolute",top:topPx,left:leftPx,width:TW,background:"#1C1C22",border:`1px solid ${accentColor}33`,borderRadius:12,boxShadow:`0 20px 60px #00000099, 0 0 0 1px ${accentColor}11`,zIndex:300,pointerEvents:"auto",overflow:"hidden"}} onMouseEnter={clearHideTimer} onMouseLeave={scheduleHideTooltip}>
+              <div style={{background:accentBg,padding:"12px 16px",borderBottom:`1px solid ${accentColor}22`}}>
+                <div style={{color:accentColor,fontSize:11,fontWeight:800,letterSpacing:.35,marginBottom:6,lineHeight:1.35}}>{fmtFullLong(k)}</div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                  <span style={{color:"var(--text-2)",fontSize:10}}>
-                    {v.items.length} assegn{v.items.length===1?"o":"i"} in scadenza
-                  </span>
-                  <span style={{color:accentColor,fontSize:17,fontWeight:900,
-                    fontFamily:"var(--font)",lineHeight:1}}>
-                    {eur(v.total)}
-                  </span>
+                  <span style={{color:"var(--text-2)",fontSize:10}}>{v.items.length} assegn{v.items.length===1?"o":"i"} in scadenza</span>
+                  <span style={{color:accentColor,fontSize:17,fontWeight:900,fontFamily:"var(--mono)",lineHeight:1}}>{eur(v.total)}</span>
                 </div>
               </div>
 
-              {/* hint click */}
-              <div style={{padding:"4px 14px",background:"#111116",
-                borderBottom:"1px solid #1C1C22",
-                display:"flex",alignItems:"center",gap:5}}>
-                <span style={{color:"#52525E",fontSize:8.5,fontFamily:"var(--mono)"}}>
-                  ↗ clicca per vedere nel registro assegni
-                </span>
+              <div style={{padding:"6px 16px",background:"#14141A",borderBottom:"1px solid #1C1C22",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                <span style={{color:"#93A0AF",fontSize:8.5,fontFamily:"var(--mono)",lineHeight:1.3}}>Clicca la barra per aprire nello storico</span>
+                <button onClick={(e)=>{e.stopPropagation(); setPinnedIdx(pinnedIdx===activeIdx?null:activeIdx);}} style={{background:pinnedIdx===activeIdx?"var(--accent-s)":"transparent",border:"1px solid var(--border)",color:pinnedIdx===activeIdx?"var(--accent)":"var(--text-2)",borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700}}>{pinnedIdx===activeIdx?"Sblocca":"Blocca"}</button>
               </div>
 
-              {/* lista assegni */}
-              <div style={{maxHeight:260,overflowY:"auto",
-                scrollbarWidth:"thin",scrollbarColor:"#2A2A34 transparent"}}>
+              <div style={{maxHeight:360,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#2A2A34 transparent"}}>
+                <div style={{position:"sticky",top:0,zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 16px",background:"#16161A",borderBottom:"1px solid #20202A"}}>
+                  <span style={{color:"var(--text-2)",fontSize:9}}>Elenco assegni</span>
+                  <span style={{color:accentColor,fontSize:10,fontFamily:"var(--mono)",fontWeight:700}}>{eur(v.total)}</span>
+                </div>
+
                 {v.items.map((a,j)=>{
                   const imp=parseNum(a["IMPORTO TITOLO"]);
                   const fatture=a["FATTURE PAGATE"]||"";
                   const nc=a["NC SCALATE"]||"";
                   const docsColl=a["DOCUMENTI COLLEGATI"]||"";
-                  const isIncassato = !!a._incassoId || String(a["STATO TITOLO"]||"").toUpperCase()==="INCASSATO";
+                  const done=isIncassato(a);
+
                   return (
-                    <div key={j} style={{
-                      padding:"9px 14px",
-                      borderBottom:j<v.items.length-1?"1px solid #080f1e":"none",
-                    }}>
-                      {/* riga 1: cliente + importo */}
-                      <div style={{display:"flex",justifyContent:"space-between",
-                        alignItems:"flex-start",marginBottom:4}}>
-                        <div style={{color:"var(--text-1)",fontSize:11,fontWeight:700,
-                          flex:1,minWidth:0,overflow:"hidden",
-                          textOverflow:"ellipsis",whiteSpace:"nowrap",
-                          paddingRight:8}}>
-                          {a["CLIENTE"]||"—"}
+                    <div key={j} style={{padding:"10px 16px",borderBottom:j<v.items.length-1?"1px solid #080f1e":"none",background:j%2===0?"#1C1C22":"#18181E"}}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
+                        <div style={{color:"var(--text-1)",fontSize:11,fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",paddingRight:8}}>
+                          <span style={{display:"inline-block",width:6,height:6,borderRadius:99,marginRight:6,background:done?"#22c55e":"#fb923c"}}/>{a["CLIENTE"]||"-"}
                         </div>
-                        <div style={{color:accentColor,fontSize:12,fontWeight:900,
-                          fontFamily:"var(--font)",
-                          whiteSpace:"nowrap",flexShrink:0}}>
-                          {eur(imp)}
-                        </div>
+                        <div style={{color:accentColor,fontSize:12,fontWeight:900,fontFamily:"var(--mono)",whiteSpace:"nowrap",flexShrink:0}}>{eur(imp)}</div>
                       </div>
-                      {/* riga 2: n° titolo + stato */}
+
                       <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
-                        <span style={{color:"#0284C7",fontSize:9,
-                          fontFamily:"var(--font)",fontWeight:700}}>
-                          {a["N TITOLO"]||"—"}
-                        </span>
-                        <span style={{color:"var(--text-2)",fontSize:8}}>·</span>
-                        <span style={{
-                          fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,
-                          background: isIncassato?"var(--success-s)":"var(--danger-s)",
-                          color:isIncassato?"#22c55e":"#fb923c",
-                          border:`1px solid ${isIncassato?"var(--success-s)":"#F97316"}`,
-                        }}>
-                          {a["STATO TITOLO"]||""}
-                        </span>
+                        <span style={{color:"#0284C7",fontSize:9,fontFamily:"var(--mono)",fontWeight:700}}>{a["N TITOLO"]||"-"}</span>
+                        <span style={{color:"var(--text-2)",fontSize:8}}>-</span>
+                        <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,background:done?"var(--success-s)":"var(--danger-s)",color:done?"#22c55e":"#fb923c",border:`1px solid ${done?"var(--success-s)":"#F97316"}`}}>{a["STATO TITOLO"]||""}</span>
                       </div>
-                      {/* riga 3: riferimenti documenti */}
+
                       {(fatture||nc||docsColl)&&(
-                        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:3}}>
-                          {fatture&&(
-                            <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                              <span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>FATT.</span>
-                              <span style={{color:"var(--text-2)",fontSize:9,
-                                fontFamily:"var(--font)"}}>
-                                {fmtDocList(fatture)}
-                              </span>
-                            </div>
-                          )}
-                          {nc&&(
-                            <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                              <span style={{color:"#7C3AED",fontSize:8,fontWeight:700}}>NC</span>
-                              <span style={{color:"#a78bfa",fontSize:9,
-                                fontFamily:"var(--font)"}}>
-                                {fmtDocList(nc)}
-                              </span>
-                            </div>
-                          )}
-                          {docsColl&&!fatture&&(
-                            <div style={{display:"flex",gap:3,alignItems:"center"}}>
-                              <span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>DOC.</span>
-                              <span style={{color:"var(--text-2)",fontSize:9,
-                                fontFamily:"var(--font)"}}>
-                                {fmtDocList(docsColl)}
-                              </span>
-                            </div>
-                          )}
+                        <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:3,maxWidth:"100%"}}>
+                          {fatture&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>FATT.</span><span title={fmtDocList(fatture)} style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(fatture)}</span></div>}
+                          {nc&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"#7C3AED",fontSize:8,fontWeight:700}}>NC</span><span title={fmtDocList(nc)} style={{color:"#a78bfa",fontSize:9,fontFamily:"var(--mono)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(nc)}</span></div>}
+                          {docsColl&&!fatture&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>DOC.</span><span title={fmtDocList(docsColl)} style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(docsColl)}</span></div>}
                         </div>
                       )}
                     </div>
@@ -1036,33 +523,13 @@ function CashChart({assegni, onNavigate}) {
                 })}
               </div>
 
-              {/* footer tooltip: breakdown archivio/pino + barra % */}
-              <div style={{padding:"8px 14px",borderTop:"1px solid #080f1e",
-                background:"#1C1C22"}}>
-                {v.archivio>0&&v.pino>0&&(
-                  <div style={{display:"flex",justifyContent:"space-between",
-                    fontSize:9,marginBottom:5}}>
-                    <span style={{display:"flex",alignItems:"center",gap:4}}>
-                      <span style={{width:6,height:6,borderRadius:1,background:"var(--danger-s)",display:"inline-block"}}/>
-                      <span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span>
-                    </span>
-                    <span style={{display:"flex",alignItems:"center",gap:4}}>
-                      <span style={{width:6,height:6,borderRadius:1,background:"#60a5fa",display:"inline-block"}}/>
-                      <span style={{color:"var(--text-2)"}}>Pino {eur(v.pino)}</span>
-                    </span>
-                  </div>
-                )}
-                <div style={{display:"flex",justifyContent:"space-between",
-                  fontSize:9,color:"var(--text-2)",marginBottom:4}}>
-                  <span>% sul totale periodo</span>
-                  <span style={{color:"var(--text-2)",fontFamily:"var(--mono)"}}>
-                    {((v.total/totGlobale)*100).toFixed(1)}%
-                  </span>
-                </div>
-                <div style={{height:3,background:"var(--accent-s)",borderRadius:2,overflow:"hidden"}}>
-                  <div style={{height:"100%",background:accentColor,
-                    width:`${(v.total/totGlobale)*100}%`,
-                    borderRadius:2}}/>
+              <div style={{padding:"9px 16px",borderTop:"1px solid #080f1e",background:"#1C1C22"}}>
+                {v.archivio>0&&v.pino>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:5}}><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"var(--danger-s)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span></span><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"#60a5fa",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Pino {eur(v.pino)}</span></span></div>}
+                <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text-2)",marginBottom:4}}><span>% sul totale periodo</span><span style={{color:"var(--text-2)",fontFamily:"var(--mono)"}}>{((v.total/totGlobale)*100).toFixed(1)}%</span></div>
+                <div style={{height:3,background:"var(--accent-s)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",background:accentColor,width:`${(v.total/totGlobale)*100}%`,borderRadius:2}}/></div>
+                <div style={{display:"flex",gap:8,marginTop:8}}>
+                  <button onClick={(e)=>{ e.stopPropagation(); onNavigate&&onNavigate(k,v.items); }} style={{flex:1,background:"var(--accent-s)",border:"1px solid var(--border)",color:"var(--accent)",borderRadius:7,padding:"6px 8px",cursor:"pointer",fontSize:10,fontWeight:700}}>Apri Storico Giorno</button>
+                  <button onClick={(e)=>{ e.stopPropagation(); setPinnedIdx(null); setHoverIdx(null); }} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:7,padding:"6px 8px",cursor:"pointer",fontSize:10,fontWeight:700}}>Chiudi</button>
                 </div>
               </div>
             </div>
@@ -1070,37 +537,16 @@ function CashChart({assegni, onNavigate}) {
         })()}
       </div>
 
-      {/* ── legenda footer ─────────────────────────────── */}
-      <div style={{display:"flex",gap:12,marginTop:10,
-        fontSize:10,color:"var(--text-2)",flexWrap:"wrap",alignItems:"center"}}>
-        <span style={{display:"flex",alignItems:"center",gap:5}}>
-          <span style={{width:10,height:10,borderRadius:2,
-            background:"linear-gradient(#4ade80,#052e16)",display:"inline-block"}}/>
-          <span style={{color:"var(--text-2)"}}>In Archivio</span>
-        </span>
-        <span style={{display:"flex",alignItems:"center",gap:5}}>
-          <span style={{width:10,height:10,borderRadius:2,
-            background:"linear-gradient(#60a5fa,#1e3a5f)",display:"inline-block"}}/>
-          <span style={{color:"var(--text-2)"}}>Cons. a Pino</span>
-        </span>
-        <span style={{display:"flex",alignItems:"center",gap:5}}>
-          <span style={{width:10,height:10,borderRadius:2,
-            background:"linear-gradient(#fb923c,#431407)",display:"inline-block"}}/>
-          <span style={{color:"var(--text-2)"}}>Scaduto ±4gg</span>
-        </span>
-        <span style={{display:"flex",alignItems:"center",gap:5}}>
-          <span style={{width:2,height:10,background:"#60a5fa",display:"inline-block"}}/>
-          <span style={{color:"var(--text-2)"}}>Oggi</span>
-        </span>
-        <span style={{marginLeft:"auto",color:"var(--text-2)",fontSize:9,
-          fontFamily:"var(--mono)"}}>
-          {winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} → {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}
-        </span>
+      <div style={{display:"flex",gap:12,marginTop:10,fontSize:10,color:"var(--text-2)",flexWrap:"wrap",alignItems:"center"}}>
+        <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:10,height:10,borderRadius:2,background:"linear-gradient(#4ade80,#052e16)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>In Archivio</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:10,height:10,borderRadius:2,background:"linear-gradient(#60a5fa,#1e3a5f)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Cons. a Pino</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:10,height:10,borderRadius:2,background:"linear-gradient(#fb923c,#431407)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Da riconciliare</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:2,height:10,background:"#60a5fa",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Oggi</span></span>
+        <span style={{marginLeft:"auto",color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} -&gt; {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
       </div>
     </div>
   );
 }
-
 
 function PayModal({docs,onSave,onClose,user,onLogout}) {
   // ── STEP: 1=tipo+cliente, 2=partitario+abbina, 3=conferma
