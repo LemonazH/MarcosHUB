@@ -578,6 +578,21 @@ function CashChart({assegni, onNavigate}) {
   const [hoverIdx, setHoverIdx] = React.useState(null);
   const [mousePos, setMousePos] = React.useState({x:0,y:0});
   const svgRef = React.useRef(null);
+  const hideTimerRef = React.useRef(null);
+
+  const clearHideTimer = () => {
+    if (hideTimerRef.current) {
+      clearTimeout(hideTimerRef.current);
+      hideTimerRef.current = null;
+    }
+  };
+
+  const scheduleHideTooltip = () => {
+    clearHideTimer();
+    hideTimerRef.current = setTimeout(() => setHoverIdx(null), 260);
+  };
+
+  React.useEffect(() => () => clearHideTimer(), []);
 
   // ── filtri ────────────────────────────────────────────────
   const todayKey = new Date().toISOString().slice(0,10);
@@ -614,7 +629,10 @@ function CashChart({assegni, onNavigate}) {
     if(!items || items.length===0) return false;
     // Se gli items sono già calcolati li usiamo, altrimenti leggiamo da byDay
     const list = items || (byDay[k]?.items || []);
-    return list.some(a => !a._incassoId);
+    return list.some(a => {
+      const isIncassato = (String(a["STATO TITOLO"] || "").toUpperCase() === "INCASSATO");
+      return !a._incassoId && !isIncassato;
+    });
   };
 
   const GIORNI = ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"];
@@ -716,6 +734,7 @@ function CashChart({assegni, onNavigate}) {
 
   const handleMouseMove = e => {
     if(!svgRef.current) return;
+    clearHideTimer();
     const rect=svgRef.current.getBoundingClientRect();
     const mx=(e.clientX-rect.left)*(W/rect.width);
     let best=null, bestD=Infinity;
@@ -756,7 +775,7 @@ function CashChart({assegni, onNavigate}) {
         <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`}
           style={{overflow:"visible",cursor:"pointer",display:"block"}}
           onMouseMove={handleMouseMove}
-          onMouseLeave={()=>setHoverIdx(null)}>
+          onMouseLeave={scheduleHideTooltip}>
           <defs>
             {/* barra normale */}
             <linearGradient id="ccBg" x1="0" y1="0" x2="0" y2="1">
@@ -902,9 +921,11 @@ function CashChart({assegni, onNavigate}) {
               borderRadius:12,
               boxShadow:`0 20px 60px #00000099, 0 0 0 1px ${accentColor}11`,
               zIndex:300,
-              pointerEvents:"none",
+              pointerEvents:"auto",
               overflow:"hidden",
-            }}>
+            }}
+            onMouseEnter={clearHideTimer}
+            onMouseLeave={scheduleHideTooltip}>
 
               {/* header data */}
               <div style={{background:accentBg,padding:"11px 14px",
@@ -941,6 +962,7 @@ function CashChart({assegni, onNavigate}) {
                   const fatture=a["FATTURE PAGATE"]||"";
                   const nc=a["NC SCALATE"]||"";
                   const docsColl=a["DOCUMENTI COLLEGATI"]||"";
+                  const isIncassato = !!a._incassoId || String(a["STATO TITOLO"]||"").toUpperCase()==="INCASSATO";
                   return (
                     <div key={j} style={{
                       padding:"9px 14px",
@@ -970,9 +992,9 @@ function CashChart({assegni, onNavigate}) {
                         <span style={{color:"var(--text-2)",fontSize:8}}>·</span>
                         <span style={{
                           fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,
-                          background: a._incassoId?"var(--success-s)":"var(--danger-s)",
-                          color:a._incassoId?"#22c55e":"#fb923c",
-                          border:`1px solid ${a._incassoId?"var(--success-s)":"#F97316"}`,
+                          background: isIncassato?"var(--success-s)":"var(--danger-s)",
+                          color:isIncassato?"#22c55e":"#fb923c",
+                          border:`1px solid ${isIncassato?"var(--success-s)":"#F97316"}`,
                         }}>
                           {a["STATO TITOLO"]||""}
                         </span>
@@ -3112,7 +3134,14 @@ function App() {
   const open=docs.filter(d=>d[COL.stato]?.toUpperCase()==="APERTO");
   const totFVE=open.filter(d=>d[COL.tipoDocumento]==="FVE").reduce((s,d)=>s+parseNum(d[COL.saldoResiduo]),0);
   const totNAC=open.filter(d=>d[COL.tipoDocumento]==="NAC").reduce((s,d)=>s+parseNum(d[COL.saldoResiduo]),0);
-  const overdue=open.filter(d=>d[COL.tipoDocumento]==="FVE"&&isOver(d[COL.dataDocumento]));
+  const todayIso = new Date().toISOString().slice(0,10);
+  const accreditoOggi = assegni.filter(a => {
+    const dtTitolo = toISO(a["DATA TITOLO"] || "");
+    const dtIncassoPrev = toISO(a["DATA INCASSO PREVISTA"] || "");
+    return dtTitolo === todayIso || dtIncassoPrev === todayIso;
+  });
+  const accreditoOggiTot = accreditoOggi.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
+  const accreditoOggiDaRic = accreditoOggi.filter(a => (String(a["STATO TITOLO"]||"").toUpperCase() !== "INCASSATO")).length;
 
 
 
@@ -3290,8 +3319,8 @@ function App() {
                  sub:`${open.filter(d=>d[COL.tipoDocumento]==="NAC").length} documenti`},
                 {lbl:"Esposizione Netta", val:eur(totFVE+totNAC),    color:"var(--text-1)",
                  sub:"saldo residuo netto"},
-                {lbl:"Scaduti >90gg",     val:String(overdue.length),color:"var(--danger)",
-                 sub:eur(overdue.reduce((s,d)=>s+parseNum(d[COL.saldoResiduo]),0))},
+                 {lbl:"In Accredito Oggi", val:eur(accreditoOggiTot), color:"var(--success)",
+                  sub:`${accreditoOggi.length} assegni · da riconciliare ${accreditoOggiDaRic}`},
               ].map(({lbl,val,color,sub},i)=>(
                 <div key={lbl} className="kpi-card card" style={{
                   padding:"18px 20px",
