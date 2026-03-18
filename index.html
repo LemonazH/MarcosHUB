@@ -2281,6 +2281,18 @@ function App() {
   });
   const assSorted = sortData(filteredAssegni, assSortKey, assSortDir);
   const assegniRiconciliabili = assegni.filter(a => (a["STATO TITOLO"] || "").toUpperCase() !== "INCASSATO");
+  const incassiRiconciliabili = incs.filter(i => {
+    if ((i["Metodo"] || "").toUpperCase() === "ASSEGNO") return false;
+    const refs = parseDocRefs(i.fatture);
+    if (!refs.length) return true;
+
+    const linkedDocs = refs.flatMap(num =>
+      docs.filter(d => String(d[COL.numeroDocumento]) === String(num))
+    );
+    if (!linkedDocs.length) return true;
+
+    return linkedDocs.some(d => (d[COL.stato] || "").toUpperCase() === "DA RICONCILIARE");
+  });
 
   const filteredRico = riconciliazioni.filter(r=>{
     if(ricDateDa){ const k=toISO(r.data); if(k<ricDateDa) return false; }
@@ -3608,7 +3620,7 @@ function App() {
                   </div>
 
                   <span style={{color:"var(--text-2)",fontSize:10}}>
-                    {recoTab==="assegni"?`${assegniRiconciliabili.length} assegni da riconciliare`:`${incs.length} incassi totali`}
+                    {recoTab==="assegni"?`${assegniRiconciliabili.length} assegni da riconciliare`:`${incassiRiconciliabili.length} incassi da riconciliare`}
                   </span>
                 </div>
 
@@ -3880,8 +3892,7 @@ function App() {
                   {/* Lista Incassi filtrata */}
                   {(()=>{
                     const s = incManSearch.toLowerCase();
-                    const filtered = incs.filter(i => {
-                      if(i["Metodo"] === "Assegno") return false; // Nascondi assegni da questa lista
+                    const filtered = incassiRiconciliabili.filter(i => {
                       const dt = toISO(i["Data Ricezione"]) || "";
                       if(incManDa && dt < incManDa) return false;
                       if(incManA  && dt > incManA)  return false;
