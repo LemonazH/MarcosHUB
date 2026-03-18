@@ -595,9 +595,9 @@ function CashChart({assegni,onNavigate}) {
 
   const FilBtn = ({label,active,onClick,color}) => (
     <button onClick={onClick} style={{
-      background:active?(color||"#111723"):"transparent",
-      border:`1px solid ${active?(color||"#2b405f"):"#263244"}`,
-      color:active?"#e8eef7":"#9aa9bd",
+      background:active?(color||"#1a1d22"):"transparent",
+      border:`1px solid ${active?(color||"#3a404a"):"#2d333d"}`,
+      color:active?"#f4f6f8":"#9aa1ac",
       borderRadius:999,padding:"6px 12px",cursor:"pointer",
       fontSize:10.5,fontWeight:active?700:500,fontFamily:"var(--font)",letterSpacing:.2,
       transition:"all .16s ease",
@@ -606,26 +606,26 @@ function CashChart({assegni,onNavigate}) {
 
   const filtriUI = (
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-      <div style={{display:"flex",gap:4,background:"#111722",border:"1px solid #233044",borderRadius:999,padding:4,boxShadow:"inset 0 1px 0 #ffffff0a"}}>
+      <div style={{display:"flex",gap:4,background:"#14181d",border:"1px solid #2b313a",borderRadius:999,padding:4,boxShadow:"inset 0 1px 0 #ffffff0d"}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
-            color={v==="IN ARCHIVIO"?"#5b3b1a":v==="CONSEGNATO A PINO"?"#10283f":"#1b2737"}
+            color={v==="IN ARCHIVIO"?"#2b2621":v==="CONSEGNATO A PINO"?"#1a212c":"#1d232b"}
             onClick={()=>setStatoFil(v)}/>
         ))}
       </div>
-      <div style={{width:1,height:22,background:"#2a3446",flexShrink:0}}/>
-      <div style={{display:"flex",gap:4,background:"#111722",border:"1px solid #233044",borderRadius:999,padding:4,boxShadow:"inset 0 1px 0 #ffffff0a"}}>
+      <div style={{width:1,height:22,background:"#353b45",flexShrink:0}}/>
+      <div style={{display:"flex",gap:4,background:"#14181d",border:"1px solid #2b313a",borderRadius:999,padding:4,boxShadow:"inset 0 1px 0 #ffffff0d"}}>
         {PRESETS.map((p,i)=>(
-          <FilBtn key={i} label={p.label} color="#10283f"
+          <FilBtn key={i} label={p.label} color="#1a212c"
             active={preset===i&&!fromDate&&!toDate}
             onClick={()=>{setPreset(i);setFromDate("");setToDate("");}}/>
         ))}
       </div>
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
-        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"#0f1520",border:"1px solid #253246",borderRadius:8,color:"#bfd0e6",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
-        <span style={{color:"#8fa0b7",fontSize:10}}>{"->"}</span>
-        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"#0f1520",border:"1px solid #253246",borderRadius:8,color:"#bfd0e6",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
-        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"#1a2332",border:"1px solid #2a3950",color:"#f19a9a",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>x</button>}
+        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"#151a20",border:"1px solid #313844",borderRadius:8,color:"#cfd6df",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
+        <span style={{color:"#8e97a4",fontSize:10}}>{"->"}</span>
+        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"#151a20",border:"1px solid #313844",borderRadius:8,color:"#cfd6df",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
+        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"#1e242c",border:"1px solid #343c47",color:"#b9a6a6",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>x</button>}
       </div>
     </div>
   );
@@ -677,60 +677,53 @@ function CashChart({assegni,onNavigate}) {
           {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"var(--accent)"},
           {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"var(--text-2)"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 140px",background:"linear-gradient(180deg,#101723 0%,#0c111a 100%)",border:"1px solid #1f2d43",borderRadius:14,padding:"11px 16px",boxShadow:"inset 0 1px 0 #ffffff0a"}}>
-            <div style={{color:"#8fa0b7",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{label}</div>
+          <div key={i} style={{flex:"1 1 140px",background:"linear-gradient(180deg,#171b21 0%,#12161c 100%)",border:"1px solid #2c333d",borderRadius:14,padding:"11px 16px",boxShadow:"inset 0 1px 0 #ffffff08"}}>
+            <div style={{color:"#9ea7b3",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{label}</div>
             <div style={{color,fontSize:15,fontWeight:800,fontFamily:"var(--mono)",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
 
-      <div style={{position:"relative",border:"1px solid #1e2c42",borderRadius:16,background:"radial-gradient(120% 140% at 0% 0%, #172236 0%, #0d1320 42%, #0a0f18 100%)",padding:"8px 10px 4px",boxShadow:"inset 0 1px 0 #ffffff0a"}}>
+      <div style={{position:"relative",border:"1px solid #2c333d",borderRadius:16,background:"linear-gradient(180deg,#161b22 0%,#11151b 100%)",padding:"8px 10px 4px",boxShadow:"inset 0 1px 0 #ffffff0a"}}>
         <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible",cursor:"pointer",display:"block"}} onMouseMove={handleMouseMove} onMouseLeave={scheduleHideTooltip}>
           <defs>
             <linearGradient id="ccPlotBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#101724"/>
-              <stop offset="100%" stopColor="#0b111b"/>
+              <stop offset="0%" stopColor="#191f27"/>
+              <stop offset="100%" stopColor="#131820"/>
             </linearGradient>
             <linearGradient id="ccBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#2ccf87" stopOpacity=".95"/>
-              <stop offset="100%" stopColor="#0d3a2a" stopOpacity=".72"/>
+              <stop offset="0%" stopColor="#6abf95" stopOpacity=".92"/>
+              <stop offset="100%" stopColor="#3c5d4e" stopOpacity=".9"/>
             </linearGradient>
             <linearGradient id="ccBh" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6de7ad"/>
-              <stop offset="100%" stopColor="#22C55E" stopOpacity=".8"/>
+              <stop offset="0%" stopColor="#89d3b0"/>
+              <stop offset="100%" stopColor="#5da883" stopOpacity=".95"/>
             </linearGradient>
             <linearGradient id="ccBt" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ffb066" stopOpacity=".95"/>
-              <stop offset="100%" stopColor="#4b220d" stopOpacity=".75"/>
+              <stop offset="0%" stopColor="#cda988" stopOpacity=".95"/>
+              <stop offset="100%" stopColor="#6f5642" stopOpacity=".92"/>
             </linearGradient>
             <linearGradient id="ccBth" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#ffd1a3"/>
-              <stop offset="100%" stopColor="#F97316" stopOpacity=".85"/>
+              <stop offset="0%" stopColor="#dac1ab"/>
+              <stop offset="100%" stopColor="#b08b67" stopOpacity=".96"/>
             </linearGradient>
             <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#74bcff" stopOpacity=".95"/>
-              <stop offset="100%" stopColor="#173153" stopOpacity=".72"/>
+              <stop offset="0%" stopColor="#8aa8cb" stopOpacity=".93"/>
+              <stop offset="100%" stopColor="#4a5f7a" stopOpacity=".9"/>
             </linearGradient>
             <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#b8dcff"/>
-              <stop offset="100%" stopColor="#3B82F6" stopOpacity=".85"/>
+              <stop offset="0%" stopColor="#afc2d9"/>
+              <stop offset="100%" stopColor="#6f88a8" stopOpacity=".95"/>
             </linearGradient>
-            <filter id="ccSoftGlow" x="-40%" y="-40%" width="180%" height="180%">
-              <feGaussianBlur stdDeviation="2.2" result="b"/>
-              <feMerge>
-                <feMergeNode in="b"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
           </defs>
 
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#0b1119" rx={9}/>
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={9} stroke="#223147"/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#141a22" rx={9}/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={9} stroke="#313844"/>
 
           {gridLines.map(({r,y,val})=>(
             <g key={r}>
-              <line x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke={r===1?"#324960":"#1a2739"} strokeWidth={1} strokeDasharray={r===1?"":"3,6"}/>
-              <text x={P.l-8} y={y+3.5} textAnchor="end" fill="#7f92ab" fontSize={9} fontFamily="var(--mono)">{fmtY(val)}</text>
+              <line x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke={r===1?"#4b5563":"#2c343f"} strokeWidth={1} strokeDasharray={r===1?"":"2,7"}/>
+              <text x={P.l-8} y={y+3.5} textAnchor="end" fill="#8f98a5" fontSize={9} fontFamily="var(--mono)">{fmtY(val)}</text>
             </g>
           ))}
 
@@ -750,19 +743,19 @@ function CashChart({assegni,onNavigate}) {
             return (
               <g key={k} style={{cursor:"pointer"}} onClick={()=>onNavigate&&onNavigate(k,v.items)}>
                 <rect x={x-3} y={P.t} width={barW+6} height={iH} fill="transparent" rx={2}/>
-                {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH} fill="var(--text-1)" opacity={.03} rx={2}/>}
-                {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH} stroke="#86bfff" strokeWidth={1} strokeDasharray="2,3" opacity={.45}/>} 
-                {hPino>0&&<rect x={x} y={yTot+hArch} width={barW} height={hPino} rx={hArch>0?0:4} fill={gradPino} opacity={isHov?1:.9} filter={isHov?"url(#ccSoftGlow)":undefined}/>} 
-                {hArch>0&&<rect x={x} y={yTot} width={barW} height={hArch} rx={4} fill={gradArch} opacity={isHov?1:.9} filter={isHov?"url(#ccSoftGlow)":undefined}/>} 
-                {(isHov||(n<=8))&&<text x={xOf(i)} y={yTot-6} textAnchor="middle" fill={inTol?"#ffb066":v.archivio>0?"#79ebb4":"#86c8ff"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>} 
-                {nA>1&&!isHov&&(<g><circle cx={xOf(i)} cy={yTot-10} r={6} fill="#122035" stroke="#2b3b52" strokeWidth={1}/><text x={xOf(i)} y={yTot-6.5} textAnchor="middle" fill="#9eb2ca" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text></g>)}
-                {(i%labelStep===0||n<=15)&&<text x={xOf(i)} y={H-P.b+14} textAnchor="middle" fill={isToday?"#9ecbff":isHov?"#e6edf8":"#8ba0ba"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
+                {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH} fill="#ffffff" opacity={.04} rx={2}/>} 
+                {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH} stroke="#a9b7ca" strokeWidth={1} strokeDasharray="2,3" opacity={.5}/>} 
+                {hPino>0&&<rect x={x} y={yTot+hArch} width={barW} height={hPino} rx={hArch>0?0:4} fill={gradPino} opacity={isHov?.98:.88}/>} 
+                {hArch>0&&<rect x={x} y={yTot} width={barW} height={hArch} rx={4} fill={gradArch} opacity={isHov?.98:.88}/>} 
+                {(isHov||(n<=8))&&<text x={xOf(i)} y={yTot-6} textAnchor="middle" fill={inTol?"#cfb39b":v.archivio>0?"#97c9af":"#a3bbd8"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>} 
+                {nA>1&&!isHov&&(<g><circle cx={xOf(i)} cy={yTot-10} r={6} fill="#1a2028" stroke="#3a4350" strokeWidth={1}/><text x={xOf(i)} y={yTot-6.5} textAnchor="middle" fill="#a3acb9" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text></g>)}
+                {(i%labelStep===0||n<=15)&&<text x={xOf(i)} y={H-P.b+14} textAnchor="middle" fill={isToday?"#c7d1df":isHov?"#e5e9ee":"#8e97a5"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
               </g>
             );
           })}
 
-          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#223147" strokeWidth={1}/>
-          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="#2b3e57" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#313844" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="#3a4350" strokeWidth={1}/>
         </svg>
 
         {activeIdx!==null&&(()=>{
@@ -853,12 +846,12 @@ function CashChart({assegni,onNavigate}) {
         })()}
       </div>
 
-      <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"#8ca0ba",flexWrap:"wrap",alignItems:"center"}}>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#6de7ad,#0d3a2a)",display:"inline-block"}}/><span style={{color:"#8ca0ba"}}>In Archivio</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#74bcff,#173153)",display:"inline-block"}}/><span style={{color:"#8ca0ba"}}>Cons. a Pino</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#ffb066,#4b220d)",display:"inline-block"}}/><span style={{color:"#8ca0ba"}}>Da riconciliare</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"#86bfff",display:"inline-block"}}/><span style={{color:"#8ca0ba"}}>Oggi</span></span>
-        <span style={{marginLeft:"auto",color:"#8ca0ba",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
+      <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"#959eab",flexWrap:"wrap",alignItems:"center"}}>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#89d3b0,#3c5d4e)",display:"inline-block"}}/><span style={{color:"#959eab"}}>In Archivio</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#afc2d9,#4a5f7a)",display:"inline-block"}}/><span style={{color:"#959eab"}}>Cons. a Pino</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#dac1ab,#6f5642)",display:"inline-block"}}/><span style={{color:"#959eab"}}>Da riconciliare</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"#a9b7ca",display:"inline-block"}}/><span style={{color:"#959eab"}}>Oggi</span></span>
+        <span style={{marginLeft:"auto",color:"#959eab",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
       </div>
     </div>
   );
