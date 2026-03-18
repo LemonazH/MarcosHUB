@@ -227,20 +227,30 @@ const d1API = {
       window.location.reload();
       return;
     }
-    const data = await r.json();
-    if (!r.ok) throw new Error(data.error || "Errore API");
+    let data = null;
+    try {
+      data = await r.json();
+    } catch(_) {
+      data = null;
+    }
+    if (!r.ok) {
+      const base = data?.error || data?.message || "Errore API";
+      throw new Error(`${base} [${r.status} ${method} ${path}]`);
+    }
     return data;
   },
 
   clear() { this.user = null; this.token = null; },
 
   async auth(username, password) {
-    const data = await fetch(`${WORKER_URL}/api/auth`, {
+    const res = await fetch(`${WORKER_URL}/api/auth`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
-    }).then(r => r.json());
+    });
+    const data = await res.json();
     if (data.error) throw new Error(data.error);
+    if (!res.ok) throw new Error(`Auth failed [${res.status}]`);
     this.user  = data.username;
     this.token = data.token;
     return data;
@@ -2208,6 +2218,8 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
 }
 
 function App() {
+  const VIRTUAL_STEP = 250;
+
   // ── LOGIN ──
   const [authed, setAuthed] = useState(()=>{
     const u = sessionStorage.getItem("cf_user");
@@ -2259,7 +2271,16 @@ function App() {
   const selIds = new Set(Object.keys(recoSel));
   const [recoSaving,setRecoSaving]=useState(false);
   const [tab,setTab]=useState("dashboard");
+  const [globalSearch,setGlobalSearch]=useState("");
   const [toast,setToast]=useState(null);
+  const [showBackupReminder,setShowBackupReminder]=useState(false);
+  const [isNarrow,setIsNarrow]=useState(() => window.innerWidth <= 1180);
+
+  const [docRowsLimit,setDocRowsLimit]=useState(VIRTUAL_STEP);
+  const [incRowsLimit,setIncRowsLimit]=useState(VIRTUAL_STEP);
+  const [assRowsLimit,setAssRowsLimit]=useState(VIRTUAL_STEP);
+  const [ricRowsLimit,setRicRowsLimit]=useState(VIRTUAL_STEP);
+  const [storicoAssRowsLimit,setStoricoAssRowsLimit]=useState(VIRTUAL_STEP);
   const [showPay,setShowPay]=useState(false);
   const [showAdvancedDocStates,setShowAdvancedDocStates]=useState(false);
   const [fState,setFState]=useState("Tutti");
@@ -2271,12 +2292,43 @@ function App() {
   const [docDatePagA,setDocDatePagA]=useState("");
   const [incDateDa,setIncDateDa]=useState("");
   const [incDateA,setIncDateA]=useState("");
+  const [incTabSearch,setIncTabSearch]=useState("");
   const [assDateDa,setAssDateDa]=useState("");
   const [assDateA,setAssDateA]=useState("");
   const [assDateIncDa,setAssDateIncDa]=useState("");
   const [assDateIncA,setAssDateIncA]=useState("");
+  const [assTabSearch,setAssTabSearch]=useState("");
   const [ricDateDa,setRicDateDa]=useState("");
   const [ricDateA,setRicDateA]=useState("");
+  const [recoDateDa,setRecoDateDa]=useState("");
+  const [recoDateA,setRecoDateA]=useState("");
+
+  useEffect(()=>{
+    const onResize = () => setIsNarrow(window.innerWidth <= 1180);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  },[]);
+
+  useEffect(()=>{
+    const last = Number(localStorage.getItem("cf_last_backup_ts") || 0);
+    const ONE_DAY = 24 * 60 * 60 * 1000;
+    setShowBackupReminder(!last || (Date.now() - last) > ONE_DAY);
+  },[]);
+
+  useEffect(()=>{
+    setDocRowsLimit(VIRTUAL_STEP);
+    setIncRowsLimit(VIRTUAL_STEP);
+    setAssRowsLimit(VIRTUAL_STEP);
+    setRicRowsLimit(VIRTUAL_STEP);
+    setStoricoAssRowsLimit(VIRTUAL_STEP);
+  },[tab, docDateDa, docDateA, docDatePagDa, docDatePagA, incDateDa, incDateA, assDateDa, assDateA, assDateIncDa, assDateIncA, ricDateDa, ricDateA, search, globalSearch, incTabSearch, assTabSearch]);
+
+  const globalQ = globalSearch.trim().toLowerCase();
+
+  const matchesGlobal = (obj) => {
+    if (!globalQ) return true;
+    return Object.values(obj || {}).some(v => String(v || "").toLowerCase().includes(globalQ));
+  };
 
   const filtered=docs.filter(d=>{
     if(fState!=="Tutti"&&d[COL.stato]?.toUpperCase()!==fState) return false;
@@ -2285,7 +2337,8 @@ function App() {
     if(docDateA){ const k=toISO(d[COL.dataDocumento]); if(k>docDateA) return false; }
     if(docDatePagDa){ const k=toISO(d[COL.dataPagamento]); if(k<docDatePagDa) return false; }
     if(docDatePagA){ const k=toISO(d[COL.dataPagamento]); if(k>docDatePagA) return false; }
-    if(search){ const q=search.toLowerCase(); return Object.values(d).some(v=>String(v).toLowerCase().includes(q)); }
+    if(search){ const q=search.toLowerCase(); if(!Object.values(d).some(v=>String(v).toLowerCase().includes(q))) return false; }
+    if(!matchesGlobal(d)) return false;
     return true;
   });
 
@@ -2304,17 +2357,29 @@ function App() {
   const docSorted = sortData(filtered, docSortKey, docSortDir);
 
   const filteredIncs = incs.filter(i=>{
+    if(incTabSearch){
+      const q = incTabSearch.toLowerCase();
+      const hit = Object.values(i).some(v => String(v || "").toLowerCase().includes(q));
+      if(!hit) return false;
+    }
     if(incDateDa){ const k=toISO(i["Data Ricezione"]); if(k<incDateDa) return false; }
     if(incDateA){ const k=toISO(i["Data Ricezione"]); if(k>incDateA) return false; }
+    if(!matchesGlobal(i)) return false;
     return true;
   });
   const incSorted = sortData(filteredIncs, incSortKey, incSortDir);
 
   const filteredAssegni = assegni.filter(a=>{
+    if(assTabSearch){
+      const q = assTabSearch.toLowerCase();
+      const hit = Object.values(a).some(v => String(v || "").toLowerCase().includes(q));
+      if(!hit) return false;
+    }
     if(assDateDa){ const k=toISO(a["DATA TITOLO"]); if(k<assDateDa) return false; }
     if(assDateA){ const k=toISO(a["DATA TITOLO"]); if(k>assDateA) return false; }
     if(assDateIncDa){ const k=toISO(a["DATA INCASSO PREVISTA"]); if(k<assDateIncDa) return false; }
     if(assDateIncA){ const k=toISO(a["DATA INCASSO PREVISTA"]); if(k>assDateIncA) return false; }
+    if(!matchesGlobal(a)) return false;
     return true;
   });
   const assSorted = sortData(filteredAssegni, assSortKey, assSortDir);
@@ -2335,14 +2400,63 @@ function App() {
   const filteredRico = riconciliazioni.filter(r=>{
     if(ricDateDa){ const k=toISO(r.data); if(k<ricDateDa) return false; }
     if(ricDateA){ const k=toISO(r.data); if(k>ricDateA) return false; }
+    if(!matchesGlobal(r)) return false;
     return true;
   });
+
+  const bankRowsFiltered = bankRows.filter(r => {
+    const k = toISO(r.data || "");
+    if(recoDateDa && k && k < recoDateDa) return false;
+    if(recoDateA && k && k > recoDateA) return false;
+    if(!matchesGlobal(r)) return false;
+    return true;
+  });
+
+  const docVisible = docSorted.slice(0, docRowsLimit);
+  const incVisible = incSorted.slice(0, incRowsLimit);
+  const assVisible = assSorted.slice(0, assRowsLimit);
+  const ricoVisible = [...filteredRico].reverse().slice(0, ricRowsLimit);
 
   const DocSortTh = makeSortTh(docSortKey, docSortDir, toggleDocSort);
   const IncSortTh = makeSortTh(incSortKey, incSortDir, toggleIncSort);
   const AssSortTh = makeSortTh(assSortKey, assSortDir, toggleAssSort);
 
   const notify=(msg,type="info")=>setToast({msg,type});
+
+  const downloadRowsXlsx = (rows, fileName, sheetName) => {
+    if (!rows || !rows.length) {
+      notify("Nessun dato da esportare", "warn");
+      return;
+    }
+    const wb = window.XLSX.utils.book_new();
+    const ws = window.XLSX.utils.json_to_sheet(rows);
+    window.XLSX.utils.book_append_sheet(wb, ws, sheetName || "Dati");
+    window.XLSX.writeFile(wb, fileName);
+    notify(`Export completato: ${fileName}`, "success");
+  };
+
+  const exportCurrentTab = () => {
+    const ts = new Date().toISOString().slice(0,10);
+    if (tab === "documenti") return downloadRowsXlsx(docSorted, `MarcosHUB-documenti-${ts}.xlsx`, "Documenti");
+    if (tab === "incassi") return downloadRowsXlsx(incSorted, `MarcosHUB-incassi-${ts}.xlsx`, "Incassi");
+    if (tab === "assegni") return downloadRowsXlsx(assSorted, `MarcosHUB-assegni-${ts}.xlsx`, "Assegni");
+    if (tab === "storico") return downloadRowsXlsx([...filteredRico].reverse(), `MarcosHUB-storico-incassi-${ts}.xlsx`, "Storico");
+    if (tab === "riconcilia") return downloadRowsXlsx(bankRows, `MarcosHUB-banca-${ts}.xlsx`, "Riconcilia");
+    notify("Export disponibile solo nelle tab dati", "info");
+  };
+
+  const runBackupExport = () => {
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(docs), "Documenti");
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(incs), "Incassi");
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(assegni), "Assegni");
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(riconciliazioni), "Riconciliazioni");
+    const ts = new Date().toISOString().slice(0,10);
+    window.XLSX.writeFile(wb, `MarcosHUB-backup-completo-${ts}.xlsx`);
+    localStorage.setItem("cf_last_backup_ts", String(Date.now()));
+    setShowBackupReminder(false);
+    notify("Backup completo esportato ✓", "success");
+  };
 
   const loadData=useCallback(async()=>{
     setLoading(true);
@@ -3021,7 +3135,7 @@ function App() {
 
       {/* SIDEBAR */}
       <aside style={{
-        width:244,flexShrink:0,
+        width:isNarrow?76:244,flexShrink:0,
         background:"var(--surface)",
         borderRight:"1px solid var(--border-2)",
         display:"flex",flexDirection:"column",
@@ -3042,13 +3156,13 @@ function App() {
               <circle cx="14.5" cy="2" r="1.6" fill="#93C5FD"/>
             </svg>
           </div>
-          <div>
+          {!isNarrow && <div>
             <div style={{fontFamily:"var(--font)",fontWeight:700,fontSize:13,
               letterSpacing:-.3,color:"var(--text-1)",fontStyle:"italic"}}>Marco's HUB</div>
             <div style={{color:"var(--text-2)",fontSize:9,marginTop:1,letterSpacing:".3px"}}>
               Gestione Crediti
             </div>
-          </div>
+          </div>}
         </div>
 
         {/* Nav */}
@@ -3072,7 +3186,7 @@ function App() {
                 borderRadius:"var(--radius-s)",
               }}>
                 <span style={{fontSize:14,opacity:active?1:.55,width:16,textAlign:"center",flexShrink:0}}>{icon}</span>
-                {lbl}
+                {!isNarrow ? lbl : ""}
               </button>
             );
           })}
@@ -3087,11 +3201,11 @@ function App() {
               fontSize:10,color:"#fff",fontWeight:700}}>
               {authed?.[0]?.toUpperCase()||"U"}
             </div>
-            <div style={{minWidth:0,flex:1}}>
+            {!isNarrow && <div style={{minWidth:0,flex:1}}>
               <div style={{color:"var(--text-1)",fontSize:12,fontWeight:600,
                 overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{authed}</div>
               <div style={{color:"var(--text-2)",fontSize:9}}>{isAdmin?"Admin":"Operatore"}</div>
-            </div>
+            </div>}
           </div>
           <div style={{display:"flex",gap:5}}>
             <button onClick={loadData} style={{
@@ -3118,7 +3232,7 @@ function App() {
           borderBottom:"1px solid var(--border)",
           display:"flex",alignItems:"center",
           justifyContent:"space-between",
-          padding:"0 24px",
+          padding:isNarrow?"0 12px":"0 24px",
         }}>
           <div style={{display:"flex",alignItems:"center",gap:12}}>
             <div style={{color:"var(--text-1)",fontSize:13.5,fontWeight:600,letterSpacing:"-.2px"}}>
@@ -3130,6 +3244,23 @@ function App() {
             </div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <input
+              value={globalSearch}
+              onChange={e=>setGlobalSearch(e.target.value)}
+              placeholder="Ricerca manuale (testo libero)"
+              style={{...S.input,width:isNarrow?170:260,height:32,fontSize:12}}
+            />
+            {!!globalSearch && (
+              <button onClick={()=>setGlobalSearch("")} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"6px 8px",cursor:"pointer",fontSize:11}}>
+                ✕
+              </button>
+            )}
+            <button onClick={exportCurrentTab} style={{background:"var(--bg)",border:"1px solid var(--border)",color:"var(--accent)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)"}}>
+              Export tab
+            </button>
+            <button onClick={runBackupExport} style={{background:showBackupReminder?"var(--warn-s)":"var(--bg)",border:`1px solid ${showBackupReminder?"#b45309":"var(--border)"}`,color:showBackupReminder?"var(--warn)":"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:showBackupReminder?700:400}}>
+              Backup dati {showBackupReminder?"!":""}
+            </button>
             {demo&&<span style={{color:"var(--warn)",fontSize:9,background:"var(--warn-s)",
               border:"1px solid #FCD34D",padding:"3px 8px",borderRadius:20,fontWeight:600}}>DEMO</span>}
             {loading&&<Spinner/>}
@@ -3384,7 +3515,7 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {docSorted.map((doc,i)=>{
+                    {docVisible.map((doc,i)=>{
                       const st = (doc[COL.stato]||"").toUpperCase();
                       const allowedSt = allowedTransitions(DOC_STATUS_TRANSITIONS, st);
                       const baseStatusOptions = ["APERTO", "PARZIALE", "DA INCASSARE", "DA RICONCILIARE", "CHIUSO"];
@@ -3481,6 +3612,13 @@ function App() {
                   </tbody>
                 </table>
               </div>
+              {docSorted.length > docRowsLimit && (
+                <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
+                  <button onClick={()=>setDocRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                    Mostra altri {Math.min(VIRTUAL_STEP, docSorted.length - docRowsLimit)}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3489,9 +3627,22 @@ function App() {
         {tab==="incassi"&&(
           <div className="tab-content">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-              <span style={{color:"var(--text-2)",fontSize:12}}>{incs.length} incassi registrati</span>
+              <span style={{color:"var(--text-2)",fontSize:12}}>{filteredIncs.length} incassi visualizzati</span>
               <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"linear-gradient(135deg,#059669,#10b981)",color:"#fff"}}>
                 + Nuovo Incasso
+              </button>
+            </div>
+            <div style={{display:"flex",gap:10,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+              <input value={incTabSearch} onChange={e=>setIncTabSearch(e.target.value)} placeholder="Cerca incassi..." style={{...S.input,width:210}}/>
+              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA:</span>
+                <input type="date" value={incDateDa} onChange={e=>setIncDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                <input type="date" value={incDateA} onChange={e=>setIncDateA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                {(incDateDa||incDateA) && <button onClick={()=>{setIncDateDa("");setIncDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:4}}>✕</button>}
+              </div>
+              <button onClick={()=>{setIncTabSearch("");setIncDateDa("");setIncDateA("");}} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11}}>
+                Reset filtri
               </button>
             </div>
             <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
@@ -3508,7 +3659,7 @@ function App() {
                   </tr>
                 </thead>
                 <tbody>
-                  {incSorted.map((inc,i)=>{
+                  {incVisible.map((inc,i)=>{
                     const origIdx = incs.indexOf(inc);
                     return (
                     <tr key={inc["ID Incasso"]||i} className="row-hover"
@@ -3534,6 +3685,13 @@ function App() {
                   })}
                 </tbody>
               </table>
+              {incSorted.length > incRowsLimit && (
+                <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
+                  <button onClick={()=>setIncRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                    Mostra altri {Math.min(VIRTUAL_STEP, incSorted.length - incRowsLimit)}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3542,13 +3700,31 @@ function App() {
         {tab==="assegni"&&(
           <div className="tab-content">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
-              <span style={{color:"var(--text-2)",fontSize:12}}>{assegni.length} assegni nel registro</span>
+              <span style={{color:"var(--text-2)",fontSize:12}}>{filteredAssegni.length} assegni visualizzati</span>
               <div style={{display:"flex",gap:10,alignItems:"center"}}>
                 <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
                   padding:"8px 16px",fontSize:12,color:"var(--accent)"}}>
                   Totale: <strong>{eur(assSorted.reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0))}</strong>
                 </div>
               </div>
+            </div>
+            <div style={{display:"flex",gap:10,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+              <input value={assTabSearch} onChange={e=>setAssTabSearch(e.target.value)} placeholder="Cerca assegni..." style={{...S.input,width:210}}/>
+              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA TITOLO:</span>
+                <input type="date" value={assDateDa} onChange={e=>setAssDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                <input type="date" value={assDateA} onChange={e=>setAssDateA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA INCASSO:</span>
+                <input type="date" value={assDateIncDa} onChange={e=>setAssDateIncDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                <input type="date" value={assDateIncA} onChange={e=>setAssDateIncA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+              </div>
+              <button onClick={()=>{setAssTabSearch("");setAssDateDa("");setAssDateA("");setAssDateIncDa("");setAssDateIncA("");}} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11}}>
+                Reset filtri
+              </button>
             </div>
             <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
               <div style={{overflowX:"auto"}}>
@@ -3574,7 +3750,7 @@ function App() {
                     </tr>
                   </thead>
                   <tbody>
-                    {assSorted.map((a,i)=>{
+                    {assVisible.map((a,i)=>{
                     const origIdxA = assegni.indexOf(a);
                     return (
                       <tr key={i} className="row-hover"
@@ -3592,6 +3768,13 @@ function App() {
                   </tbody>
                 </table>
               </div>
+              {assSorted.length > assRowsLimit && (
+                <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
+                  <button onClick={()=>setAssRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                    Mostra altri {Math.min(VIRTUAL_STEP, assSorted.length - assRowsLimit)}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -3616,26 +3799,36 @@ function App() {
                   <input type="file" accept=".xlsx,.xls" onChange={handleBankFile}
                     style={{display:"none"}}/>
                 </label>
-                {bankRows.length>0&&(
+                {bankRowsFiltered.length>0&&(
                   <div style={{marginTop:12,color:"var(--success)",fontSize:12}}>
-                    ✓ {bankRows.length} accrediti caricati •{" "}
-                    <span style={{color:"var(--success)"}}>{bankRows.filter(r=>r.riconciliato).length} riconciliati</span>
+                    ✓ {bankRowsFiltered.length} accrediti visualizzati •{" "}
+                    <span style={{color:"var(--success)"}}>{bankRowsFiltered.filter(r=>r.riconciliato).length} riconciliati</span>
                   </div>
                 )}
               </div>
 
+              <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap",marginBottom:10}}>
+                <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+                  <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA ACCREDITO:</span>
+                  <input type="date" value={recoDateDa} onChange={e=>setRecoDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                  <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
+                  <input type="date" value={recoDateA} onChange={e=>setRecoDateA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
+                  {(recoDateDa||recoDateA) && <button onClick={()=>{setRecoDateDa("");setRecoDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:4}}>✕</button>}
+                </div>
+              </div>
+
               {/* Lista accrediti */}
-              {bankRows.length>0&&(
+              {bankRowsFiltered.length>0&&(
                 <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
                   <div style={{padding:"12px 16px",borderBottom:"1px solid var(--border)",
                     display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ ACCREDITI DAL FILE BANCA</span>
                     <span style={{color:"var(--text-2)",fontSize:11}}>
-                      Totale: <strong style={{color:"var(--success)"}}>{eur(bankRows.reduce((s,r)=>s+r.avere,0))}</strong>
+                      Totale: <strong style={{color:"var(--success)"}}>{eur(bankRowsFiltered.reduce((s,r)=>s+r.avere,0))}</strong>
                     </span>
                   </div>
                   <div style={{maxHeight:520,overflowY:"auto"}}>
-                    {bankRows.map((row,i)=>{
+                    {bankRowsFiltered.map((row,i)=>{
                       const isSel = accrediti.some(a=>a.idx===row.idx);
                       return (
                         <div key={i} onClick={()=>{setAccrediti([row]);setRecoSel({});setRecoSearch("");}}
@@ -3701,7 +3894,7 @@ function App() {
                 </div>
               )}
 
-              {bankRows.length===0&&(
+              {bankRowsFiltered.length===0&&(
                 <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",
                   padding:60,textAlign:"center",color:"var(--text-2)"}}>
                   <div style={{fontSize:32,marginBottom:12}}>🏦</div>
@@ -4421,6 +4614,7 @@ function App() {
                 return k===storicoFiltroAssegno;
               })
             : assegniOrdinati;
+          const assegniStoricoVisible = assegniVis.slice(0, storicoAssRowsLimit);
 
           const nRicNonRic = assegni.filter(a=>(a["STATO TITOLO"]||"").toUpperCase()!="INCASSATO").length;
           const totNonRic  = assegni.filter(a=>(a["STATO TITOLO"]||"").toUpperCase()!="INCASSATO").reduce((s,a)=>s+parseNum(a["IMPORTO TITOLO"]),0);
@@ -4517,7 +4711,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {[...filteredRico].reverse().map((r,i)=>{
+                      {ricoVisible.map((r,i)=>{
                          const fatture   = Array.isArray(r.fatture)?r.fatture:[];
                         const fattureIds = Array.isArray(r.fattureIds)&&r.fattureIds.length ? r.fattureIds : fatture;
                         const accredito = r.accredito||0;
@@ -4550,6 +4744,13 @@ function App() {
                       })}
                     </tbody>
                   </table>
+                  {filteredRico.length > ricRowsLimit && (
+                    <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
+                      <button onClick={()=>setRicRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                        Mostra altri {Math.min(VIRTUAL_STEP, filteredRico.length - ricRowsLimit)}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             )}
@@ -4573,7 +4774,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {assegniVis.map((a,i)=>{
+                      {assegniStoricoVisible.map((a,i)=>{
                         const isRic = (a["STATO TITOLO"]||"").toUpperCase()==="INCASSATO";
                         const isHL  = storicoFiltroAssegno && (a["DATA TITOLO"]||"").slice(0,10)===storicoFiltroAssegno;
                         const stato = a["STATO TITOLO"]||"";
@@ -4642,6 +4843,13 @@ function App() {
                       })}
                     </tbody>
                   </table>
+                  {assegniVis.length > storicoAssRowsLimit && (
+                    <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
+                      <button onClick={()=>setStoricoAssRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                        Mostra altri {Math.min(VIRTUAL_STEP, assegniVis.length - storicoAssRowsLimit)}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )
             )}
