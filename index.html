@@ -281,6 +281,38 @@ const assStatoColor = s => {
   return "#94a3b8";                                                         // grigio — altro
 };
 
+// Fase B1: regole transizione stato centralizzate (enforcement graduale)
+const DOC_STATUS_TRANSITIONS = {
+  "APERTO": ["APERTO","PARZIALE","DA INCASSARE","DA RICONCILIARE","CHIUSO","PAGATO","STORNATO"],
+  "PARZIALE": ["PARZIALE","APERTO","DA INCASSARE","DA RICONCILIARE","CHIUSO","PAGATO","STORNATO"],
+  "DA INCASSARE": ["DA INCASSARE","PARZIALE","CHIUSO","APERTO"],
+  "DA RICONCILIARE": ["DA RICONCILIARE","CHIUSO","APERTO"],
+  "CHIUSO": ["CHIUSO","APERTO","DA RICONCILIARE"],
+  "PAGATO": ["PAGATO","APERTO","CHIUSO"],
+  "STORNATO": ["STORNATO","APERTO"],
+};
+
+const ASS_STATUS_TRANSITIONS = {
+  "IN ARCHIVIO": ["IN ARCHIVIO","CONSEGNATO A PINO","INCASSATO"],
+  "CONSEGNATO A PINO": ["CONSEGNATO A PINO","IN ARCHIVIO","INCASSATO"],
+  "INCASSATO": ["INCASSATO","CONSEGNATO A PINO"],
+};
+
+const canTransition = (rules, fromState, toState) => {
+  const from = String(fromState||"").toUpperCase();
+  const to = String(toState||"").toUpperCase();
+  if (!to || !from || from === to) return true;
+  const allowed = rules[from];
+  if (!Array.isArray(allowed)) return true;
+  return allowed.includes(to);
+};
+
+const allowedTransitions = (rules, fromState) => {
+  const from = String(fromState || "").toUpperCase();
+  const allowed = rules[from];
+  return Array.isArray(allowed) ? allowed : [];
+};
+
 // Formatta lista numeri doc come "29 - 127 - 158"
 const fmtDocList = (str) => {
   if (!str || !str.trim()) return "—";
@@ -2223,6 +2255,7 @@ function App() {
   const [tab,setTab]=useState("dashboard");
   const [toast,setToast]=useState(null);
   const [showPay,setShowPay]=useState(false);
+  const [showAdvancedDocStates,setShowAdvancedDocStates]=useState(false);
   const [fState,setFState]=useState("Tutti");
   const [fType,setFType]=useState("Tutti");
   const [search,setSearch]=useState("");
@@ -2492,9 +2525,19 @@ function App() {
   };
 
   const handleEdit=async(origIdx,field,val)=>{
-    setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:val}; return d; });
     const doc = docs[origIdx];
     if(!doc?._id) { notify("ID documento mancante","error"); return; }
+    if(field===COL.stato){
+      const fromSt = doc[COL.stato] || "";
+      const toSt = String(val||"").toUpperCase();
+      if(!canTransition(DOC_STATUS_TRANSITIONS, fromSt, toSt)){
+        const allowed = allowedTransitions(DOC_STATUS_TRANSITIONS, fromSt);
+        notify(`Transizione non consentita: ${fromSt||"(vuoto)"} -> ${toSt||"(vuoto)"}. Consentiti: ${allowed.join(", ")||"n/d"}`,"error");
+        return;
+      }
+    }
+
+    setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:val}; return d; });
     const d1field = COL_D1_MAP[field];
     if(!d1field) { notify("Campo non mappato: "+field,"warn"); return; }
     try {
@@ -2514,6 +2557,14 @@ function App() {
     };
     const d1field = fieldMap[field];
     if (!d1field) return;
+    if(field === "STATO TITOLO"){
+      const fromSt = ass["STATO TITOLO"] || "";
+      const toSt = String(val||"").toUpperCase();
+      if(!canTransition(ASS_STATUS_TRANSITIONS, fromSt, toSt)){
+        notify(`Transizione assegno non consentita: ${fromSt||"(vuoto)"} -> ${toSt||"(vuoto)"}`,"error");
+        return;
+      }
+    }
     setAssegni(p=>{ const a=[...p]; a[idx]={...a[idx],[field]:val}; return a; });
     try {
       await d1API.call(`/api/assegni/${ass._id}`, "PUT", { [d1field]: val, utente: authed });
@@ -3287,6 +3338,22 @@ function App() {
               <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:90}}>
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
               </select>
+              {isAdmin&&(
+                <button
+                  onClick={()=>setShowAdvancedDocStates(v=>!v)}
+                  style={{
+                    ...S.input,
+                    width:170,
+                    cursor:"pointer",
+                    background:showAdvancedDocStates?"var(--accent-s)":"var(--surface)",
+                    color:showAdvancedDocStates?"var(--accent)":"var(--text-2)",
+                    fontSize:11,
+                    fontWeight:700,
+                  }}
+                >
+                  {showAdvancedDocStates?"Avanzato ON":"Avanzato OFF"}
+                </button>
+              )}
               <span style={{color:"var(--text-2)",fontSize:11,marginLeft:"auto"}}>
                 {filtered.length} doc visualizzati
                 {docs.length >= 2000 && <span style={{color:"var(--warn)",marginLeft:6}}>⚠ Limite 2000 — usa i filtri per cercare</span>}
@@ -3313,6 +3380,11 @@ function App() {
                   <tbody>
                     {docSorted.map((doc,i)=>{
                       const st = (doc[COL.stato]||"").toUpperCase();
+                      const allowedSt = allowedTransitions(DOC_STATUS_TRANSITIONS, st);
+                      const baseStatusOptions = ["APERTO", "PARZIALE", "DA INCASSARE", "DA RICONCILIARE", "CHIUSO"];
+                      const advancedStatusOptions = ["PAGATO", "STORNATO"];
+                      const showAdvanced = isAdmin && showAdvancedDocStates;
+                      const statusOptions = showAdvanced ? [...baseStatusOptions, ...advancedStatusOptions] : baseStatusOptions;
                       const ov=st==="APERTO"&&isOver(doc[COL.dataDocumento]);
                       const wn=st==="APERTO"&&isWarn(doc[COL.dataDocumento]);
                       const di=st==="DA INCASSARE" || st==="DA RICONCILIARE";
@@ -3353,7 +3425,12 @@ function App() {
                           <td style={{padding:"9px 11px"}}>
                             <select
                               value={doc[COL.stato] || "APERTO"}
+                              title={`Da ${st||"(vuoto)"} puoi passare a: ${allowedSt.join(", ")||"n/d"}`}
                               onChange={e => {
+                                if(!canTransition(DOC_STATUS_TRANSITIONS, doc[COL.stato], e.target.value)){
+                                  notify(`Transizione non consentita: ${doc[COL.stato]||"(vuoto)"} -> ${e.target.value}. Consentiti: ${allowedSt.join(", ")||"n/d"}`,"error");
+                                  return;
+                                }
                                 if(window.confirm(`Stai per forzare lo stato a "${e.target.value}". Sei sicuro?`)){
                                   handleEdit(origIdx, COL.stato, e.target.value);
                                 }
@@ -3371,10 +3448,13 @@ function App() {
                                 outline: "none"
                               }}
                             >
-                              {["APERTO", "PARZIALE", "PAGATO", "STORNATO", "DA INCASSARE", "DA RICONCILIARE", "CHIUSO"].map(s => (
+                              {statusOptions.map(s => (
                                 <option key={s} value={s}>{s}</option>
                               ))}
                             </select>
+                            <div style={{fontSize:8,color:"var(--text-3)",marginTop:3,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>
+                              Da <strong style={{color:"var(--text-2)"}}>{st||"—"}</strong>{" -> "}{allowedSt.join(" · ")||"n/d"}
+                            </div>
                             {(doc[COL.stato]==="PAGATO"||doc[COL.stato]==="PARZIALE"||doc[COL.stato]==="CHIUSO"||doc[COL.stato]==="DA INCASSARE") && (
                                <span
                                  onClick={async()=>{
