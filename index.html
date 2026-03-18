@@ -493,14 +493,22 @@ function EditCell({value, onSave, numeric, display, color}) {
   const commit = ()=>{ setEd(false); if(String(v)!==String(value)) onSave(v); };
   if(ed) return (
     <input ref={ref} value={v} type={numeric?"number":"text"}
+      data-edit-cell="1"
       onChange={e=>setV(e.target.value)}
+      onClick={e=>e.stopPropagation()}
+      onMouseDown={e=>e.stopPropagation()}
       onBlur={commit}
       onKeyDown={e=>{ if(e.key==="Enter")commit(); if(e.key==="Escape"){setV(value);setEd(false);} }}
       style={{...S.input,padding:"3px 7px",width:"100%",fontSize:12,color:color||"inherit"}} />
   );
   const shown = display !== undefined ? display : (value || "—");
   return (
-    <span onDoubleClick={()=>setEd(true)} title="Doppio click per modificare"
+    <span
+      data-edit-cell="1"
+      onClick={e=>e.stopPropagation()}
+      onMouseDown={e=>e.stopPropagation()}
+      onDoubleClick={e=>{ e.stopPropagation(); setEd(true); }}
+      title="Doppio click per modificare"
       style={{cursor:"text",display:"block",padding:"2px 3px",borderRadius:4,
               color:color||"inherit",transition:"background .15s"}}
       onMouseEnter={e=>e.target.style.background="var(--raised)"}
@@ -2318,7 +2326,7 @@ function App() {
   };
 
   const onDataRowClick = (e, kind, row) => {
-    if (e.target.closest("input,select,textarea,button,a")) return;
+    if (e.target.closest("input,select,textarea,button,a,[data-edit-cell='1']")) return;
     openPathPopup(kind, row);
   };
 
