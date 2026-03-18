@@ -168,6 +168,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="./state-rules.js"></script>
   <script src="./parsers.js"></script>
+  <script src="./view-utils.js"></script>
 </head>
 <body>
 <div id="root"></div>
@@ -427,15 +428,16 @@ const MOCK_INCS = [
    UTILS
 ────────────────────────────────────────────── */
 const dFmt = toIT; // alias per compatibilità
-const ageDays = s => (Date.now()-new Date(s))/(86400000);
-const isOver  = s => ageDays(s)>90;
-const isWarn  = s => ageDays(s)>60 && ageDays(s)<=90;
+const CF_VIEW = window.CFViewUtils || {};
+const ageDays = CF_VIEW.ageDays || (s => (Date.now()-new Date(s))/(86400000));
+const isOver  = CF_VIEW.isOver || (s => ageDays(s)>90);
+const isWarn  = CF_VIEW.isWarn || (s => ageDays(s)>60 && ageDays(s)<=90);
 
 /* ──────────────────────────────────────────────
    SORT HOOK — riutilizzabile per tutte le tabelle
 ────────────────────────────────────────────── */
 // Funzione pura di ordinamento (senza hook interni)
-function sortData(data, sortKey, sortDir) {
+const sortData = CF_VIEW.sortData || function(data, sortKey, sortDir) {
   const parseDate = v => {
     const s = String(v||"").trim();
     const itMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -458,7 +460,7 @@ function sortData(data, sortKey, sortDir) {
     }
     return sortDir==="asc"?cmp:-cmp;
   });
-}
+};
 
 function makeSortTh(sortKey, sortDir, toggleSort) {
   return function SortTh({label, colKey, style={}}) {
