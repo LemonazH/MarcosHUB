@@ -2375,7 +2375,7 @@ function App() {
         // fatture = numeri documento (per matching assegni)
         fatture:     parseDocRefs(r.documenti||""),
         // fattureIds = ID documento univoci (per display corretto di FVE+NAC con stesso numero)
-        fattureIds:  (r.documento_ids||"").split(",").map(x=>x.trim()).filter(Boolean),
+        fattureIds:  parseDocRefs(r.documento_ids||""),
         created_at:  r.created_at || "",
       }));
       setRiconciliazioni(ricoNorm);
@@ -2780,6 +2780,15 @@ function App() {
     let causale = "";
     let descAdd = "";
     let nItems = 0;
+    const seenDocIds = new Set();
+    const addDettaglioUnico = (doc, docIdx, importo, tipo, saldoForUi) => {
+      if(!doc?._id) return;
+      const key = String(doc._id);
+      if (seenDocIds.has(key)) return;
+      seenDocIds.add(key);
+      dettaglio.push({ documento_id: doc._id, importo, tipo });
+      aggiornamenti.push({ docIdx, saldo: saldoForUi });
+    };
 
     if (recoTab === "assegni") {
       const assegniSel = assegniRiconciliabili.filter(a=>String(a._id) in recoSel);
@@ -2824,19 +2833,15 @@ function App() {
           const docIdx = findDocStrict(numDoc, "FVE", ass["CLIENTE"]);
           if(docIdx<0) { unresolvedRefs.push(`FVE ${numDoc} (${ass["CLIENTE"]||"cliente n/d"})`); continue; }
           const doc = docs[docIdx];
-          if(!doc._id) continue;
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: "FVE" });
-          aggiornamenti.push({ docIdx, saldo });
+          addDettaglioUnico(doc, docIdx, saldo, "FVE", saldo);
         }
         for(const numDoc of nacList) {
           const docIdx = findDocStrict(numDoc, "NAC", ass["CLIENTE"]);
           if(docIdx<0) { unresolvedRefs.push(`NAC ${numDoc} (${ass["CLIENTE"]||"cliente n/d"})`); continue; }
           const doc = docs[docIdx];
-          if(!doc._id) continue;
           const saldo = parseNum(doc[COL.saldoResiduo]);
-          dettaglio.push({ documento_id: doc._id, importo: saldo, tipo: "NAC" });
-          aggiornamenti.push({ docIdx, saldo });
+          addDettaglioUnico(doc, docIdx, saldo, "NAC", saldo);
         }
       }
 
@@ -2871,13 +2876,11 @@ function App() {
           const docIdx = docs.findIndex(d=>String(d[COL.numeroDocumento])===String(numDoc));
           if(docIdx<0) continue;
           const doc = docs[docIdx];
-          if(!doc._id) continue;
 
           // Solo se non è già chiuso, sennò l'incasso lo ha già chiuso a suo tempo
           const saldo = parseNum(doc[COL.saldoResiduo]);
           const imp = saldo > 0 ? saldo : parseNum(doc[COL.importoDocumento] || 0.01);
-          dettaglio.push({ documento_id: doc._id, importo: imp, tipo: doc[COL.tipoDocumento] || "FVE" });
-          aggiornamenti.push({ docIdx, saldo: 0 });
+          addDettaglioUnico(doc, docIdx, imp, doc[COL.tipoDocumento] || "FVE", 0);
         }
       }
     }
