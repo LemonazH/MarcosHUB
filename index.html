@@ -284,8 +284,7 @@ const assStatoColor = s => {
 // Formatta lista numeri doc come "29 - 127 - 158"
 const fmtDocList = (str) => {
   if (!str || !str.trim()) return "—";
-  // Split su virgola, punto e virgola, trattino o spazi (formato originale richiesto dall'utente)
-  const parts = str.split(/[,\-\s;]+/).map(s => s.trim()).filter(Boolean);
+  const parts = parseDocRefs(str);
   if (parts.length <= 1) return str.trim() || "—";
   return parts.join(" - ");
 };
@@ -2349,7 +2348,7 @@ function App() {
         "N Assegno":      r.n_assegno,
         "Note":           r.note,
         // fatture collegate — usato dalla riconciliazione bonifici
-        fatture: (r.documenti_collegati||"").split(",").map(x=>x.trim()).filter(Boolean),
+        fatture: parseDocRefs(r.documenti_collegati||""),
         _id: r.id,
       })));
       // Normalizza assegni
@@ -2374,7 +2373,7 @@ function App() {
         utente:      r.utente || "",
         tipo:        (r.id||"").startsWith("RIC-") ? "Banca" : "Pagamento",
         // fatture = numeri documento (per matching assegni)
-        fatture:     (r.documenti||"").split(",").map(x=>x.trim()).filter(Boolean),
+        fatture:     parseDocRefs(r.documenti||""),
         // fattureIds = ID documento univoci (per display corretto di FVE+NAC con stesso numero)
         fattureIds:  (r.documento_ids||"").split(",").map(x=>x.trim()).filter(Boolean),
         created_at:  r.created_at || "",
@@ -4559,7 +4558,7 @@ function App() {
             const fp = String(a["FATTURE PAGATE"]||"");
             // 1. Match per Numero Fattura
             // Split solo su virgola per preservare numeri con spazi/trattini
-            const parts = fp.split(/\s*,\s*/).map(s=>s.trim()).filter(Boolean);
+            const parts = parseDocRefs(fp);
             const invoiceMatch = parts.some(p=>fattureSet.has(p));
             // 2. Match per Numero Titolo (se presente nella causale della riconciliazione)
             const nTitolo = String(a["N TITOLO"]||"").trim();
