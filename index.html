@@ -35,29 +35,29 @@
 
   <style>
     :root {
-      --bg:       #d8d8d8;
-      --surface:  #f6f6f6;
+      --bg:       #f5f5f5;
+      --surface:  #ffffff;
       --raised:   #ffffff;
-      --border:   #d1d1d1;
-      --border-2: #e5e5e5;
+      --border:   #e5e5e5;
+      --border-2: #f0f0f0;
       --text-1:   #141414;
       --text-2:   #6f6f6f;
       --text-3:   #979797;
-      --accent:   #2f2f2f;
-      --accent-s: #ececec;
+      --accent:   #1a1a1a;
+      --accent-s: #f3f3f3;
       --accent-t: rgba(0,0,0,.08);
       --navy:     #1E293B;
-      --success:  #3f8c5b;
-      --warn:     #b07a49;
-      --danger:   #b54b4b;
-      --success-s:#e5f0e9;
-      --warn-s:   #f4e9de;
-      --danger-s: #f6e5e5;
+      --success:  #5a5a5a;
+      --warn:     #707070;
+      --danger:   #6b6b6b;
+      --success-s:#f3f3f3;
+      --warn-s:   #ececec;
+      --danger-s: #f0f0f0;
       --radius:   14px;
       --radius-s: 6px;
       --shadow:   0 1px 3px rgba(0,0,0,.12);
-      --shadow-m: 0 10px 24px rgba(0,0,0,.09);
-      --shadow-l: 0 20px 54px rgba(0,0,0,.12);
+      --shadow-m: 0 8px 16px rgba(0,0,0,.08);
+      --shadow-l: 0 16px 32px rgba(0,0,0,.1);
       --font:     'Century Gothic', CenturyGothic, 'Apple Gothic', 'Trebuchet MS', 'DM Sans', sans-serif;
       --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
     }
@@ -87,15 +87,15 @@
     .app-shell {
       height: 100vh;
       display: flex;
-      background: linear-gradient(180deg, #e8e8e8, var(--bg));
+      background: #ffffff;
       overflow: hidden;
     }
 
     .mono-sidebar {
       width: 90px;
       flex-shrink: 0;
-      background: linear-gradient(180deg, #f8f8f8, #f2f2f2);
-      border-right: 1px solid var(--border);
+      background: #1a1a1a;
+      border-right: 1px solid #2a2a2a;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -104,21 +104,21 @@
       top: 0;
       height: 100vh;
       z-index: 50;
-      box-shadow: inset -1px 0 0 rgba(255,255,255,.5);
+      box-shadow: 0 2px 8px rgba(0,0,0,.12);
     }
 
     .mono-logo {
       width: 52px;
       height: 52px;
       border-radius: 16px;
-      background: #0f0f0f;
-      color: #fff;
+      background: #ffffff;
+      color: #1a1a1a;
       display: grid;
       place-items: center;
       font-size: 14px;
       font-weight: 700;
       margin-bottom: 12px;
-      box-shadow: 0 10px 24px rgba(0,0,0,.2);
+      box-shadow: 0 4px 12px rgba(0,0,0,.15);
     }
 
     .nav-ico {
@@ -127,7 +127,7 @@
       border: 1px solid transparent;
       border-radius: 12px;
       background: transparent;
-      color: #7a7a7a;
+      color: #949494;
       display: grid;
       place-items: center;
       cursor: pointer;
@@ -139,16 +139,16 @@
     }
 
     .nav-ico:hover {
-      background: #ffffff;
-      color: #1a1a1a;
-      border-color: #d8d8d8;
+      background: #333333;
+      color: #ffffff;
+      border-color: #444444;
     }
 
     .nav-ico.active {
-      background: #0d0d0d;
-      color: #fff;
-      border-color: #0d0d0d;
-      box-shadow: 0 8px 20px rgba(0,0,0,.18);
+      background: #ffffff;
+      color: #1a1a1a;
+      border-color: #ffffff;
+      box-shadow: 0 4px 12px rgba(0,0,0,.15);
     }
 
     .nav-ico[data-tip]:hover::after {
@@ -158,14 +158,14 @@
       top: 50%;
       transform: translateY(-50%);
       white-space: nowrap;
-      background: #0f0f0f;
-      color: #fff;
+      background: #ffffff;
+      color: #1a1a1a;
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: .03em;
-      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+      box-shadow: 0 4px 12px rgba(0,0,0,.15);
       z-index: 20;
       pointer-events: none;
     }
@@ -182,8 +182,8 @@
     .bottom-dock {
       height: 74px;
       flex-shrink: 0;
-      border-top: 1px solid #d8d8d8;
-      background: rgba(247,247,247,.94);
+      border-top: 1px solid var(--border);
+      background: rgba(255,255,255,.96);
       backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
@@ -195,16 +195,16 @@
       right: 0;
       bottom: 0;
       z-index: 40;
-      box-shadow: 0 -10px 24px rgba(0,0,0,.08);
+      box-shadow: 0 -4px 12px rgba(0,0,0,.08);
     }
 
     .dock-btn {
       width: 54px;
       height: 42px;
       border-radius: 12px;
-      border: 1px solid #d7d7d7;
+      border: 1px solid var(--border);
       background: #fff;
-      color: #666;
+      color: #707070;
       cursor: pointer;
       display: grid;
       place-items: center;
@@ -216,16 +216,16 @@
 
     .dock-btn:hover {
       transform: translateY(-3px);
-      box-shadow: 0 10px 20px rgba(0,0,0,.13);
-      color: #111;
+      box-shadow: 0 6px 16px rgba(0,0,0,.1);
+      color: #1a1a1a;
       background: #fff;
     }
 
     .dock-btn.active {
-      background: #111;
-      border-color: #111;
-      color: #fff;
-      box-shadow: 0 10px 24px rgba(0,0,0,.2);
+      background: #1a1a1a;
+      border-color: #1a1a1a;
+      color: #ffffff;
+      box-shadow: 0 6px 16px rgba(0,0,0,.15);
     }
 
     .dock-btn[data-tip]:hover::after {
@@ -235,8 +235,8 @@
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
-      background: #111;
-      color: #fff;
+      background: #1a1a1a;
+      color: #ffffff;
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 11px;
@@ -247,7 +247,7 @@
 
     .mono-topbar {
       height: 56px;
-      background: #f7f7f7;
+      background: #ffffff;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
@@ -276,7 +276,7 @@
     .row-hover:hover { background: var(--raised) !important; }
 
     .glass-card {
-      background: #f7f7f7;
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       box-shadow: var(--shadow-m);
@@ -645,21 +645,21 @@ function Spinner({size=16}) {
 
 function Badge({label}) {
   const map = {
-    FVE:   {bg:"var(--bg)",c:"#60a5fa"},
-    NAC:   {bg:"var(--bg)",c:"#c084fc"},
-    Aperto:{bg:"var(--success-s)",c:"#4ade80"},
-    APERTO:{bg:"var(--success-s)",c:"#4ade80"},
-    Chiuso:{bg:"#1C1C22",c:"#9898A6"},
-    CHIUSO:{bg:"#1C1C22",c:"#9898A6"},
-    "DA INCASSARE":{bg:"var(--danger-s)",c:"#fb923c"},
-    "DA RICONCILIARE":{bg:"#1a1a24",c:"#fb923c"},
-    PARZIALE:{bg:"var(--danger-s)",c:"#fbbf24"},
-    Bonifico:{bg:"var(--bg)",c:"#38bdf8"},
-    "Assegno Postdatato":{bg:"var(--danger-s)",c:"#fb923c"},
+    FVE:   {bg:"var(--bg)",c:"#5a5a5a"},
+    NAC:   {bg:"var(--accent-s)",c:"#707070"},
+    Aperto:{bg:"var(--success-s)",c:"#5a5a5a"},
+    APERTO:{bg:"var(--success-s)",c:"#5a5a5a"},
+    Chiuso:{bg:"#f3f3f3",c:"#7a7a7a"},
+    CHIUSO:{bg:"#f3f3f3",c:"#7a7a7a"},
+    "DA INCASSARE":{bg:"var(--warn-s)",c:"#707070"},
+    "DA RICONCILIARE":{bg:"#ececec",c:"#707070"},
+    PARZIALE:{bg:"var(--warn-s)",c:"#6b6b6b"},
+    Bonifico:{bg:"var(--bg)",c:"#5a5a5a"},
+    "Assegno Postdatato":{bg:"var(--danger-s)",c:"#707070"},
   };
-  const s = map[label] || {bg:"#1C1C22",c:"#9898A6"};
+  const s = map[label] || {bg:"#ececec",c:"#7a7a7a"};
   return <span style={{background:s.bg,color:s.c,padding:"2px 8px",borderRadius:5,
-    fontSize:11,fontWeight:600,letterSpacing:.4}}>{label}</span>;
+    fontSize:11,fontWeight:600,letterSpacing:.4,border:"1px solid #e0e0e0"}}>{label}</span>;
 }
 
 function EditCell({value, onSave, numeric, display, color}) {
@@ -1547,9 +1547,9 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   {/* Contatori live */}
                   <div style={{display:"grid",gridTemplateColumns:impAss>0?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:18}}>
                     {[
-                      {lbl:"FVE selezionate",val:eur(totFve),c:"#4ade80"},
-                      {lbl:"NAC scalate",     val:eur(totNac),c:"#c084fc"},
-                      {lbl:"Netto",           val:eur(netto), c:"#38bdf8"},
+                      {lbl:"FVE selezionate",val:eur(totFve),c:"#5a5a5a"},
+                      {lbl:"NAC scalate",     val:eur(totNac),c:"#707070"},
+                      {lbl:"Netto",           val:eur(netto), c:"#5a5a5a"},
                       ...(impAss>0?[{lbl:"Assegno",val:eur(impAss),c:scartoColor}]:[]),
                     ].map(({lbl,val,c:col})=>(
                       <div key={lbl} style={{background:"var(--bg)",border:"1px solid var(--border)",
@@ -1609,11 +1609,11 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                       >
                         <td style={{padding:"9px 12px",width:36,textAlign:"center"}}>
                           <input type="checkbox" checked={row.checked} onChange={()=>toggleRow(i)}
-                            style={{width:15,height:15,accentColor:isNac?"#c084fc":"#6366f1",cursor:"pointer"}}
+                            style={{width:15,height:15,accentColor:isNac?"#707070":"#5a5a5a",cursor:"pointer"}}
                             onClick={e=>e.stopPropagation()}/>
                         </td>
                         <td style={{padding:"9px 12px"}}>
-                          <span style={{background:isNac?"var(--bg)":"var(--bg)",color:isNac?"#c084fc":"#818cf8",
+                          <span style={{background:isNac?"var(--bg)":"var(--bg)",color:isNac?"#707070":"#707070",
                             borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>
                             {row.doc[COL.tipoDocumento]}
                           </span>
@@ -1639,7 +1639,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                                 style={{width:100,background:"var(--surface)",
                                   border:`1px solid ${isNac?"#a855f744":"var(--bg)"}`,
                                   borderRadius:6,padding:"4px 8px",
-                                  color:isNac?"#c084fc":"#4ade80",
+                                  color:isNac?"#707070":"#5a5a5a",
                                   fontSize:12,textAlign:"right",fontWeight:700}}/>
                             : <span style={{color:"var(--text-2)",fontSize:11}}>—</span>
                           }
@@ -3668,7 +3668,7 @@ function App() {
                       <td style={{padding:"10px 13px",color:"var(--accent)",fontFamily:"var(--font)",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#4ade80" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#5a5a5a" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                       {isAdmin && (
@@ -3761,7 +3761,7 @@ function App() {
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
                         <td style={{padding:"9px 13px",color:"#0284C7",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#4ade80" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#5a5a5a" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-2)",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
                         <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} color={assStatoColor(a["STATO TITOLO"])} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
@@ -3854,7 +3854,7 @@ function App() {
                                 background:"var(--success-s)",border:"1px solid #14532d",
                                 borderRadius:4,padding:"1px 5px"}}>✓ ok</span>}
                             </div>
-                            <span style={{color:row.riconciliato?"#22c55e":"#4ade80",
+                            <span style={{color:row.riconciliato?"#5a5a5a":"#5a5a5a",
                               fontWeight:800,fontSize:13,fontFamily:"var(--font)",
                               whiteSpace:"nowrap",marginLeft:8}}>
                               +{eur(row.avere)}
@@ -3874,11 +3874,11 @@ function App() {
                               if(d.includes("accredito")&&(d.includes("beu")||d.includes("bonifico ist")))
                                 return <span style={{background:"var(--bg)",border:"1px solid #0284c7",borderRadius:3,padding:"0px 5px",color:"#0284C7",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>⚡ BEU</span>;
                               if(d.includes("accredito")&&d.includes("bonifico"))
-                                return <span style={{background:"var(--success-s)",border:"1px solid #16a34a",borderRadius:3,padding:"0px 5px",color:"var(--success)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>↙ BONIF.</span>;
+                                return <span style={{background:"var(--success-s)",border:"1px solid #5a5a5a",borderRadius:3,padding:"0px 5px",color:"var(--success)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>↙ BONIF.</span>;
                               if(d.includes("versamento")&&d.includes("contanti"))
                                 return <span style={{background:"var(--bg)",border:"1px solid #7c3aed",borderRadius:3,padding:"0px 5px",color:"#a78bfa",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>💵 CONTANTI</span>;
                               if(d.includes("rid")||d.includes("sdd")||d.includes("addebito diretto"))
-                                return <span style={{background:"var(--danger-s)",border:"1px solid #dc2626",borderRadius:3,padding:"0px 5px",color:"var(--danger)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>🔄 RID/SDD</span>;
+                                return <span style={{background:"var(--danger-s)",border:"1px solid #6b6b6b",borderRadius:3,padding:"0px 5px",color:"var(--danger)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>🔄 RID/SDD</span>;
                               return null;
                             })()}
                           </div>}
