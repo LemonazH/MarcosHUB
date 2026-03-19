@@ -35,29 +35,29 @@
 
   <style>
     :root {
-      --bg:       #0E0E11;
-      --surface:  #16161A;
-      --raised:   #1C1C22;
-      --border:   #2A2A34;
-      --border-2: #222228;
-      --text-1:   #F0F0F4;
-      --text-2:   #9898A6;
-      --text-3:   #52525E;
-      --accent:   #3B82F6;
-      --accent-s: #1A2A44;
-      --accent-t: rgba(59,130,246,.15);
+      --bg:       #d8d8d8;
+      --surface:  #f6f6f6;
+      --raised:   #ffffff;
+      --border:   #d1d1d1;
+      --border-2: #e5e5e5;
+      --text-1:   #141414;
+      --text-2:   #6f6f6f;
+      --text-3:   #979797;
+      --accent:   #2f2f2f;
+      --accent-s: #ececec;
+      --accent-t: rgba(0,0,0,.08);
       --navy:     #1E293B;
-      --success:  #22C55E;
-      --warn:     #F59E0B;
-      --danger:   #EF4444;
-      --success-s:#0A2010;
-      --warn-s:   #1C1500;
-      --danger-s: #200808;
-      --radius:   10px;
+      --success:  #3f8c5b;
+      --warn:     #b07a49;
+      --danger:   #b54b4b;
+      --success-s:#e5f0e9;
+      --warn-s:   #f4e9de;
+      --danger-s: #f6e5e5;
+      --radius:   14px;
       --radius-s: 6px;
-      --shadow:   0 1px 3px rgba(0,0,0,.3);
-      --shadow-m: 0 4px 16px rgba(0,0,0,.4);
-      --shadow-l: 0 16px 48px rgba(0,0,0,.5);
+      --shadow:   0 1px 3px rgba(0,0,0,.12);
+      --shadow-m: 0 10px 24px rgba(0,0,0,.09);
+      --shadow-l: 0 20px 54px rgba(0,0,0,.12);
       --font:     'Century Gothic', CenturyGothic, 'Apple Gothic', 'Trebuchet MS', 'DM Sans', sans-serif;
       --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
     }
@@ -84,24 +84,127 @@
 
     .tab-content { animation: tabIn .2s cubic-bezier(.4,0,.2,1) both; }
 
+    .app-shell {
+      min-height: 100vh;
+      display: flex;
+      background: linear-gradient(180deg, #e8e8e8, var(--bg));
+    }
+
+    .mono-sidebar {
+      width: 90px;
+      flex-shrink: 0;
+      background: linear-gradient(180deg, #f8f8f8, #f2f2f2);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 10px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      z-index: 50;
+      box-shadow: inset -1px 0 0 rgba(255,255,255,.5);
+    }
+
+    .mono-logo {
+      width: 52px;
+      height: 52px;
+      border-radius: 16px;
+      background: #0f0f0f;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      box-shadow: 0 10px 24px rgba(0,0,0,.2);
+    }
+
+    .nav-ico {
+      width: 52px;
+      height: 44px;
+      border: 1px solid transparent;
+      border-radius: 12px;
+      background: transparent;
+      color: #7a7a7a;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      margin-bottom: 6px;
+      position: relative;
+      transition: all .14s ease;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .nav-ico:hover {
+      background: #ffffff;
+      color: #1a1a1a;
+      border-color: #d8d8d8;
+    }
+
+    .nav-ico.active {
+      background: #0d0d0d;
+      color: #fff;
+      border-color: #0d0d0d;
+      box-shadow: 0 8px 20px rgba(0,0,0,.18);
+    }
+
+    .nav-ico[data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      left: 58px;
+      top: 50%;
+      transform: translateY(-50%);
+      white-space: nowrap;
+      background: #0f0f0f;
+      color: #fff;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      box-shadow: 0 8px 18px rgba(0,0,0,.18);
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    .mono-main {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .mono-topbar {
+      height: 56px;
+      background: #f7f7f7;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      flex-shrink: 0;
+    }
+
     .card {
       background: var(--surface);
-      border: 1px solid var(--border-2);
+      border: 1px solid var(--border);
       border-radius: var(--radius);
+      box-shadow: var(--shadow-m);
     }
 
     .kpi-card { transition: border-color .15s, transform .15s; cursor: default; }
     .kpi-card:hover { border-color: var(--border) !important; transform: translateY(-1px); }
 
-    .nav-item { transition: background .1s, color .1s; border-radius: var(--radius-s); }
-    .nav-item:hover { background: var(--raised) !important; color: var(--text-1) !important; }
-
     .row-hover:hover { background: var(--raised) !important; }
 
     .glass-card {
-      background: var(--surface);
-      border: 1px solid var(--border-2);
+      background: #f7f7f7;
+      border: 1px solid var(--border);
       border-radius: var(--radius);
+      box-shadow: var(--shadow-m);
     }
 
     .btn-primary { transition: opacity .12s, transform .12s; }
@@ -286,12 +389,12 @@ const d1API = {
 const sheetsAPI = d1API;
 
 const assStatoColor = s => {
-  if (!s) return "#475569";
+  if (!s) return "#6f7680";
   const u = String(s).toUpperCase();
-  if (u.includes("INCASSATO")) return "#22c55e";
-  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "#60a5fa";
-  if (u.includes("ARCHIVIO")) return "#fb923c";
-  return "#94a3b8";
+  if (u.includes("INCASSATO")) return "#3f8c5b";
+  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "#5f7895";
+  if (u.includes("ARCHIVIO")) return "#b07a49";
+  return "#8a919b";
 };
 
 /* ──────────────────────────────────────────────
@@ -603,9 +706,9 @@ function CashChart({assegni,onNavigate}) {
 
   const FilBtn = ({label,active,onClick,color}) => (
     <button onClick={onClick} style={{
-      background:active?(color||"#1a1d22"):"transparent",
-      border:`1px solid ${active?(color||"#3a404a"):"#2d333d"}`,
-      color:active?"#f4f6f8":"#9aa1ac",
+      background:active?(color||"#111"):"#fff",
+      border:`1px solid ${active?(color||"#111"):"#d1d1d1"}`,
+      color:active?"#fff":"#5f5f5f",
       borderRadius:999,padding:"6px 12px",cursor:"pointer",
       fontSize:10.5,fontWeight:active?700:500,fontFamily:"var(--font)",letterSpacing:.2,
       transition:"all .16s ease",
@@ -614,26 +717,26 @@ function CashChart({assegni,onNavigate}) {
 
   const filtriUI = (
     <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-      <div style={{display:"flex",gap:4,background:"#14181d",border:"1px solid #2b313a",borderRadius:999,padding:4,boxShadow:"inset 0 1px 0 #ffffff0d"}}>
+      <div style={{display:"flex",gap:4,background:"#f3f3f3",border:"1px solid #d4d4d4",borderRadius:999,padding:4}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
-            color={v==="IN ARCHIVIO"?"#2b2621":v==="CONSEGNATO A PINO"?"#1a212c":"#1d232b"}
+            color={v==="IN ARCHIVIO"?"#8e6642":v==="CONSEGNATO A PINO"?"#536a85":"#111"}
             onClick={()=>setStatoFil(v)}/>
         ))}
       </div>
-      <div style={{width:1,height:22,background:"#353b45",flexShrink:0}}/>
-      <div style={{display:"flex",gap:4,background:"#14181d",border:"1px solid #2b313a",borderRadius:999,padding:4,boxShadow:"inset 0 1px 0 #ffffff0d"}}>
+      <div style={{width:1,height:22,background:"#d3d3d3",flexShrink:0}}/>
+      <div style={{display:"flex",gap:4,background:"#f3f3f3",border:"1px solid #d4d4d4",borderRadius:999,padding:4}}>
         {PRESETS.map((p,i)=>(
-          <FilBtn key={i} label={p.label} color="#1a212c"
+          <FilBtn key={i} label={p.label} color="#111"
             active={preset===i&&!fromDate&&!toDate}
             onClick={()=>{setPreset(i);setFromDate("");setToDate("");}}/>
         ))}
       </div>
       <div style={{display:"flex",gap:4,alignItems:"center"}}>
-        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"#151a20",border:"1px solid #313844",borderRadius:8,color:"#cfd6df",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
-        <span style={{color:"#8e97a4",fontSize:10}}>{"->"}</span>
-        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"#151a20",border:"1px solid #313844",borderRadius:8,color:"#cfd6df",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
-        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"#1e242c",border:"1px solid #343c47",color:"#b9a6a6",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>x</button>}
+        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"#fff",border:"1px solid #d2d2d2",borderRadius:8,color:"#505050",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
+        <span style={{color:"#979797",fontSize:10}}>{"->"}</span>
+        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"#fff",border:"1px solid #d2d2d2",borderRadius:8,color:"#505050",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
+        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"#fff",border:"1px solid #d2d2d2",color:"#7e7e7e",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>x</button>}
       </div>
     </div>
   );
@@ -685,53 +788,53 @@ function CashChart({assegni,onNavigate}) {
           {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"var(--accent)"},
           {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"var(--text-2)"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 140px",background:"linear-gradient(180deg,#171b21 0%,#12161c 100%)",border:"1px solid #2c333d",borderRadius:14,padding:"11px 16px",boxShadow:"inset 0 1px 0 #ffffff08"}}>
-            <div style={{color:"#9ea7b3",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{label}</div>
+          <div key={i} style={{flex:"1 1 140px",background:"linear-gradient(180deg,#ffffff 0%,#f3f3f3 100%)",border:"1px solid #d3d3d3",borderRadius:14,padding:"11px 16px"}}>
+            <div style={{color:"#808080",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{label}</div>
             <div style={{color,fontSize:15,fontWeight:800,fontFamily:"var(--mono)",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
 
-      <div style={{position:"relative",border:"1px solid #2c333d",borderRadius:16,background:"linear-gradient(180deg,#161b22 0%,#11151b 100%)",padding:"8px 10px 4px",boxShadow:"inset 0 1px 0 #ffffff0a"}}>
+      <div style={{position:"relative",border:"1px solid #d2d2d2",borderRadius:16,background:"linear-gradient(180deg,#fcfcfc 0%,#f3f3f3 100%)",padding:"8px 10px 4px"}}>
         <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible",cursor:"pointer",display:"block"}} onMouseMove={handleMouseMove} onMouseLeave={scheduleHideTooltip}>
           <defs>
             <linearGradient id="ccPlotBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#191f27"/>
-              <stop offset="100%" stopColor="#131820"/>
+              <stop offset="0%" stopColor="#f8f8f8"/>
+              <stop offset="100%" stopColor="#efefef"/>
             </linearGradient>
             <linearGradient id="ccBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6abf95" stopOpacity=".92"/>
-              <stop offset="100%" stopColor="#3c5d4e" stopOpacity=".9"/>
+              <stop offset="0%" stopColor="#85b49b" stopOpacity=".95"/>
+              <stop offset="100%" stopColor="#5a806b" stopOpacity=".94"/>
             </linearGradient>
             <linearGradient id="ccBh" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#89d3b0"/>
-              <stop offset="100%" stopColor="#5da883" stopOpacity=".95"/>
+              <stop offset="0%" stopColor="#9fcab3"/>
+              <stop offset="100%" stopColor="#67967d" stopOpacity=".95"/>
             </linearGradient>
             <linearGradient id="ccBt" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#cda988" stopOpacity=".95"/>
-              <stop offset="100%" stopColor="#6f5642" stopOpacity=".92"/>
+              <stop offset="0%" stopColor="#c9ab8f" stopOpacity=".95"/>
+              <stop offset="100%" stopColor="#8c7058" stopOpacity=".95"/>
             </linearGradient>
             <linearGradient id="ccBth" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#dac1ab"/>
-              <stop offset="100%" stopColor="#b08b67" stopOpacity=".96"/>
+              <stop offset="0%" stopColor="#d7c4b3"/>
+              <stop offset="100%" stopColor="#a98b71" stopOpacity=".96"/>
             </linearGradient>
             <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#8aa8cb" stopOpacity=".93"/>
-              <stop offset="100%" stopColor="#4a5f7a" stopOpacity=".9"/>
+              <stop offset="0%" stopColor="#b7bcc5" stopOpacity=".93"/>
+              <stop offset="100%" stopColor="#7f8691" stopOpacity=".92"/>
             </linearGradient>
             <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#afc2d9"/>
-              <stop offset="100%" stopColor="#6f88a8" stopOpacity=".95"/>
+              <stop offset="0%" stopColor="#c8ccd3"/>
+              <stop offset="100%" stopColor="#8f98a6" stopOpacity=".95"/>
             </linearGradient>
           </defs>
 
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#141a22" rx={9}/>
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={9} stroke="#313844"/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#efefef" rx={9}/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={9} stroke="#cfcfcf"/>
 
           {gridLines.map(({r,y,val})=>(
             <g key={r}>
-              <line x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke={r===1?"#4b5563":"#2c343f"} strokeWidth={1} strokeDasharray={r===1?"":"2,7"}/>
-              <text x={P.l-8} y={y+3.5} textAnchor="end" fill="#8f98a5" fontSize={9} fontFamily="var(--mono)">{fmtY(val)}</text>
+              <line x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke={r===1?"#adadad":"#d5d5d5"} strokeWidth={1} strokeDasharray={r===1?"":"2,7"}/>
+              <text x={P.l-8} y={y+3.5} textAnchor="end" fill="#8b8b8b" fontSize={9} fontFamily="var(--mono)">{fmtY(val)}</text>
             </g>
           ))}
 
@@ -751,19 +854,19 @@ function CashChart({assegni,onNavigate}) {
             return (
               <g key={k} style={{cursor:"pointer"}} onClick={()=>onNavigate&&onNavigate(k,v.items)}>
                 <rect x={x-3} y={P.t} width={barW+6} height={iH} fill="transparent" rx={2}/>
-                {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH} fill="#ffffff" opacity={.04} rx={2}/>} 
-                {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH} stroke="#a9b7ca" strokeWidth={1} strokeDasharray="2,3" opacity={.5}/>} 
+                {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH} fill="#000" opacity={.03} rx={2}/>} 
+                {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH} stroke="#8f8f8f" strokeWidth={1} strokeDasharray="2,3" opacity={.6}/>} 
                 {hPino>0&&<rect x={x} y={yTot+hArch} width={barW} height={hPino} rx={hArch>0?0:4} fill={gradPino} opacity={isHov?.98:.88}/>} 
                 {hArch>0&&<rect x={x} y={yTot} width={barW} height={hArch} rx={4} fill={gradArch} opacity={isHov?.98:.88}/>} 
-                {(isHov||(n<=8))&&<text x={xOf(i)} y={yTot-6} textAnchor="middle" fill={inTol?"#cfb39b":v.archivio>0?"#97c9af":"#a3bbd8"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>} 
-                {nA>1&&!isHov&&(<g><circle cx={xOf(i)} cy={yTot-10} r={6} fill="#1a2028" stroke="#3a4350" strokeWidth={1}/><text x={xOf(i)} y={yTot-6.5} textAnchor="middle" fill="#a3acb9" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text></g>)}
-                {(i%labelStep===0||n<=15)&&<text x={xOf(i)} y={H-P.b+14} textAnchor="middle" fill={isToday?"#c7d1df":isHov?"#e5e9ee":"#8e97a5"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
+                {(isHov||(n<=8))&&<text x={xOf(i)} y={yTot-6} textAnchor="middle" fill={inTol?"#9b7f66":v.archivio>0?"#5f8a72":"#707780"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>} 
+                {nA>1&&!isHov&&(<g><circle cx={xOf(i)} cy={yTot-10} r={6} fill="#f4f4f4" stroke="#b9b9b9" strokeWidth={1}/><text x={xOf(i)} y={yTot-6.5} textAnchor="middle" fill="#7f7f7f" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text></g>)}
+                {(i%labelStep===0||n<=15)&&<text x={xOf(i)} y={H-P.b+14} textAnchor="middle" fill={isToday?"#494949":isHov?"#202020":"#8a8a8a"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
               </g>
             );
           })}
 
-          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#313844" strokeWidth={1}/>
-          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="#3a4350" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#c5c5c5" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="#bcbcbc" strokeWidth={1}/>
         </svg>
 
         {activeIdx!==null&&(()=>{
@@ -782,11 +885,11 @@ function CashChart({assegni,onNavigate}) {
           topPx = Math.min(topPx, Math.max(margin, containerH - estTooltipH - margin));
 
           const inTol=isInTol(v.items);
-          const accentColor=inTol?"#fb923c":"#22c55e";
+          const accentColor=inTol?"var(--warn)":"var(--success)";
           const accentBg=inTol?"var(--danger-s)":"var(--success-s)";
 
           return (
-            <div style={{position:"absolute",top:topPx,left:leftPx,width:TW,background:"#1C1C22",border:`1px solid ${accentColor}33`,borderRadius:12,boxShadow:`0 20px 60px #00000099, 0 0 0 1px ${accentColor}11`,zIndex:300,pointerEvents:"auto",overflow:"hidden"}} onMouseEnter={clearHideTimer} onMouseLeave={scheduleHideTooltip}>
+            <div style={{position:"absolute",top:topPx,left:leftPx,width:TW,background:"#ffffff",border:`1px solid ${accentColor}55`,borderRadius:12,boxShadow:"0 14px 34px rgba(0,0,0,.12)",zIndex:300,pointerEvents:"auto",overflow:"hidden"}} onMouseEnter={clearHideTimer} onMouseLeave={scheduleHideTooltip}>
               <div style={{background:accentBg,padding:"12px 16px",borderBottom:`1px solid ${accentColor}22`}}>
                 <div style={{color:accentColor,fontSize:11,fontWeight:800,letterSpacing:.35,marginBottom:6,lineHeight:1.35}}>{fmtFullLong(k)}</div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
@@ -795,13 +898,13 @@ function CashChart({assegni,onNavigate}) {
                 </div>
               </div>
 
-              <div style={{padding:"6px 16px",background:"#14141A",borderBottom:"1px solid #1C1C22",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-                <span style={{color:"#93A0AF",fontSize:8.5,fontFamily:"var(--mono)",lineHeight:1.3}}>Clicca la barra per aprire nello storico</span>
-                <button onClick={(e)=>{e.stopPropagation(); setPinnedIdx(pinnedIdx===activeIdx?null:activeIdx);}} style={{background:pinnedIdx===activeIdx?"var(--accent-s)":"transparent",border:"1px solid var(--border)",color:pinnedIdx===activeIdx?"var(--accent)":"var(--text-2)",borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700}}>{pinnedIdx===activeIdx?"Sblocca":"Blocca"}</button>
+              <div style={{padding:"6px 16px",background:"#f7f7f7",borderBottom:"1px solid #e5e5e5",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
+                <span style={{color:"#7f7f7f",fontSize:8.5,fontFamily:"var(--mono)",lineHeight:1.3}}>Clicca la barra per aprire nello storico</span>
+                <button onClick={(e)=>{e.stopPropagation(); setPinnedIdx(pinnedIdx===activeIdx?null:activeIdx);}} style={{background:pinnedIdx===activeIdx?"#111":"#fff",border:"1px solid var(--border)",color:pinnedIdx===activeIdx?"#fff":"var(--text-2)",borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700}}>{pinnedIdx===activeIdx?"Sblocca":"Blocca"}</button>
               </div>
 
-              <div style={{maxHeight:360,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#2A2A34 transparent"}}>
-                <div style={{position:"sticky",top:0,zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 16px",background:"#16161A",borderBottom:"1px solid #20202A"}}>
+              <div style={{maxHeight:360,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#c8c8c8 transparent"}}>
+                <div style={{position:"sticky",top:0,zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 16px",background:"#f2f2f2",borderBottom:"1px solid #e0e0e0"}}>
                   <span style={{color:"var(--text-2)",fontSize:9}}>Elenco assegni</span>
                   <span style={{color:accentColor,fontSize:10,fontFamily:"var(--mono)",fontWeight:700}}>{eur(v.total)}</span>
                 </div>
@@ -814,24 +917,24 @@ function CashChart({assegni,onNavigate}) {
                   const done=isIncassato(a);
 
                   return (
-                    <div key={j} style={{padding:"10px 16px",borderBottom:j<v.items.length-1?"1px solid #080f1e":"none",background:j%2===0?"#1C1C22":"#18181E"}}>
+                    <div key={j} style={{padding:"10px 16px",borderBottom:j<v.items.length-1?"1px solid #ececec":"none",background:j%2===0?"#ffffff":"#f8f8f8"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                         <div style={{color:"var(--text-1)",fontSize:11,fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",paddingRight:8}}>
-                          <span style={{display:"inline-block",width:6,height:6,borderRadius:99,marginRight:6,background:done?"#22c55e":"#fb923c"}}/>{a["CLIENTE"]||"-"}
+                          <span style={{display:"inline-block",width:6,height:6,borderRadius:99,marginRight:6,background:done?"var(--success)":"var(--warn)"}}/>{a["CLIENTE"]||"-"}
                         </div>
                         <div style={{color:accentColor,fontSize:12,fontWeight:900,fontFamily:"var(--mono)",whiteSpace:"nowrap",flexShrink:0}}>{eur(imp)}</div>
                       </div>
 
                       <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
-                        <span style={{color:"#0284C7",fontSize:9,fontFamily:"var(--mono)",fontWeight:700}}>{a["N TITOLO"]||"-"}</span>
+                        <span style={{color:"#5f7895",fontSize:9,fontFamily:"var(--mono)",fontWeight:700}}>{a["N TITOLO"]||"-"}</span>
                         <span style={{color:"var(--text-2)",fontSize:8}}>-</span>
-                        <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,background:done?"var(--success-s)":"var(--danger-s)",color:done?"#22c55e":"#fb923c",border:`1px solid ${done?"var(--success-s)":"#F97316"}`}}>{a["STATO TITOLO"]||""}</span>
+                        <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,background:done?"var(--success-s)":"var(--warn-s)",color:done?"var(--success)":"var(--warn)",border:`1px solid ${done?"#c5dece":"#dac0a9"}`}}>{a["STATO TITOLO"]||""}</span>
                       </div>
 
                       {(fatture||nc||docsColl)&&(
                         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:3,maxWidth:"100%"}}>
                           {fatture&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>FATT.</span><span title={fmtDocList(fatture)} style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(fatture)}</span></div>}
-                          {nc&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"#7C3AED",fontSize:8,fontWeight:700}}>NC</span><span title={fmtDocList(nc)} style={{color:"#a78bfa",fontSize:9,fontFamily:"var(--mono)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(nc)}</span></div>}
+                          {nc&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"#7a7a7a",fontSize:8,fontWeight:700}}>NC</span><span title={fmtDocList(nc)} style={{color:"#8b8b8b",fontSize:9,fontFamily:"var(--mono)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(nc)}</span></div>}
                           {docsColl&&!fatture&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>DOC.</span><span title={fmtDocList(docsColl)} style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(docsColl)}</span></div>}
                         </div>
                       )}
@@ -840,13 +943,13 @@ function CashChart({assegni,onNavigate}) {
                 })}
               </div>
 
-              <div style={{padding:"9px 16px",borderTop:"1px solid #080f1e",background:"#1C1C22"}}>
-                {v.archivio>0&&v.pino>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:5}}><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"var(--danger-s)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span></span><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"#60a5fa",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Pino {eur(v.pino)}</span></span></div>}
+              <div style={{padding:"9px 16px",borderTop:"1px solid #e6e6e6",background:"#fafafa"}}>
+                {v.archivio>0&&v.pino>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:5}}><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"var(--warn-s)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span></span><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"#aeb5be",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Pino {eur(v.pino)}</span></span></div>}
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text-2)",marginBottom:4}}><span>% sul totale periodo</span><span style={{color:"var(--text-2)",fontFamily:"var(--mono)"}}>{((v.total/totGlobale)*100).toFixed(1)}%</span></div>
                 <div style={{height:3,background:"var(--accent-s)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",background:accentColor,width:`${(v.total/totGlobale)*100}%`,borderRadius:2}}/></div>
                 <div style={{display:"flex",gap:8,marginTop:8}}>
-                  <button onClick={(e)=>{ e.stopPropagation(); onNavigate&&onNavigate(k,v.items); }} style={{flex:1,background:"var(--accent-s)",border:"1px solid var(--border)",color:"var(--accent)",borderRadius:7,padding:"6px 8px",cursor:"pointer",fontSize:10,fontWeight:700}}>Apri Storico Giorno</button>
-                  <button onClick={(e)=>{ e.stopPropagation(); setPinnedIdx(null); setHoverIdx(null); }} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:7,padding:"6px 8px",cursor:"pointer",fontSize:10,fontWeight:700}}>Chiudi</button>
+                  <button onClick={(e)=>{ e.stopPropagation(); onNavigate&&onNavigate(k,v.items); }} style={{flex:1,background:"#111",border:"1px solid #111",color:"#fff",borderRadius:7,padding:"6px 8px",cursor:"pointer",fontSize:10,fontWeight:700}}>Apri Storico Giorno</button>
+                  <button onClick={(e)=>{ e.stopPropagation(); setPinnedIdx(null); setHoverIdx(null); }} style={{background:"#fff",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:7,padding:"6px 8px",cursor:"pointer",fontSize:10,fontWeight:700}}>Chiudi</button>
                 </div>
               </div>
             </div>
@@ -854,12 +957,12 @@ function CashChart({assegni,onNavigate}) {
         })()}
       </div>
 
-      <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"#959eab",flexWrap:"wrap",alignItems:"center"}}>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#89d3b0,#3c5d4e)",display:"inline-block"}}/><span style={{color:"#959eab"}}>In Archivio</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#afc2d9,#4a5f7a)",display:"inline-block"}}/><span style={{color:"#959eab"}}>Cons. a Pino</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#dac1ab,#6f5642)",display:"inline-block"}}/><span style={{color:"#959eab"}}>Da riconciliare</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"#a9b7ca",display:"inline-block"}}/><span style={{color:"#959eab"}}>Oggi</span></span>
-        <span style={{marginLeft:"auto",color:"#959eab",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
+      <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"#7f7f7f",flexWrap:"wrap",alignItems:"center"}}>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#9fcab3,#67967d)",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>In Archivio</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#c8ccd3,#8f98a6)",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Cons. a Pino</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#d7c4b3,#a98b71)",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Da riconciliare</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"#8f8f8f",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Oggi</span></span>
+        <span style={{marginLeft:"auto",color:"#7f7f7f",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
       </div>
     </div>
   );
@@ -3034,126 +3137,56 @@ function App() {
 
   /* ── ICONE SIDEBAR ── */
   const TABS = [
-    {id:"dashboard", lbl:"Dashboard",   icon:"▦"},
-    {id:"documenti", lbl:"Documenti",   icon:"◫"},
-    {id:"incassi",   lbl:"Incassi",     icon:"⊕"},
-    {id:"assegni",   lbl:"Assegni",     icon:"◈"},
-    {id:"riconcilia",lbl:"Riconcilia",  icon:"⇌"},
-    {id:"storico",   lbl:"Storico",     icon:"◷"},
-    {id:"migrazione",lbl:"Migra",       icon:"↑"},
+    {id:"dashboard", lbl:"Dashboard",   icon:"◍"},
+    {id:"documenti", lbl:"Documenti",   icon:"◧"},
+    {id:"incassi",   lbl:"Incassi",     icon:"⊚"},
+    {id:"assegni",   lbl:"Assegni",     icon:"◉"},
+    {id:"riconcilia",lbl:"Riconcilia",  icon:"⇆"},
+    {id:"storico",   lbl:"Storico",     icon:"◎"},
+    {id:"migrazione",lbl:"Migrazione",  icon:"↥"},
   ];
 
   /* ── RENDER ── */
   return (
-    <div style={{display:"flex",minHeight:"100vh",background:"var(--bg)"}}>
+    <div className="app-shell">
 
-      {/* SIDEBAR */}
-      <aside style={{
-        width:isNarrow?76:244,flexShrink:0,
-        background:"var(--surface)",
-        borderRight:"1px solid var(--border-2)",
-        display:"flex",flexDirection:"column",
-        position:"sticky",top:0,height:"100vh",
-        zIndex:50,
-      }}>
-        {/* Logo */}
-        <div style={{padding:"18px 18px 14px",borderBottom:"1px solid var(--border-2)",
-          display:"flex",alignItems:"center",gap:11}}>
-          <div style={{width:32,height:32,flexShrink:0,borderRadius:"var(--radius-s)",
-            background:"#0F172A",
-            display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
-              <rect x="2" y="11" width="3" height="7" rx="1" fill="white" opacity=".45"/>
-              <rect x="7.5" y="7" width="3" height="11" rx="1" fill="white" opacity=".7"/>
-              <rect x="13" y="3" width="3" height="15" rx="1" fill="white"/>
-              <polyline points="3.5,10 9,6 14.5,2" stroke="#93C5FD" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="14.5" cy="2" r="1.6" fill="#93C5FD"/>
-            </svg>
-          </div>
-          {!isNarrow && <div>
-            <div style={{fontFamily:"var(--font)",fontWeight:700,fontSize:13,
-              letterSpacing:-.3,color:"var(--text-1)",fontStyle:"italic"}}>Marco's HUB</div>
-            <div style={{color:"var(--text-2)",fontSize:9,marginTop:1,letterSpacing:".3px"}}>
-              Gestione Crediti
-            </div>
-          </div>}
-        </div>
+      <aside className="mono-sidebar">
+        <div className="mono-logo">MH</div>
+        <div style={{fontSize:9,color:"var(--text-3)",fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",marginBottom:8}}>Menu</div>
 
-        {/* Nav */}
-        <nav style={{flex:1,padding:"10px 10px",overflowY:"auto"}}>
-          <div style={{color:"var(--text-2)",fontSize:9,fontWeight:600,
-            letterSpacing:"1.2px",padding:"10px 10px 6px",textTransform:"uppercase"}}>
-            Menu
-          </div>
+        <nav style={{display:"flex",flexDirection:"column",alignItems:"center",marginTop:"auto",marginBottom:12}}>
           {TABS.map(({id,lbl,icon})=>{
             const active = tab===id;
             return (
-              <button key={id} className="nav-item" onClick={()=>setTab(id)} style={{
-                width:"100%",display:"flex",alignItems:"center",gap:8,
-                background: active ? "var(--accent-s)" : "transparent",
-                border:"none",
-                color: active ? "var(--accent)" : "var(--text-2)",
-                padding:"9px 12px",cursor:"pointer",
-                fontSize:13.5,fontWeight:active?600:400,
-                fontFamily:"var(--font)",
-                textAlign:"left",marginBottom:1,
-                borderRadius:"var(--radius-s)",
-              }}>
-                <span style={{fontSize:14,opacity:active?1:.55,width:16,textAlign:"center",flexShrink:0}}>{icon}</span>
-                {!isNarrow ? lbl : ""}
+              <button
+                key={id}
+                className={`nav-ico ${active?"active":""}`}
+                data-tip={lbl}
+                onClick={()=>setTab(id)}
+                aria-label={lbl}
+                title={lbl}
+              >
+                {icon}
               </button>
             );
           })}
         </nav>
 
-        {/* Footer */}
-        <div style={{padding:"12px 14px",borderTop:"1px solid var(--border-2)"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
-            <div style={{width:28,height:28,borderRadius:"50%",flexShrink:0,
-              background:"#0F172A",
-              display:"flex",alignItems:"center",justifyContent:"center",
-              fontSize:10,color:"#fff",fontWeight:700}}>
-              {authed?.[0]?.toUpperCase()||"U"}
-            </div>
-            {!isNarrow && <div style={{minWidth:0,flex:1}}>
-              <div style={{color:"var(--text-1)",fontSize:12,fontWeight:600,
-                overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{authed}</div>
-              <div style={{color:"var(--text-2)",fontSize:9}}>{isAdmin?"Admin":"Operatore"}</div>
-            </div>}
-          </div>
-          <div style={{display:"flex",gap:5}}>
-            <button onClick={loadData} style={{
-              flex:1,background:"var(--bg)",border:"1px solid var(--border)",
-              color:"var(--text-2)",borderRadius:"var(--radius-s)",
-              padding:"5px 0",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",
-            }}>↻ Sync</button>
-            <button onClick={handleLogout} style={{
-              flex:1,background:"var(--bg)",border:"1px solid var(--border)",
-              color:"var(--danger)",borderRadius:"var(--radius-s)",
-              padding:"5px 0",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",
-            }}>Esci</button>
-          </div>
+        <div style={{width:"100%",marginTop:"auto",display:"grid",gap:6}}>
+          <button onClick={loadData} className="nav-ico" data-tip="Sincronizza" title="Sincronizza" style={{width:"100%",height:38,fontSize:14,marginBottom:0}}>↻</button>
+          <button onClick={handleLogout} className="nav-ico" data-tip="Esci" title="Esci" style={{width:"100%",height:38,fontSize:14,marginBottom:0,color:"var(--danger)"}}>↩</button>
+          <div style={{textAlign:"center",fontSize:9,color:"var(--text-3)",lineHeight:1.3,paddingTop:4}}>{authed?.[0]?.toUpperCase()||"U"}</div>
         </div>
       </aside>
 
-      {/* MAIN AREA */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflow:"hidden"}}>
+      <div className="mono-main">
 
-        {/* Top bar */}
-        <div style={{
-          height:52,flexShrink:0,
-          background:"var(--surface)",
-          borderBottom:"1px solid var(--border)",
-          display:"flex",alignItems:"center",
-          justifyContent:"space-between",
-          padding:isNarrow?"0 12px":"0 24px",
-        }}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{color:"var(--text-1)",fontSize:13.5,fontWeight:600,letterSpacing:"-.2px"}}>
+        <div className="mono-topbar">
+          <div style={{display:"flex",alignItems:"center",gap:12,minWidth:0}}>
+            <div style={{color:"var(--text-1)",fontSize:14.5,fontWeight:800,letterSpacing:"-.2px",whiteSpace:"nowrap"}}>
               {TABS.find(t=>t.id===tab)?.lbl||""}
             </div>
-            <div style={{color:"var(--text-3)",fontSize:10,paddingLeft:12,
-              borderLeft:"1px solid var(--border)"}}>
+            <div style={{color:"var(--text-3)",fontSize:10,paddingLeft:12,borderLeft:"1px solid var(--border)",whiteSpace:"nowrap"}}>
               {new Date().toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}
             </div>
           </div>
@@ -3161,37 +3194,32 @@ function App() {
             <input
               value={globalSearch}
               onChange={e=>setGlobalSearch(e.target.value)}
-              placeholder="Ricerca manuale (testo libero)"
-              style={{...S.input,width:isNarrow?170:260,height:32,fontSize:12}}
+              placeholder="Ricerca manuale"
+              style={{...S.input,width:isNarrow?160:240,height:34,fontSize:12,background:"#fff"}}
             />
             {!!globalSearch && (
-              <button onClick={()=>setGlobalSearch("")} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"6px 8px",cursor:"pointer",fontSize:11}}>
+              <button onClick={()=>setGlobalSearch("")} style={{background:"#fff",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 9px",cursor:"pointer",fontSize:11}}>
                 ✕
               </button>
             )}
-            <button onClick={exportCurrentTab} style={{background:"var(--bg)",border:"1px solid var(--border)",color:"var(--accent)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)"}}>
-              Export tab
+            <button onClick={exportCurrentTab} style={{background:"#fff",border:"1px solid var(--border)",color:"var(--text-1)",borderRadius:"999px",padding:"8px 12px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700}}>
+              Export
             </button>
-            <button onClick={runBackupExport} style={{background:showBackupReminder?"var(--warn-s)":"var(--bg)",border:`1px solid ${showBackupReminder?"#b45309":"var(--border)"}`,color:showBackupReminder?"var(--warn)":"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:showBackupReminder?700:400}}>
-              Backup dati {showBackupReminder?"!":""}
+            <button onClick={runBackupExport} style={{background:showBackupReminder?"var(--warn-s)":"#fff",border:`1px solid ${showBackupReminder?"#c9ab8f":"var(--border)"}`,color:showBackupReminder?"var(--warn)":"var(--text-2)",borderRadius:"999px",padding:"8px 12px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700}}>
+              Backup {showBackupReminder?"!":""}
             </button>
-            {demo&&<span style={{color:"var(--warn)",fontSize:9,background:"var(--warn-s)",
-              border:"1px solid #FCD34D",padding:"3px 8px",borderRadius:20,fontWeight:600}}>DEMO</span>}
+            {demo&&<span style={{color:"var(--warn)",fontSize:9,background:"var(--warn-s)",border:"1px solid #dac0a9",padding:"4px 8px",borderRadius:20,fontWeight:700}}>DEMO</span>}
             {loading&&<Spinner/>}
             <button className="btn-primary" onClick={()=>setShowPay(true)} style={{
-              background:"var(--accent)",
-              color:"#fff",border:"none",borderRadius:"var(--radius-s)",
-              padding:"7px 16px",cursor:"pointer",fontSize:12,fontWeight:600,
-              fontFamily:"var(--font)",
-              boxShadow:"0 1px 3px rgba(37,99,235,.3)",
+              background:"#0f0f0f",color:"#fff",border:"1px solid #0f0f0f",borderRadius:"999px",
+              padding:"8px 14px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"var(--font)",
             }}>
               + Pagamento
             </button>
           </div>
         </div>
 
-        {/* Contenuto tab */}
-        <main style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
+        <main style={{flex:1,overflowY:"auto",padding:"18px 20px"}}>
 
         {/* DASHBOARD */}
         {tab==="dashboard"&&(
