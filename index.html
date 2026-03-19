@@ -177,6 +177,69 @@
       overflow: hidden;
     }
 
+    .bottom-dock {
+      height: 74px;
+      flex-shrink: 0;
+      border-top: 1px solid var(--border);
+      background: rgba(247,247,247,.94);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 10px 14px;
+      position: sticky;
+      bottom: 0;
+      z-index: 40;
+    }
+
+    .dock-btn {
+      width: 54px;
+      height: 42px;
+      border-radius: 12px;
+      border: 1px solid #d7d7d7;
+      background: #fff;
+      color: #666;
+      cursor: pointer;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      font-weight: 700;
+      position: relative;
+      transition: transform .14s ease, box-shadow .14s ease, background .14s ease, color .14s ease;
+    }
+
+    .dock-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 20px rgba(0,0,0,.13);
+      color: #111;
+      background: #fff;
+    }
+
+    .dock-btn.active {
+      background: #111;
+      border-color: #111;
+      color: #fff;
+      box-shadow: 0 10px 24px rgba(0,0,0,.2);
+    }
+
+    .dock-btn[data-tip]:hover::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+      background: #111;
+      color: #fff;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .03em;
+      pointer-events: none;
+    }
+
     .mono-topbar {
       height: 56px;
       background: #f7f7f7;
@@ -186,6 +249,12 @@
       justify-content: space-between;
       padding: 0 18px;
       flex-shrink: 0;
+    }
+
+    @media (max-width: 980px) {
+      .mono-sidebar { width: 76px; }
+      .bottom-dock { justify-content: flex-start; overflow-x: auto; }
+      .dock-btn { flex: 0 0 auto; }
     }
 
     .card {
@@ -762,6 +831,16 @@ function CashChart({assegni,onNavigate}) {
   const maxVal=Math.max(...entries.map(([,v])=>v.total),1);
   const labelStep=Math.max(1,Math.ceil(n/12));
   const gridLines=[0.25,0.5,0.75,1].map(r=>({r, y:P.t+iH*r, val:maxVal*(1-r)}));
+  const yOf = v => P.t + iH - (Math.max(0, v) / maxVal) * iH;
+  const ptsTotal = entries.map(([k,v],i)=>({k,v,i,x:xOf(i),y:yOf(v.total)}));
+  const ptsArch = entries.map(([k,v],i)=>({k,v,i,x:xOf(i),y:yOf(v.archivio)}));
+  const ptsPino = entries.map(([k,v],i)=>({k,v,i,x:xOf(i),y:yOf(v.pino)}));
+  const lineTotal = ptsTotal.map(p=>`${p.x},${p.y}`).join(" ");
+  const lineArch = ptsArch.map(p=>`${p.x},${p.y}`).join(" ");
+  const linePino = ptsPino.map(p=>`${p.x},${p.y}`).join(" ");
+  const areaTotal = ptsTotal.length
+    ? `M ${ptsTotal[0].x} ${P.t+iH} L ${ptsTotal.map(p=>`${p.x} ${p.y}`).join(" L ")} L ${ptsTotal[ptsTotal.length-1].x} ${P.t+iH} Z`
+    : "";
 
   const handleMouseMove = e => {
     if(!svgRef.current || pinnedIdx !== null) return;
@@ -838,29 +917,35 @@ function CashChart({assegni,onNavigate}) {
             </g>
           ))}
 
-          {entries.map(([k,v],i)=>{
-            const hTot=Math.max(2,(v.total/maxVal)*iH);
-            const hArch=v.total>0?Math.max(0,(v.archivio/v.total)*hTot):0;
-            const hPino=hTot-hArch;
-            const x=xOf(i)-barW/2;
-            const yTot=P.t+iH-hTot;
-            const isHov=activeIdx===i;
-            const inTol=isInTol(v.items);
-            const isToday=k===todayKey;
-            const nA=v.items.length;
-            const gradArch = isHov ? (inTol?"url(#ccBth)":"url(#ccBh)") : (inTol?"url(#ccBt)":"url(#ccBg)");
-            const gradPino = isHov ? "url(#ccBph)" : "url(#ccBp)";
+          {areaTotal && <path d={areaTotal} fill="url(#ccPlotBg)" opacity=".75"/>}
+          {lineArch && <polyline points={lineArch} fill="none" stroke="url(#ccBg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".95"/>}
+          {linePino && <polyline points={linePino} fill="none" stroke="url(#ccBp)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity=".8" strokeDasharray="4,4"/>}
+          {lineTotal && <polyline points={lineTotal} fill="none" stroke="#171717" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>}
 
+          {ptsTotal.map((p)=>{
+            const [k,v] = entries[p.i];
+            const isHov = activeIdx===p.i;
+            const isToday = k===todayKey;
+            const inTol = isInTol(v.items);
+            const nA = v.items.length;
             return (
               <g key={k} style={{cursor:"pointer"}} onClick={()=>onNavigate&&onNavigate(k,v.items)}>
-                <rect x={x-3} y={P.t} width={barW+6} height={iH} fill="transparent" rx={2}/>
-                {isHov&&<rect x={x-3} y={P.t} width={barW+6} height={iH} fill="#000" opacity={.03} rx={2}/>} 
-                {isToday&&<line x1={xOf(i)} x2={xOf(i)} y1={P.t} y2={P.t+iH} stroke="#8f8f8f" strokeWidth={1} strokeDasharray="2,3" opacity={.6}/>} 
-                {hPino>0&&<rect x={x} y={yTot+hArch} width={barW} height={hPino} rx={hArch>0?0:4} fill={gradPino} opacity={isHov?.98:.88}/>} 
-                {hArch>0&&<rect x={x} y={yTot} width={barW} height={hArch} rx={4} fill={gradArch} opacity={isHov?.98:.88}/>} 
-                {(isHov||(n<=8))&&<text x={xOf(i)} y={yTot-6} textAnchor="middle" fill={inTol?"#9b7f66":v.archivio>0?"#5f8a72":"#707780"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>} 
-                {nA>1&&!isHov&&(<g><circle cx={xOf(i)} cy={yTot-10} r={6} fill="#f4f4f4" stroke="#b9b9b9" strokeWidth={1}/><text x={xOf(i)} y={yTot-6.5} textAnchor="middle" fill="#7f7f7f" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text></g>)}
-                {(i%labelStep===0||n<=15)&&<text x={xOf(i)} y={H-P.b+14} textAnchor="middle" fill={isToday?"#494949":isHov?"#202020":"#8a8a8a"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
+                <rect x={p.x-gap/2} y={P.t} width={gap} height={iH} fill="transparent"/>
+                {isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="#9c9c9c" strokeWidth={1} strokeDasharray="2,4" opacity={.75}/>}
+                {isToday&&!isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="#b5b5b5" strokeWidth={1} strokeDasharray="2,4" opacity={.5}/>}
+
+                <circle cx={p.x} cy={p.y} r={isHov?4.8:3.2} fill={inTol?"#a98b71":"#5f8a72"} stroke="#fff" strokeWidth="1.2"/>
+
+                {(isHov||(n<=8))&&(
+                  <text x={p.x} y={p.y-9} textAnchor="middle" fill={inTol?"#8e7055":"#4f765f"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>
+                )}
+                {nA>1&&!isHov&&(
+                  <g>
+                    <circle cx={p.x} cy={p.y-13} r={6} fill="#f4f4f4" stroke="#b9b9b9" strokeWidth={1}/>
+                    <text x={p.x} y={p.y-9.5} textAnchor="middle" fill="#7f7f7f" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
+                  </g>
+                )}
+                {(p.i%labelStep===0||n<=15)&&<text x={p.x} y={H-P.b+14} textAnchor="middle" fill={isToday?"#494949":isHov?"#202020":"#8a8a8a"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
               </g>
             );
           })}
@@ -3152,25 +3237,10 @@ function App() {
 
       <aside className="mono-sidebar">
         <div className="mono-logo">MH</div>
-        <div style={{fontSize:9,color:"var(--text-3)",fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",marginBottom:8}}>Menu</div>
-
-        <nav style={{display:"flex",flexDirection:"column",alignItems:"center",marginTop:"auto",marginBottom:12}}>
-          {TABS.map(({id,lbl,icon})=>{
-            const active = tab===id;
-            return (
-              <button
-                key={id}
-                className={`nav-ico ${active?"active":""}`}
-                data-tip={lbl}
-                onClick={()=>setTab(id)}
-                aria-label={lbl}
-                title={lbl}
-              >
-                {icon}
-              </button>
-            );
-          })}
-        </nav>
+        <div style={{fontSize:9,color:"var(--text-3)",fontWeight:700,letterSpacing:".08em",textTransform:"uppercase",marginBottom:8}}>MarcosHUB</div>
+        <div style={{marginTop:"auto",fontSize:10,color:"var(--text-3)",textAlign:"center",lineHeight:1.35,padding:"0 6px"}}>
+          Cash Flow<br/>Control
+        </div>
 
         <div style={{width:"100%",marginTop:"auto",display:"grid",gap:6}}>
           <button onClick={loadData} className="nav-ico" data-tip="Sincronizza" title="Sincronizza" style={{width:"100%",height:38,fontSize:14,marginBottom:0}}>↻</button>
@@ -3219,7 +3289,7 @@ function App() {
           </div>
         </div>
 
-        <main style={{flex:1,overflowY:"auto",padding:"18px 20px"}}>
+        <main style={{flex:1,overflowY:"auto",padding:"18px 20px 12px"}}>
 
         {/* DASHBOARD */}
         {tab==="dashboard"&&(
@@ -4810,6 +4880,24 @@ function App() {
           <div className="tab-content"><MigrazioneTab docs={docs} authed={authed} notify={notify} onComplete={loadData}/></div>
         )}
         </main>
+
+        <div className="bottom-dock">
+          {TABS.map(({id,lbl,icon})=>{
+            const active = tab===id;
+            return (
+              <button
+                key={id}
+                className={`dock-btn ${active?"active":""}`}
+                data-tip={lbl}
+                title={lbl}
+                onClick={()=>setTab(id)}
+                aria-label={lbl}
+              >
+                {icon}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── POPUP DETTAGLIO RICONCILIAZIONE ── */}
