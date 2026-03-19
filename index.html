@@ -85,9 +85,10 @@
     .tab-content { animation: tabIn .2s cubic-bezier(.4,0,.2,1) both; }
 
     .app-shell {
-      min-height: 100vh;
+      height: 100vh;
       display: flex;
       background: linear-gradient(180deg, #e8e8e8, var(--bg));
+      overflow: hidden;
     }
 
     .mono-sidebar {
@@ -175,12 +176,13 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
     }
 
     .bottom-dock {
       height: 74px;
       flex-shrink: 0;
-      border-top: 1px solid var(--border);
+      border-top: 1px solid #d8d8d8;
       background: rgba(247,247,247,.94);
       backdrop-filter: blur(8px);
       display: flex;
@@ -188,9 +190,12 @@
       justify-content: center;
       gap: 10px;
       padding: 10px 14px;
-      position: sticky;
+      position: fixed;
+      left: 90px;
+      right: 0;
       bottom: 0;
       z-index: 40;
+      box-shadow: 0 -10px 24px rgba(0,0,0,.08);
     }
 
     .dock-btn {
@@ -253,6 +258,7 @@
 
     @media (max-width: 980px) {
       .mono-sidebar { width: 76px; }
+      .bottom-dock { left: 76px; }
       .bottom-dock { justify-content: flex-start; overflow-x: auto; }
       .dock-btn { flex: 0 0 auto; }
     }
@@ -826,7 +832,6 @@ function CashChart({assegni,onNavigate}) {
   const iW=W-P.l-P.r, iH=H-P.t-P.b;
   const n=entries.length;
   const gap=iW/n;
-  const barW=Math.max(5, Math.min(32, gap*0.65));
   const xOf=i=>P.l+i*gap+gap/2;
   const maxVal=Math.max(...entries.map(([,v])=>v.total),1);
   const labelStep=Math.max(1,Math.ceil(n/12));
@@ -878,32 +883,12 @@ function CashChart({assegni,onNavigate}) {
         <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible",cursor:"pointer",display:"block"}} onMouseMove={handleMouseMove} onMouseLeave={scheduleHideTooltip}>
           <defs>
             <linearGradient id="ccPlotBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#f8f8f8"/>
-              <stop offset="100%" stopColor="#efefef"/>
+              <stop offset="0%" stopColor="#fbfbfb"/>
+              <stop offset="100%" stopColor="#f2f2f2"/>
             </linearGradient>
-            <linearGradient id="ccBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#85b49b" stopOpacity=".95"/>
-              <stop offset="100%" stopColor="#5a806b" stopOpacity=".94"/>
-            </linearGradient>
-            <linearGradient id="ccBh" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#9fcab3"/>
-              <stop offset="100%" stopColor="#67967d" stopOpacity=".95"/>
-            </linearGradient>
-            <linearGradient id="ccBt" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#c9ab8f" stopOpacity=".95"/>
-              <stop offset="100%" stopColor="#8c7058" stopOpacity=".95"/>
-            </linearGradient>
-            <linearGradient id="ccBth" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#d7c4b3"/>
-              <stop offset="100%" stopColor="#a98b71" stopOpacity=".96"/>
-            </linearGradient>
-            <linearGradient id="ccBp" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#b7bcc5" stopOpacity=".93"/>
-              <stop offset="100%" stopColor="#7f8691" stopOpacity=".92"/>
-            </linearGradient>
-            <linearGradient id="ccBph" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#c8ccd3"/>
-              <stop offset="100%" stopColor="#8f98a6" stopOpacity=".95"/>
+            <linearGradient id="ccArea" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#151515" stopOpacity=".18"/>
+              <stop offset="100%" stopColor="#151515" stopOpacity=".03"/>
             </linearGradient>
           </defs>
 
@@ -917,10 +902,10 @@ function CashChart({assegni,onNavigate}) {
             </g>
           ))}
 
-          {areaTotal && <path d={areaTotal} fill="url(#ccPlotBg)" opacity=".75"/>}
-          {lineArch && <polyline points={lineArch} fill="none" stroke="url(#ccBg)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".95"/>}
-          {linePino && <polyline points={linePino} fill="none" stroke="url(#ccBp)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" opacity=".8" strokeDasharray="4,4"/>}
-          {lineTotal && <polyline points={lineTotal} fill="none" stroke="#171717" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"/>}
+          {areaTotal && <path d={areaTotal} fill="url(#ccArea)"/>}
+          {lineArch && <polyline points={lineArch} fill="none" stroke="#4f4f4f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".92"/>}
+          {linePino && <polyline points={linePino} fill="none" stroke="#808080" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" opacity=".85" strokeDasharray="4,4"/>}
+          {lineTotal && <polyline points={lineTotal} fill="none" stroke="#151515" strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round"/>}
 
           {ptsTotal.map((p)=>{
             const [k,v] = entries[p.i];
@@ -934,10 +919,10 @@ function CashChart({assegni,onNavigate}) {
                 {isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="#9c9c9c" strokeWidth={1} strokeDasharray="2,4" opacity={.75}/>}
                 {isToday&&!isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="#b5b5b5" strokeWidth={1} strokeDasharray="2,4" opacity={.5}/>}
 
-                <circle cx={p.x} cy={p.y} r={isHov?4.8:3.2} fill={inTol?"#a98b71":"#5f8a72"} stroke="#fff" strokeWidth="1.2"/>
+                <circle cx={p.x} cy={p.y} r={isHov?4.8:3.2} fill={inTol?"#8f745d":"#5f5f5f"} stroke="#fff" strokeWidth="1.2"/>
 
                 {(isHov||(n<=8))&&(
-                  <text x={p.x} y={p.y-9} textAnchor="middle" fill={inTol?"#8e7055":"#4f765f"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>
+                  <text x={p.x} y={p.y-9} textAnchor="middle" fill={inTol?"#8f745d":"#545454"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>
                 )}
                 {nA>1&&!isHov&&(
                   <g>
@@ -984,7 +969,7 @@ function CashChart({assegni,onNavigate}) {
               </div>
 
               <div style={{padding:"6px 16px",background:"#f7f7f7",borderBottom:"1px solid #e5e5e5",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-                <span style={{color:"#7f7f7f",fontSize:8.5,fontFamily:"var(--mono)",lineHeight:1.3}}>Clicca la barra per aprire nello storico</span>
+                <span style={{color:"#7f7f7f",fontSize:8.5,fontFamily:"var(--mono)",lineHeight:1.3}}>Clicca un punto per aprire nello storico</span>
                 <button onClick={(e)=>{e.stopPropagation(); setPinnedIdx(pinnedIdx===activeIdx?null:activeIdx);}} style={{background:pinnedIdx===activeIdx?"#111":"#fff",border:"1px solid var(--border)",color:pinnedIdx===activeIdx?"#fff":"var(--text-2)",borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700}}>{pinnedIdx===activeIdx?"Sblocca":"Blocca"}</button>
               </div>
 
@@ -1029,7 +1014,7 @@ function CashChart({assegni,onNavigate}) {
               </div>
 
               <div style={{padding:"9px 16px",borderTop:"1px solid #e6e6e6",background:"#fafafa"}}>
-                {v.archivio>0&&v.pino>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:5}}><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"var(--warn-s)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span></span><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:1,background:"#aeb5be",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Pino {eur(v.pino)}</span></span></div>}
+                {v.archivio>0&&v.pino>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:9,marginBottom:5}}><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:99,background:"#4f4f4f",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Arch. {eur(v.archivio)}</span></span><span style={{display:"flex",alignItems:"center",gap:4}}><span style={{width:6,height:6,borderRadius:99,background:"#808080",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Pino {eur(v.pino)}</span></span></div>}
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:9,color:"var(--text-2)",marginBottom:4}}><span>% sul totale periodo</span><span style={{color:"var(--text-2)",fontFamily:"var(--mono)"}}>{((v.total/totGlobale)*100).toFixed(1)}%</span></div>
                 <div style={{height:3,background:"var(--accent-s)",borderRadius:2,overflow:"hidden"}}><div style={{height:"100%",background:accentColor,width:`${(v.total/totGlobale)*100}%`,borderRadius:2}}/></div>
                 <div style={{display:"flex",gap:8,marginTop:8}}>
@@ -1043,9 +1028,9 @@ function CashChart({assegni,onNavigate}) {
       </div>
 
       <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"#7f7f7f",flexWrap:"wrap",alignItems:"center"}}>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#9fcab3,#67967d)",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>In Archivio</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#c8ccd3,#8f98a6)",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Cons. a Pino</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:10,height:10,borderRadius:3,background:"linear-gradient(#d7c4b3,#a98b71)",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Da riconciliare</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"#4f4f4f",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>In Archivio</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"#808080",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Cons. a Pino</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:99,background:"#8f745d",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Da riconciliare</span></span>
         <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"#8f8f8f",display:"inline-block"}}/><span style={{color:"#7f7f7f"}}>Oggi</span></span>
         <span style={{marginLeft:"auto",color:"#7f7f7f",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
       </div>
@@ -3289,7 +3274,7 @@ function App() {
           </div>
         </div>
 
-        <main style={{flex:1,overflowY:"auto",padding:"18px 20px 12px"}}>
+        <main style={{flex:1,overflowY:"auto",padding:"18px 20px 104px"}}>
 
         {/* DASHBOARD */}
         {tab==="dashboard"&&(
@@ -5105,10 +5090,10 @@ function App() {
                 <div style={{color:"var(--text-1)",fontSize:18,fontWeight:800}}>{pathPopup.title}</div>
                 <div style={{color:"var(--text-2)",fontSize:11,marginTop:3}}>{pathPopup.subtitle}</div>
                 <div style={{display:"flex",gap:10,marginTop:8,flexWrap:"wrap"}}>
-                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Documenti: {pathPopup.docs.length}</span>
-                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Incassi: {pathPopup.incs.length}</span>
-                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Assegni: {pathPopup.ass.length}</span>
-                  <span style={{fontSize:10,color:"#93a4ba",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Riconciliazioni: {pathPopup.rico.length}</span>
+                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Documenti: {pathPopup.docs.length}</span>
+                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Incassi: {pathPopup.incs.length}</span>
+                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Assegni: {pathPopup.ass.length}</span>
+                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Riconciliazioni: {pathPopup.rico.length}</span>
                 </div>
               </div>
               <button onClick={()=>setPathPopup(null)} style={{background:"var(--accent-s)",border:"none",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
@@ -5134,7 +5119,7 @@ function App() {
                 {pathPopup.incs.length ? pathPopup.incs.map((inc,idx)=>(
                   <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
-                      <span style={{color:"#38bdf8",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{inc["ID Incasso"]||inc._id||"—"}</span>
+                      <span style={{color:"var(--text-1)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{inc["ID Incasso"]||inc._id||"—"}</span>
                       <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(inc["Importo Totale"]||0)}</span>
                     </div>
                     <div style={{color:"var(--text-1)",fontSize:11,marginTop:2}}>{inc["Cliente"]||"—"}</div>
@@ -5148,7 +5133,7 @@ function App() {
                 {pathPopup.ass.length ? pathPopup.ass.map((a,idx)=>(
                   <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
-                      <span style={{color:"#60a5fa",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{a["N TITOLO"]||"—"}</span>
+                      <span style={{color:"var(--text-1)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{a["N TITOLO"]||"—"}</span>
                       <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(a["IMPORTO TITOLO"]||0)}</span>
                     </div>
                     <div style={{color:"var(--text-1)",fontSize:11,marginTop:2}}>{a["CLIENTE"]||"—"}</div>
