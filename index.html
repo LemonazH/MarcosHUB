@@ -35,38 +35,38 @@
 
   <style>
     :root {
-      --bg:       #0f0f0f;
-      --surface:  #1a1a1a;
-      --raised:   #242424;
-      --border:   #333333;
-      --border-2: #282828;
-      --text-1:   #ffffff;
-      --text-2:   #b0b0b0;
-      --text-3:   #7a7a7a;
+      --bg:       #000000;
+      --surface:  #0a0a0a;
+      --raised:   #141414;
+      --border:   rgba(255, 255, 255, 0.08); /* Minimal soft borders */
+      --border-2: rgba(255, 255, 255, 0.03);
+      --text-1:   #ededed;
+      --text-2:   #888888; /* Soft muted gray */
+      --text-3:   #555555;
       --accent:   #ffffff;
-      --accent-s: #2a2a2a;
-      --accent-t: rgba(255,255,255,.08);
-      --navy:     #1E293B;
-      --success:  #6fa58f;
-      --warn:     #a0a080;
-      --danger:   #a07070;
-      --success-s:#2a3a2f;
-      --warn-s:   #3a3a2a;
-      --danger-s: #3a2a2a;
-      --radius:   14px;
-      --radius-s: 6px;
-      --shadow:   0 1px 3px rgba(0,0,0,.5);
-      --shadow-m: 0 8px 16px rgba(0,0,0,.4);
-      --shadow-l: 0 16px 32px rgba(0,0,0,.5);
+      --accent-s: rgba(255,255,255,0.06);
+      --accent-t: rgba(255,255,255,0.03);
+      --navy:     #0a0a0a;
+      --success:  #4ba86e;
+      --warn:     #bfa973;
+      --danger:   #c26f6f;
+      --success-s: rgba(75, 168, 110, 0.12);
+      --warn-s:    rgba(191, 169, 115, 0.12);
+      --danger-s:  rgba(194, 111, 111, 0.12);
+      --radius:   16px;
+      --radius-s: 8px;
+      --shadow:   0 2px 8px rgba(0,0,0,.6);
+      --shadow-m: 0 12px 24px rgba(0,0,0,.7);
+      --shadow-l: 0 24px 48px rgba(0,0,0,.8);
       --font:     'Century Gothic', CenturyGothic, 'Apple Gothic', 'Trebuchet MS', 'DM Sans', sans-serif;
       --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
-      /* GRADIENT SYSTEM — Dark theme coerente */
-      --grad-subtle: linear-gradient(180deg,rgba(255,255,255,.1) 0%,rgba(255,255,255,.02) 100%);
-      --grad-card: linear-gradient(135deg,#242424 0%,#1f1f1f 100%);
-      --grad-surface: linear-gradient(180deg,#1a1a1a 0%,rgba(26,26,26,.98) 100%);
-      --grad-header: linear-gradient(180deg,rgba(42,42,42,.8) 0%,rgba(37,37,37,.6) 100%);
-      --grad-dark: linear-gradient(135deg,#2a2a2a 0%,#1a1a1a 100%);
-      --grad-accent: linear-gradient(135deg,#3a3a3a 0%,#2a2a2a 100%);
+      /* GRADIENT SYSTEM — Premium Minimal Dark */
+      --grad-subtle: linear-gradient(180deg,rgba(255,255,255,.03) 0%,rgba(255,255,255,.0) 100%);
+      --grad-card: linear-gradient(135deg,#121212 0%,#0a0a0a 100%);
+      --grad-surface: linear-gradient(180deg,#141414 0%,#0a0a0a 100%);
+      --grad-header: linear-gradient(180deg,rgba(20,20,20,.8) 0%,rgba(10,10,10,.6) 100%);
+      --grad-dark: linear-gradient(135deg,#1c1c1c 0%,#0a0a0a 100%);
+      --grad-accent: linear-gradient(135deg,#2a2a2a 0%,#141414 100%);
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; }
@@ -96,15 +96,15 @@
     .app-shell {
       height: 100vh;
       display: flex;
-      background: #0f0f0f;
+      background: var(--bg);
       overflow: hidden;
     }
 
     .mono-sidebar {
       width: 90px;
       flex-shrink: 0;
-      background: #1a1a1a;
-      border-right: 1px solid #2a2a2a;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
       display: none;
       flex-direction: column;
       align-items: center;
@@ -113,7 +113,7 @@
       top: 0;
       height: 100vh;
       z-index: 50;
-      box-shadow: 0 2px 8px rgba(0,0,0,.12);
+      box-shadow: var(--shadow);
     }
 
     .mono-logo {
@@ -148,16 +148,16 @@
     }
 
     .nav-ico:hover {
-      background: #333333;
-      color: #ffffff;
-      border-color: #444444;
+      background: var(--raised);
+      color: var(--text-1);
+      border-color: var(--border);
     }
 
     .nav-ico.active {
-      background: #ffffff;
-      color: #1a1a1a;
-      border-color: #ffffff;
-      box-shadow: 0 4px 12px rgba(0,0,0,.15);
+      background: var(--text-1);
+      color: var(--bg);
+      border-color: var(--text-1);
+      box-shadow: var(--shadow-m);
     }
 
     .nav-ico[data-tip]:hover::after {
@@ -167,14 +167,14 @@
       top: 50%;
       transform: translateY(-50%);
       white-space: nowrap;
-      background: #ffffff;
-      color: #1a1a1a;
+      background: var(--text-1);
+      color: var(--bg);
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: .03em;
-      box-shadow: 0 4px 12px rgba(0,0,0,.15);
+      box-shadow: var(--shadow-m);
       z-index: 20;
       pointer-events: none;
     }
@@ -192,9 +192,10 @@
     .bottom-dock {
       height: 88px;
       flex-shrink: 0;
-      border-top: 1px solid rgba(255,255,255,.1);
-      background: linear-gradient(180deg,rgba(26,26,26,.99) 0%,rgba(20,20,20,.97) 100%);
-      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--border);
+      background: rgba(10,10,10,0.85);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -205,7 +206,7 @@
       right: 0;
       bottom: 0;
       z-index: 40;
-      box-shadow: 0 -8px 32px rgba(0,0,0,.5);
+      box-shadow: 0 -4px 32px rgba(0,0,0,0.8);
       animation: dockSlide .4s cubic-bezier(.34,.1,.64,.1) both;
     }
 
@@ -213,9 +214,9 @@
       width: 60px;
       height: 50px;
       border-radius: 14px;
-      border: 1.5px solid transparent;
-      background: rgba(255,255,255,.08);
-      color: #888888;
+      border: 1px solid rgba(255,255,255,.04);
+      background: rgba(255,255,255,.04);
+      color: #71717a;
       cursor: pointer;
       display: grid;
       place-items: center;
@@ -227,17 +228,17 @@
 
     .dock-btn:hover {
       transform: translateY(-6px) scale(1.08);
-      box-shadow: 0 12px 28px rgba(0,0,0,.4);
+      box-shadow: 0 12px 28px rgba(0,0,0,.6);
       color: #ffffff;
-      background: rgba(255,255,255,.15);
-      border-color: rgba(255,255,255,.2);
+      background: rgba(255,255,255,.08);
+      border-color: rgba(255,255,255,.1);
     }
 
     .dock-btn.active {
-      background: var(--grad-dark);
-      border-color: rgba(255,255,255,.2);
+      background: rgba(255,255,255,.12);
+      border-color: rgba(255,255,255,.15);
       color: #ffffff;
-      box-shadow: 0 12px 32px rgba(0,0,0,.5), inset 0 1px 1px rgba(255,255,255,.15);
+      box-shadow: 0 12px 32px rgba(0,0,0,.6), inset 0 1px 1px rgba(255,255,255,.2);
       animation: dockBounce .4s ease-out;
     }
 
@@ -248,20 +249,22 @@
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
-      background: #1a1a1a;
-      color: #ffffff;
+      background: var(--surface);
+      color: var(--text-1);
+      border: 1px solid var(--border);
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 11px;
       font-weight: 700;
       letter-spacing: .03em;
       pointer-events: none;
+      box-shadow: var(--shadow-m);
     }
 
     .mono-topbar {
       height: 60px;
-      background: var(--grad-surface);
-      border-bottom: 1px solid rgba(0,0,0,.05);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -281,15 +284,15 @@
     }
 
     .card {
-      background: var(--grad-card);
-      border: 1px solid rgba(0,0,0,.06);
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,.06);
+      box-shadow: 0 4px 12px rgba(0,0,0,.3);
       transition: all .2s cubic-bezier(.34,.1,.64,.1);
     }
     .card:hover {
-      border-color: rgba(0,0,0,.1);
-      box-shadow: 0 8px 20px rgba(0,0,0,.1);
+      border-color: rgba(255,255,255,.12);
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
       transform: translateY(-2px);
     }
 
@@ -299,20 +302,21 @@
       background: var(--grad-card);
     }
     .kpi-card:hover {
-      border-color: rgba(0,0,0,.08) !important;
+      border-color: rgba(255,255,255,.15) !important;
       transform: translateY(-3px);
-      box-shadow: 0 12px 28px rgba(0,0,0,.1) !important;
+      box-shadow: 0 12px 32px rgba(0,0,0,.6) !important;
     }
 
     .row-hover { transition: all .15s cubic-bezier(.34,.1,.64,.1); }
-    .row-hover:hover { background: rgba(26,26,26,.02) !important; transform: translateX(2px); }
+    .row-hover:hover { background: var(--raised) !important; transform: translateX(2px); }
 
     .glass-card {
-      background: rgba(255,255,255,.85);
-      backdrop-filter: blur(8px);
-      border: 1px solid rgba(0,0,0,.08);
+      background: rgba(10,10,10,0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
       border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.08);
+      box-shadow: 0 8px 24px rgba(0,0,0,.5);
       transition: all .2s cubic-bezier(.34,.1,.64,.1);
     }
     .glass-card:hover {
@@ -344,13 +348,13 @@
       text-transform: uppercase;
       color: var(--text-2);
       padding: 12px 14px;
-      background: var(--grad-header);
-      border-bottom: 1px solid rgba(0,0,0,.08);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
       white-space: nowrap;
     }
     td {
       padding: 13px 14px;
-      border-bottom: 1px solid rgba(0,0,0,.04);
+      border-bottom: 1px solid var(--border-2);
       vertical-align: middle;
       color: var(--text-1);
       font-size: 12.5px;
@@ -361,27 +365,27 @@
       animation: slideIn .3s ease-out backwards;
     }
     tbody tr:hover {
-      background: rgba(26,26,26,.02) !important;
+      background: var(--raised) !important;
     }
 
     input, select, textarea {
       font-family: var(--font);
       font-size: 13px;
       color: var(--text-1);
-      background: rgba(255,255,255,.8);
-      border: 1.5px solid rgba(0,0,0,.08);
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: var(--radius-s);
       outline: none;
       transition: all .15s cubic-bezier(.34,.1,.64,.1);
     }
     input::placeholder, textarea::placeholder { color: var(--text-3); }
     input:focus, select:focus, textarea:focus {
-      border-color: rgba(26,26,26,.2);
-      box-shadow: 0 0 0 3px rgba(26,26,26,.06);
-      background: #ffffff;
+      border-color: rgba(255,255,255,.2);
+      box-shadow: 0 0 0 3px rgba(255,255,255,.06);
+      background: var(--bg);
       transform: translateY(-1px);
     }
-    select option { background: #ffffff; color: var(--text-1); }
+    select option { background: var(--bg); color: var(--text-1); }
 
     .badge {
       display: inline-flex;
@@ -531,12 +535,12 @@ const d1API = {
 const sheetsAPI = d1API;
 
 const assStatoColor = s => {
-  if (!s) return "#6f7680";
+  if (!s) return "var(--text-3)";
   const u = String(s).toUpperCase();
-  if (u.includes("INCASSATO")) return "#3f8c5b";
-  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "#5f7895";
-  if (u.includes("ARCHIVIO")) return "#b07a49";
-  return "#8a919b";
+  if (u.includes("INCASSATO")) return "var(--success)";
+  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "#536a85";
+  if (u.includes("ARCHIVIO")) return "var(--warn)";
+  return "var(--text-2)";
 };
 
 /* ──────────────────────────────────────────────
@@ -848,9 +852,9 @@ function CashChart({assegni,onNavigate}) {
 
   const FilBtn = ({label,active,onClick,color}) => (
     <button onClick={onClick} style={{
-      background:active?(color||"#111"):"#fff",
-      border:`1px solid ${active?(color||"#111"):"#d1d1d1"}`,
-      color:active?"#fff":"#5f5f5f",
+      background:active?(color||"var(--text-1)"):"var(--raised)",
+      border:`1px solid ${active?(color||"var(--text-1)"):"var(--border)"}`,
+      color:active?"var(--bg)":"var(--text-2)",
       borderRadius:999,padding:"6px 12px",cursor:"pointer",
       fontSize:10.5,fontWeight:active?700:500,fontFamily:"var(--font)",letterSpacing:.2,
       transition:"all .16s ease",
@@ -859,10 +863,10 @@ function CashChart({assegni,onNavigate}) {
 
   const filtriUI = (
     <div style={{display:"flex",gap:12,marginBottom:18,flexWrap:"wrap",alignItems:"center",animation:"slideIn .4s ease-out"}}>
-      <div style={{display:"flex",gap:5,background:"rgba(0,0,0,.03)",border:"1px solid rgba(0,0,0,.08)",borderRadius:999,padding:6,transition:"all .2s ease"}}>
+      <div style={{display:"flex",gap:5,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:999,padding:6,transition:"all .2s ease"}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
-            color={v==="IN ARCHIVIO"?"#8e6642":v==="CONSEGNATO A PINO"?"#536a85":"#141414"}
+            color={v==="IN ARCHIVIO"?"#bfa973":v==="CONSEGNATO A PINO"?"#6485a3":"var(--text-1)"}
             onClick={()=>setStatoFil(v)}/>
         ))}
       </div>
@@ -875,10 +879,10 @@ function CashChart({assegni,onNavigate}) {
         ))}
       </div>
       <div style={{display:"flex",gap:6,alignItems:"center"}}>
-        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"var(--raised)",border:"1.5px solid var(--border)",borderRadius:8,color:"var(--text-1)",fontSize:10.5,padding:"6px 10px",fontFamily:"var(--font)",transition:"all .15s ease",cursor:"pointer"}}/>
+        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text-1)",fontSize:10.5,padding:"6px 10px",fontFamily:"var(--font)",transition:"all .15s ease",cursor:"pointer",outline:"none"}}/>
         <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600}}>{"→"}</span>
-        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"var(--raised)",border:"1.5px solid var(--border)",borderRadius:8,color:"var(--text-1)",fontSize:10.5,padding:"6px 10px",fontFamily:"var(--font)",transition:"all .15s ease",cursor:"pointer"}}/>
-        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"var(--raised)",border:"1.5px solid var(--border)",color:"var(--text-2)",borderRadius:8,padding:"5px 9px",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s ease"}}>✕</button>}
+        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text-1)",fontSize:10.5,padding:"6px 10px",fontFamily:"var(--font)",transition:"all .15s ease",cursor:"pointer",outline:"none"}}/>
+        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"var(--surface)",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:8,padding:"5px 9px",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s ease"}}>✕</button>}
       </div>
     </div>
   );
@@ -981,27 +985,27 @@ function CashChart({assegni,onNavigate}) {
             return (
               <g key={k} style={{cursor:"pointer"}} onClick={()=>onNavigate&&onNavigate(k,v.items)}>
                 <rect x={p.x-gap/2} y={P.t} width={gap} height={iH} fill="transparent"/>
-                {isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="#9c9c9c" strokeWidth={1} strokeDasharray="2,4" opacity={.75}/>}
-                {isToday&&!isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="#b5b5b5" strokeWidth={1} strokeDasharray="2,4" opacity={.5}/>}
+                {isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="2,4" opacity={.75}/>}
+                {isToday&&!isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="2,4" opacity={.5}/>}
 
-                <circle cx={p.x} cy={p.y} r={isHov?4.8:3.2} fill={inTol?"#8f745d":"#5f5f5f"} stroke="#fff" strokeWidth="1.2"/>
+                <circle cx={p.x} cy={p.y} r={isHov?4.8:3.2} fill={inTol?"var(--warn)":"var(--text-1)"} stroke="var(--bg)" strokeWidth="1.2"/>
 
                 {(isHov||(n<=8))&&(
-                  <text x={p.x} y={p.y-9} textAnchor="middle" fill={inTol?"#8f745d":"#545454"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>
+                  <text x={p.x} y={p.y-9} textAnchor="middle" fill={inTol?"var(--warn)":"var(--text-1)"} fontSize={8.2} fontFamily="var(--mono)" fontWeight="bold">{fmtY(v.total)}</text>
                 )}
                 {nA>1&&!isHov&&(
                   <g>
-                    <circle cx={p.x} cy={p.y-13} r={6} fill="#f4f4f4" stroke="#b9b9b9" strokeWidth={1}/>
-                    <text x={p.x} y={p.y-9.5} textAnchor="middle" fill="#7f7f7f" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
+                    <circle cx={p.x} cy={p.y-13} r={6} fill="var(--surface)" stroke="var(--border)" strokeWidth={1}/>
+                    <text x={p.x} y={p.y-9.5} textAnchor="middle" fill="var(--text-2)" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
                   </g>
                 )}
-                {(p.i%labelStep===0||n<=15)&&<text x={p.x} y={H-P.b+14} textAnchor="middle" fill="#141414" fontSize={10} fontFamily="'Century Gothic', CenturyGothic, sans-serif" fontWeight={isToday||isHov?"bold":"600"}>{fmtDay(k)}</text>}
+                {(p.i%labelStep===0||n<=15)&&<text x={p.x} y={H-P.b+14} textAnchor="middle" fill="var(--text-2)" fontSize={10} fontFamily="'Century Gothic', CenturyGothic, sans-serif" fontWeight={isToday||isHov?"bold":"600"}>{fmtDay(k)}</text>}
               </g>
             );
           })}
 
-          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="#c5c5c5" strokeWidth={1}/>
-          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="#bcbcbc" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l} y1={P.t} y2={P.t+iH} stroke="var(--border)" strokeWidth={1}/>
+          <line x1={P.l} x2={P.l+iW} y1={P.t+iH} y2={P.t+iH} stroke="var(--border)" strokeWidth={1}/>
         </svg>
 
         {activeIdx!==null&&(()=>{
@@ -1052,18 +1056,18 @@ function CashChart({assegni,onNavigate}) {
                   const done=isIncassato(a);
 
                   return (
-                    <div key={j} style={{padding:"10px 16px",borderBottom:j<v.items.length-1?"1px solid #ececec":"none",background:j%2===0?"#ffffff":"#f8f8f8"}}>
+                    <div key={j} style={{padding:"10px 16px",borderBottom:j<v.items.length-1?"1px solid var(--border)":"none",background:j%2===0?"var(--surface)":"var(--bg)"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                         <div style={{color:"var(--text-1)",fontSize:11,fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",paddingRight:8}}>
-                          <span style={{display:"inline-block",width:6,height:6,borderRadius:99,marginRight:6,background:done?"#3f8c5b":"#b07a49"}}/>{a["CLIENTE"]||"-"}
+                          <span style={{display:"inline-block",width:6,height:6,borderRadius:99,marginRight:6,background:done?"var(--success)":"var(--warn)"}}/>{a["CLIENTE"]||"-"}
                         </div>
                         <div style={{color:accentColor,fontSize:12,fontWeight:900,fontFamily:"var(--mono)",whiteSpace:"nowrap",flexShrink:0}}>{eur(imp)}</div>
                       </div>
 
                       <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
-                        <span style={{color:"#5f7895",fontSize:9,fontFamily:"var(--mono)",fontWeight:700}}>{a["N TITOLO"]||"-"}</span>
+                        <span style={{color:"var(--text-1)",fontSize:9,fontFamily:"var(--mono)",fontWeight:700}}>{a["N TITOLO"]||"-"}</span>
                         <span style={{color:"var(--text-2)",fontSize:8}}>-</span>
-                        <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,background:done?"#e5f0e9":"#f4e9de",color:done?"#3f8c5b":"#b07a49",border:`1px solid ${done?"#c5dece":"#dac0a9"}`}}>{a["STATO TITOLO"]||""}</span>
+                        <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,background:done?"var(--success-s)":"var(--warn-s)",color:done?"var(--success)":"var(--warn)",border:`1px solid ${done?"var(--success)":"var(--warn)"}`}}>{a["STATO TITOLO"]||""}</span>
                       </div>
 
                       {(fatture||nc||docsColl)&&(
@@ -3315,28 +3319,28 @@ function App() {
               value={globalSearch}
               onChange={e=>setGlobalSearch(e.target.value)}
               placeholder="Ricerca manuale"
-              style={{...S.input,width:isNarrow?160:240,height:36,fontSize:12,background:"var(--raised)",border:"1.5px solid var(--border)",color:"var(--text-1)"}}
+              style={{...S.input,width:isNarrow?160:240,height:36,fontSize:12,background:"var(--surface)",border:"1px solid var(--border)",color:"var(--text-1)",borderRadius:"999px",paddingLeft:16}}
             />
             {!!globalSearch && (
-              <button onClick={()=>setGlobalSearch("")} style={{background:"var(--raised)",border:"1.5px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 9px",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s ease"}}>
+              <button onClick={()=>setGlobalSearch("")} style={{background:"var(--surface)",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 9px",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s ease"}}>
                 ✕
               </button>
             )}
-            <button onClick={exportCurrentTab} style={{background:"var(--raised)",border:"1.5px solid var(--border)",color:"var(--text-1)",borderRadius:"999px",padding:"8px 14px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
+            <button onClick={exportCurrentTab} className="row-hover" style={{background:"var(--surface)",border:"1px solid var(--border)",color:"var(--text-1)",borderRadius:"999px",padding:"8px 16px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:600,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
               Export
             </button>
-            <button onClick={runBackupExport} style={{background:showBackupReminder?"rgba(160,128,112,.12)":"var(--raised)",border:`1.5px solid ${showBackupReminder?"rgba(160,128,112,.25)":"var(--border)"}`,color:showBackupReminder?"#d4a88a":"var(--text-2)",borderRadius:"999px",padding:"8px 14px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
+            <button onClick={runBackupExport} className="row-hover" style={{background:showBackupReminder?"var(--warn-s)":"var(--surface)",border:`1px solid ${showBackupReminder?"var(--warn)":"var(--border)"}`,color:showBackupReminder?"var(--warn)":"var(--text-2)",borderRadius:"999px",padding:"8px 16px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:600,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
               Backup {showBackupReminder?"!":""}
             </button>
-            <button onClick={loadData} style={{background:"var(--raised)",border:"1.5px solid var(--border)",color:"var(--text-1)",borderRadius:"999px",padding:"8px 14px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
+            <button onClick={loadData} className="row-hover" style={{background:"var(--surface)",border:"1px solid var(--border)",color:"var(--text-1)",borderRadius:"999px",padding:"8px 16px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:600,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
               ↻ Sync
             </button>
-            <button onClick={handleLogout} style={{background:"var(--raised)",border:"1.5px solid var(--danger)",color:"var(--danger)",borderRadius:"999px",padding:"8px 14px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
+            <button onClick={handleLogout} className="row-hover" style={{background:"var(--danger-s)",border:"1px solid var(--danger)",color:"var(--danger)",borderRadius:"999px",padding:"8px 16px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:600,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
               ↩ Esci
             </button>
             {demo&&<span style={{color:"#b08366",fontSize:9,background:"rgba(199,171,143,.08)",border:"1px solid rgba(199,171,143,.2)",padding:"5px 9px",borderRadius:20,fontWeight:700}}>DEMO</span>}
             {loading&&<Spinner/>}
-            <button className="btn-primary" onClick={()=>setShowPay(true)} style={{background:"var(--grad-dark)",color:"#fff",border:"1.5px solid rgba(255,255,255,.1)",borderRadius:"999px",padding:"9px 16px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"var(--font)",transition:"all .15s cubic-bezier(.34,.1,.64,.1)",boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}>
+            <button className="btn-primary row-hover" onClick={()=>setShowPay(true)} style={{background:"var(--text-1)",color:"var(--bg)",border:"1px solid var(--text-1)",borderRadius:"999px",padding:"9px 18px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"var(--font)",transition:"all .15s cubic-bezier(.34,.1,.64,.1)",boxShadow:"0 4px 12px rgba(255,255,255,.05)"}}>
               + Pagamento
             </button>
           </div>
