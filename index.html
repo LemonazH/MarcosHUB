@@ -2385,16 +2385,85 @@ function App() {
   const [recoSel,setRecoSel]=useState({}); // {numDoc: importoAllocato}
   const [recoSaving,setRecoSaving]=useState(false);
   const [tab,setTab]=useState("dashboard");
+  const [globalSearch,setGlobalSearch]=useState("");
   const [toast,setToast]=useState(null);
+  const [showBackupReminder,setShowBackupReminder]=useState(false);
+  const [isNarrow,setIsNarrow]=useState(()=>window.innerWidth<=1180);
   const [showPay,setShowPay]=useState(false);
+  const [showAdvancedDocStates,setShowAdvancedDocStates]=useState(false);
   const [fState,setFState]=useState("Tutti");
   const [fType,setFType]=useState("Tutti");
   const [search,setSearch]=useState("");
+  const [docDateDa,setDocDateDa]=useState("");
+  const [docDateA,setDocDateA]=useState("");
+  const [docDatePagDa,setDocDatePagDa]=useState("");
+  const [docDatePagA,setDocDatePagA]=useState("");
+  const [incDateDa,setIncDateDa]=useState("");
+  const [incDateA,setIncDateA]=useState("");
+  const [incTabSearch,setIncTabSearch]=useState("");
+  const [assDateDa,setAssDateDa]=useState("");
+  const [assDateA,setAssDateA]=useState("");
+  const [assDateIncDa,setAssDateIncDa]=useState("");
+  const [assDateIncA,setAssDateIncA]=useState("");
+  const [assTabSearch,setAssTabSearch]=useState("");
+  const [ricDateDa,setRicDateDa]=useState("");
+  const [ricDateA,setRicDateA]=useState("");
+  const [recoDateDa,setRecoDateDa]=useState("");
+  const [recoDateA,setRecoDateA]=useState("");
+  // Virtual scrolling
+  const VIRTUAL_STEP = 250;
+  const [docRowsLimit,setDocRowsLimit]=useState(VIRTUAL_STEP);
+  const [incRowsLimit,setIncRowsLimit]=useState(VIRTUAL_STEP);
+  const [assRowsLimit,setAssRowsLimit]=useState(VIRTUAL_STEP);
+  const [ricRowsLimit,setRicRowsLimit]=useState(VIRTUAL_STEP);
+  const [storicoAssRowsLimit,setStoricoAssRowsLimit]=useState(VIRTUAL_STEP);
+  // Percorsi popup
+  const [pathPopup,setPathPopup]=useState(null);
+  // Riconcilia tab
+  const [recoTab,setRecoTab]=useState("assegni");
+  const [incManDa,setIncManDa]=useState("");
+  const [incManA,setIncManA]=useState("");
+  const [incManSearch,setIncManSearch]=useState("");
+  // Storico sort
+  const [ricoSortKey,setRicoSortKey]=useState("data");
+  const [ricoSortDir,setRicoSortDir]=useState("desc");
+  const toggleRicoSort = k => { setRicoSortKey(k); setRicoSortDir(d=>k===ricoSortKey?(d==="asc"?"desc":"asc"):"asc"); };
+
+  useEffect(()=>{
+    const onResize=()=>setIsNarrow(window.innerWidth<=1180);
+    window.addEventListener("resize",onResize);
+    return ()=>window.removeEventListener("resize",onResize);
+  },[]);
+
+  useEffect(()=>{
+    const last=Number(localStorage.getItem("cf_last_backup_ts")||0);
+    setShowBackupReminder(!last||(Date.now()-last)>86400000);
+  },[]);
+
+  useEffect(()=>{
+    setDocRowsLimit(VIRTUAL_STEP);
+    setIncRowsLimit(VIRTUAL_STEP);
+    setAssRowsLimit(VIRTUAL_STEP);
+    setRicRowsLimit(VIRTUAL_STEP);
+    setStoricoAssRowsLimit(VIRTUAL_STEP);
+  },[tab,search,globalSearch,fState,fType,
+     docDateDa,docDateA,docDatePagDa,docDatePagA,
+     incDateDa,incDateA,incTabSearch,
+     assDateDa,assDateA,assDateIncDa,assDateIncA,
+     ricDateDa,ricDateA]);
+
+  const globalQ = (globalSearch||"").trim().toLowerCase();
+  const matchesGlobal = obj => !globalQ || Object.values(obj||{}).some(v=>String(v||"").toLowerCase().includes(globalQ));
 
   const filtered=docs.filter(d=>{
     if(fState!=="Tutti"&&d[COL.stato]?.toUpperCase()!==fState) return false;
     if(fType!=="Tutti"&&d[COL.tipoDocumento]!==fType) return false;
-    if(search){ const q=search.toLowerCase(); return Object.values(d).some(v=>String(v).toLowerCase().includes(q)); }
+    if(docDateDa){const k=toISO(d[COL.dataDocumento]);if(k<docDateDa)return false;}
+    if(docDateA){const k=toISO(d[COL.dataDocumento]);if(k>docDateA)return false;}
+    if(docDatePagDa){const k=toISO(d[COL.dataPagamento]);if(k<docDatePagDa)return false;}
+    if(docDatePagA){const k=toISO(d[COL.dataPagamento]);if(k>docDatePagA)return false;}
+    if(search){const q=search.toLowerCase();if(!Object.values(d).some(v=>String(v).toLowerCase().includes(q)))return false;}
+    if(!matchesGlobal(d))return false;
     return true;
   });
 
@@ -2411,12 +2480,64 @@ function App() {
   const toggleAssSort = k => { setAssSortKey(k); setAssSortDir(d=>k===assSortKey?(d==="asc"?"desc":"asc"):"asc"); };
 
   const docSorted = sortData(filtered, docSortKey, docSortDir);
-  const incSorted = sortData(incs, incSortKey, incSortDir);
-  const assSorted = sortData(assegni, assSortKey, assSortDir);
 
-  const DocSortTh = makeSortTh(docSortKey, docSortDir, toggleDocSort);
-  const IncSortTh = makeSortTh(incSortKey, incSortDir, toggleIncSort);
-  const AssSortTh = makeSortTh(assSortKey, assSortDir, toggleAssSort);
+  const filteredIncs = incs.filter(i=>{
+    if(incTabSearch){const q=incTabSearch.toLowerCase();if(!Object.values(i).some(v=>String(v||"").toLowerCase().includes(q)))return false;}
+    if(incDateDa){const k=toISO(i["Data Ricezione"]);if(k<incDateDa)return false;}
+    if(incDateA){const k=toISO(i["Data Ricezione"]);if(k>incDateA)return false;}
+    if(!matchesGlobal(i))return false;
+    return true;
+  });
+  const incSorted = sortData(filteredIncs, incSortKey, incSortDir);
+
+  const filteredAssegni = assegni.filter(a=>{
+    if(assTabSearch){const q=assTabSearch.toLowerCase();if(!Object.values(a).some(v=>String(v||"").toLowerCase().includes(q)))return false;}
+    if(assDateDa){const k=toISO(a["DATA TITOLO"]);if(k<assDateDa)return false;}
+    if(assDateA){const k=toISO(a["DATA TITOLO"]);if(k>assDateA)return false;}
+    if(assDateIncDa){const k=toISO(a["DATA INCASSO PREVISTA"]);if(k<assDateIncDa)return false;}
+    if(assDateIncA){const k=toISO(a["DATA INCASSO PREVISTA"]);if(k>assDateIncA)return false;}
+    if(!matchesGlobal(a))return false;
+    return true;
+  });
+  const assSorted = sortData(filteredAssegni, assSortKey, assSortDir);
+
+  const filteredRico = riconciliazioni.filter(r=>{
+    if(ricDateDa){const k=toISO(r.data);if(k<ricDateDa)return false;}
+    if(ricDateA){const k=toISO(r.data);if(k>ricDateA)return false;}
+    if(!matchesGlobal(r))return false;
+    return true;
+  });
+  const ricoSorted = sortData(filteredRico, ricoSortKey, ricoSortDir);
+
+  const bankRowsFiltered = bankRows.filter(r=>{
+    const k=toISO(r.data||"");
+    if(recoDateDa&&k&&k<recoDateDa)return false;
+    if(recoDateA&&k&&k>recoDateA)return false;
+    if(!matchesGlobal(r))return false;
+    return true;
+  });
+
+  // Virtual scroll slices
+  const docVisible  = docSorted.slice(0, docRowsLimit);
+  const incVisible  = incSorted.slice(0, incRowsLimit);
+  const assVisible  = assSorted.slice(0, assRowsLimit);
+  const ricoVisible = ricoSorted.slice(0, ricRowsLimit);
+
+  // Riconciliabili
+  const assegniRiconciliabili = assegni.filter(a=>(a["STATO TITOLO"]||"").toUpperCase()!=="INCASSATO");
+  const incassiRiconciliabili = incs.filter(i=>{
+    if((i["Metodo"]||"").toUpperCase()==="ASSEGNO")return false;
+    const refs = parseDocRefs(i.fatture);
+    if(!refs.length)return true;
+    const linkedDocs = refs.flatMap(num=>docs.filter(d=>String(d[COL.numeroDocumento])===String(num)));
+    if(!linkedDocs.length)return true;
+    return linkedDocs.some(d=>(d[COL.stato]||"").toUpperCase()==="DA RICONCILIARE");
+  });
+
+  const DocSortTh  = makeSortTh(docSortKey,  docSortDir,  toggleDocSort);
+  const IncSortTh  = makeSortTh(incSortKey,  incSortDir,  toggleIncSort);
+  const AssSortTh  = makeSortTh(assSortKey,  assSortDir,  toggleAssSort);
+  const RicoSortTh = makeSortTh(ricoSortKey, ricoSortDir, toggleRicoSort);
 
   const notify=(msg,type="info")=>setToast({msg,type});
 
@@ -2646,6 +2767,76 @@ function App() {
       await d1API.call(`/api/incassi/${inc._id}`, "PUT", { [d1field]: val, utente: authed });
       notify("Incasso aggiornato ✓","success");
     } catch(e) { notify("Errore: "+e.message,"error"); }
+  };
+
+  const handleDeleteIncasso = async (idx) => {
+    const inc = incs[idx];
+    if(!inc?._id){notify("ID incasso mancante","error");return;}
+    if(!window.confirm(`Eliminare l'incasso ${inc["ID Incasso"]}?\nI saldi dei documenti collegati verranno ripristinati.`))return;
+    try {
+      await d1API.call(`/api/incassi/${inc._id}`,"DELETE",{utente:authed});
+      setIncs(p=>p.filter((_,i)=>i!==idx));
+      notify("Incasso eliminato e saldi ripristinati ✓","success");
+      await loadData();
+    } catch(e){notify("Errore eliminazione: "+e.message,"error");}
+  };
+
+  const handleEditRicStorico = async (assegno, value) => {
+    if(!assegno?._id){notify("ID assegno mancante","error");return;}
+    const nuovoStato = value==="SI"?"INCASSATO":((assegno["STATO TITOLO"]||"").toUpperCase()==="INCASSATO"?"CONSEGNATO A PINO":(assegno["STATO TITOLO"]||"IN ARCHIVIO"));
+    try {
+      await d1API.updateAssegno(assegno._id,{stato:nuovoStato,utente:authed});
+      setAssegni(p=>p.map(a=>a._id===assegno._id?{...a,"STATO TITOLO":nuovoStato}:a));
+      notify("Stato riconciliazione assegno aggiornato ✓","success");
+    } catch(e){notify("Errore: "+e.message,"error");}
+  };
+
+  // ── Percorsi connessi popup
+  const sameRef=(a,b)=>String(a||"").trim()===String(b||"").trim();
+  const uniqBy=(arr,keyFn)=>{const seen=new Set();return(arr||[]).filter(x=>{const k=keyFn(x);if(!k||seen.has(k))return false;seen.add(k);return true;});};
+  const interAny=(arrA,arrB)=>{const b=new Set((arrB||[]).map(v=>String(v||"").trim()).filter(Boolean));return(arrA||[]).some(v=>b.has(String(v||"").trim()));};
+  const assegnoRefs=a=>{const fve=parseDocRefs(a?.["DOCUMENTI COLLEGATI"]||a?.["FATTURE PAGATE"]||"");const nac=parseDocRefs(a?.["NC SCALATE"]||"");return uniqBy([...fve,...nac],v=>String(v||"").trim());};
+
+  const openPathPopup=(kind,row)=>{
+    let docsL=[],incsL=[],assL=[],ricoL=[],title="",subtitle="";
+    if(kind==="documento"){
+      const num=String(row?.[COL.numeroDocumento]||"").trim();
+      const did=String(row?._id||"").trim();
+      docsL=[row];
+      assL=(assegni||[]).filter(a=>interAny([num],assegnoRefs(a)));
+      incsL=(incs||[]).filter(i=>{const refs=parseDocRefs(i?.fatture||"");return interAny([num],refs)||(row?.[COL.nAssegno]&&sameRef(i?.["N Assegno"],row?.[COL.nAssegno]));});
+      ricoL=(riconciliazioni||[]).filter(r=>interAny([num],parseDocRefs(r?.fatture||""))||interAny([did],parseDocRefs(r?.fattureIds||"")));
+      title=`Documento ${num||"-"}`;subtitle=`${row?.[COL.ragioneSociale]||""} · ${row?.[COL.tipoDocumento]||""}`;
+    }
+    if(kind==="incasso"){
+      const refs=parseDocRefs(row?.fatture||"");const nTitolo=String(row?.["N Assegno"]||"").trim();
+      docsL=(docs||[]).filter(d=>refs.some(r=>sameRef(d?.[COL.numeroDocumento],r)));
+      const docNums=docsL.map(d=>String(d?.[COL.numeroDocumento]||"").trim()).filter(Boolean);
+      incsL=[row];
+      assL=(assegni||[]).filter(a=>{const byR=interAny(docNums,assegnoRefs(a));const byT=nTitolo&&sameRef(a?.["N TITOLO"],nTitolo);return byR||byT;});
+      ricoL=(riconciliazioni||[]).filter(r=>sameRef(r?.id,row?._id)||sameRef(r?.id,row?.["ID Incasso"])||interAny(parseDocRefs(r?.fatture||""),docNums));
+      title=`Incasso ${row?.["ID Incasso"]||row?._id||"-"}`;subtitle=`${row?.["Cliente"]||""} · ${row?.["Metodo"]||""}`;
+    }
+    if(kind==="assegno"){
+      const refs=assegnoRefs(row);const titolo=String(row?.["N TITOLO"]||"").trim();
+      docsL=(docs||[]).filter(d=>refs.some(r=>sameRef(d?.[COL.numeroDocumento],r)));
+      const docNums=docsL.map(d=>String(d?.[COL.numeroDocumento]||"").trim()).filter(Boolean);
+      assL=[row];
+      incsL=(incs||[]).filter(i=>{const byR=interAny(parseDocRefs(i?.fatture||""),docNums);const byT=titolo&&sameRef(i?.["N Assegno"],titolo);return byR||byT;});
+      ricoL=(riconciliazioni||[]).filter(r=>{const byD=interAny(parseDocRefs(r?.fatture||""),docNums);const txt=`${r?.descrizione||""} ${r?.descAdd||""}`.toLowerCase();return byD||(titolo&&txt.includes(titolo.toLowerCase()));});
+      title=`Assegno ${titolo||"-"}`;subtitle=`${row?.["CLIENTE"]||""} · ${toIT(row?.["DATA TITOLO"])||""}`;
+    }
+    setPathPopup({kind,title,subtitle,
+      docs:uniqBy(docsL,d=>String(d?._id||d?.[COL.numeroDocumento]||"")),
+      incs:uniqBy(incsL,i=>String(i?._id||i?.["ID Incasso"]||"")),
+      ass:uniqBy(assL,a=>String(a?._id||a?.["N TITOLO"]||"")),
+      rico:uniqBy(ricoL,r=>String(r?.id||"")),
+    });
+  };
+
+  const onDataRowClick=(e,kind,row)=>{
+    if(e.target.closest("input,select,textarea,button,a,[data-edit-cell='1']"))return;
+    openPathPopup(kind,row);
   };
 
   const handleSavePay=async({method,amount,cid,date,notes,noteAssegno,noteDocPerDoc,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
@@ -2936,7 +3127,39 @@ function App() {
 
 
 
-  /* ── ICONE SIDEBAR ── */
+  // ── Export tab corrente
+  const downloadRowsXlsx = (rows, fileName, sheetName) => {
+    if (!rows || !rows.length) { notify("Nessun dato da esportare","warn"); return; }
+    const wb = window.XLSX.utils.book_new();
+    const ws = window.XLSX.utils.json_to_sheet(rows);
+    window.XLSX.utils.book_append_sheet(wb, ws, sheetName||"Dati");
+    window.XLSX.writeFile(wb, fileName);
+    notify(`Export completato: ${fileName}`,"success");
+  };
+
+  const exportCurrentTab = () => {
+    const ts = new Date().toISOString().slice(0,10);
+    if(tab==="documenti") return downloadRowsXlsx(docs, `MarcosHUB-documenti-${ts}.xlsx`,"Documenti");
+    if(tab==="incassi")   return downloadRowsXlsx(incs, `MarcosHUB-incassi-${ts}.xlsx`,"Incassi");
+    if(tab==="assegni")   return downloadRowsXlsx(assegni, `MarcosHUB-assegni-${ts}.xlsx`,"Assegni");
+    if(tab==="storico")   return downloadRowsXlsx(riconciliazioni, `MarcosHUB-storico-${ts}.xlsx`,"Storico");
+    notify("Export disponibile nelle tab dati","info");
+  };
+
+  const runBackupExport = () => {
+    const wb = window.XLSX.utils.book_new();
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(docs),"Documenti");
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(incs),"Incassi");
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(assegni),"Assegni");
+    window.XLSX.utils.book_append_sheet(wb, window.XLSX.utils.json_to_sheet(riconciliazioni),"Riconciliazioni");
+    const ts = new Date().toISOString().slice(0,10);
+    window.XLSX.writeFile(wb, `MarcosHUB-backup-${ts}.xlsx`);
+    localStorage.setItem("cf_last_backup_ts", String(Date.now()));
+    setShowBackupReminder(false);
+    notify("Backup esportato ✓","success");
+  };
+
+  /* ── ICONE DOCK ── */
   const TABS = [
     {id:"dashboard", lbl:"Dashboard",   icon:"▦"},
     {id:"documenti", lbl:"Documenti",   icon:"◫"},
