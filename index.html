@@ -36,16 +36,16 @@
   <style>
     :root {
       --bg:       #f5f3f0;
-      --surface:  white;
-      --raised:   #fafaf8;
-      --border:   rgba(0, 0, 0, 0.06);
-      --border-2: rgba(0, 0, 0, 0.03);
-      --text-1:   #1a1a1a;
-      --text-2:   #666666;
-      --text-3:   #999999;
+      --surface:  #121212;
+      --raised:   #1b1b1b;
+      --border:   rgba(255, 255, 255, 0.10);
+      --border-2: rgba(255, 255, 255, 0.06);
+      --text-1:   #f2f2f2;
+      --text-2:   #c8c8c8;
+      --text-3:   #9a9a9a;
       --accent:   #000000;
-      --accent-s: rgba(0,0,0,0.04);
-      --accent-t: rgba(0,0,0,0.02);
+      --accent-s: rgba(255,255,255,0.10);
+      --accent-t: rgba(255,255,255,0.04);
       --navy:     #f5f5f5;
       --success:  #4ba86e;
       --warn:     #bfa973;
@@ -55,16 +55,16 @@
       --danger-s:  rgba(194, 111, 111, 0.12);
       --radius:   16px;
       --radius-s: 8px;
-      --shadow:   0 2px 8px rgba(0,0,0,.08);
-      --shadow-m: 0 12px 24px rgba(0,0,0,.12);
-      --shadow-l: 0 24px 48px rgba(0,0,0,.15);
+      --shadow:   0 2px 8px rgba(0,0,0,.20);
+      --shadow-m: 0 12px 24px rgba(0,0,0,.26);
+      --shadow-l: 0 24px 48px rgba(0,0,0,.32);
       --font:     'Century Gothic', CenturyGothic, 'Apple Gothic', 'Trebuchet MS', 'DM Sans', sans-serif;
       --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
       /* GRADIENT SYSTEM — Premium Minimal Light */
       --grad-subtle: linear-gradient(180deg,rgba(0,0,0,.02) 0%,rgba(0,0,0,.0) 100%);
       --grad-card: linear-gradient(135deg,#2a2a2a 0%,#1a1a1a 100%);
-      --grad-surface: linear-gradient(180deg,#ffffff 0%,#fafaf8 100%);
-      --grad-header: linear-gradient(180deg,rgba(255,255,255,.95) 0%,rgba(250,250,248,.9) 100%);
+      --grad-surface: linear-gradient(180deg,#1b1b1b 0%,#121212 100%);
+      --grad-header: linear-gradient(180deg,rgba(22,22,22,.96) 0%,rgba(16,16,16,.92) 100%);
       --grad-dark: linear-gradient(135deg,#333333 0%,#1a1a1a 100%);
       --grad-accent: linear-gradient(135deg,#f5f5f5 0%,#f0f0f0 100%);
     }
@@ -118,8 +118,8 @@
     .mono-sidebar {
       width: 90px;
       flex-shrink: 0;
-      background: rgba(255,255,255,.6);
-      border-right: 1px solid rgba(0,0,0,.06);
+      background: rgba(18,18,18,.92);
+      border-right: 1px solid var(--border);
       display: none;
       flex-direction: column;
       align-items: center;
@@ -129,7 +129,7 @@
       height: 100vh;
       z-index: 50;
       box-shadow: var(--shadow);
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(10px);
     }
 
     .mono-logo {
@@ -286,15 +286,15 @@
 
     .mono-topbar {
       height: 60px;
-      background: rgba(255,255,255,.7);
-      border-bottom: 1px solid rgba(0,0,0,.06);
+      background: rgba(18,18,18,.9);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
       padding: 0 24px;
       flex-shrink: 0;
       animation: slideIn .3s ease-out;
-      backdrop-filter: blur(8px);
+      backdrop-filter: blur(10px);
     }
 
     @media (max-width: 1024px) {
@@ -305,25 +305,26 @@
     @media (max-width: 680px) {
       .bottom-dock { width: calc(100% - 16px); height: 74px; gap: 4px; padding: 8px; border-radius: 16px; }
       .dock-btn { width: 34px; min-width: 34px; height: 36px; font-size: 14px; border-radius: 10px; }
+      .dock-actions { margin-left: 10px; padding-left: 10px; gap: 6px; }
     }
 
     .card {
-      background: #2a2a2a;
-      border: 1px solid rgba(255,255,255,.05);
+      background: #0f0f0f;
+      border: 1px solid rgba(255,255,255,.10);
       border-radius: 16px;
-      box-shadow: 0 4px 12px rgba(0,0,0,.1);
+      box-shadow: 0 10px 22px rgba(0,0,0,.24);
       transition: all .2s cubic-bezier(.34,.1,.64,.1);
     }
     .card:hover {
-      border-color: rgba(255,255,255,.12);
-      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      border-color: rgba(255,255,255,.16);
+      box-shadow: 0 16px 36px rgba(0,0,0,.30);
       transform: translateY(-2px);
     }
 
     .kpi-card {
       transition: all .2s cubic-bezier(.34,.1,.64,.1);
       cursor: default;
-      background: #2a2a2a;
+      background: #101010;
       color: white;
     }
     .kpi-card:hover {
@@ -333,21 +334,21 @@
     }
 
     .row-hover { transition: all .15s cubic-bezier(.34,.1,.64,.1); }
-    .row-hover:hover { background: var(--raised) !important; transform: translateX(2px); }
+    .row-hover:hover { transform: translateX(1px); }
 
     .glass-card {
-      background: rgba(42,42,42,0.8);
+      background: rgba(15,15,15,0.86);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,.1);
+      border: 1px solid rgba(255,255,255,.12);
       border-radius: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      box-shadow: 0 12px 28px rgba(0,0,0,.28);
       transition: all .2s cubic-bezier(.34,.1,.64,.1);
     }
     .glass-card:hover {
-      background: rgba(51,51,51,0.9);
-      border-color: rgba(255,255,255,.2);
-      box-shadow: 0 12px 32px rgba(0,0,0,.25);
+      background: rgba(20,20,20,0.92);
+      border-color: rgba(255,255,255,.18);
+      box-shadow: 0 16px 34px rgba(0,0,0,.34);
     }
 
     .btn-primary {
@@ -365,33 +366,59 @@
       box-shadow: 0 4px 12px rgba(0,0,0,.2) !important;
     }
 
-    table { border-collapse: collapse; width: 100%; }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      --text-1: #0f0f0f;
+      --text-2: #3f3f3f;
+      --text-3: #6a6a6a;
+      --border: rgba(0,0,0,.12);
+      --border-2: rgba(0,0,0,.08);
+    }
     th {
       font-weight: 600;
       font-size: 10px;
       letter-spacing: .06em;
       text-transform: uppercase;
-      color: #ffffff;
+      color: #0f0f0f;
       padding: 12px 14px;
-      background: #2a2a2a;
-      border-bottom: 1px solid rgba(255,255,255,.08);
+      background: #f5f5f5;
+      border-bottom: 1px solid rgba(0,0,0,.12);
       white-space: nowrap;
     }
     td {
       padding: 13px 14px;
-      border-bottom: 1px solid rgba(255,255,255,.06);
+      border-bottom: 1px solid rgba(0,0,0,.08);
       vertical-align: middle;
-      color: #ffffff;
+      color: #111111;
       font-size: 12.5px;
       transition: background .12s ease;
-      background: #2a2a2a;
+      background: #ffffff;
     }
     tbody tr {
       transition: all .15s cubic-bezier(.34,.1,.64,.1);
       animation: slideIn .3s ease-out backwards;
     }
     tbody tr:hover {
-      background: #333333 !important;
+      background: #f2f2f2 !important;
+    }
+
+    .dock-actions {
+      display: flex;
+      gap: 10px;
+      margin-left: 16px;
+      padding-left: 14px;
+      border-left: 1px solid rgba(0,0,0,.14);
+    }
+
+    button:focus-visible,
+    .dock-btn:focus-visible,
+    .nav-ico:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible {
+      outline: 2px solid rgba(14,165,233,.55);
+      outline-offset: 2px;
     }
 
     input, select, textarea {
@@ -969,14 +996,14 @@ function CashChart({assegni,onNavigate}) {
           {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"#ffffff"},
           {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"#ffffff"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 140px",background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:14,padding:"14px 18px"}}>
-            <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>●</div>
+          <div key={i} style={{flex:"1 1 140px",background:"#101010",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"14px 18px",boxShadow:"0 10px 22px rgba(0,0,0,.22)"}}>
+            <div style={{color:"#cfcfcf",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>{label}</div>
             <div style={{color,fontSize:16,fontWeight:800,fontFamily:"'Century Gothic', CenturyGothic, sans-serif",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
 
-      <div style={{position:"relative",border:"1px solid rgba(0,0,0,.06)",borderRadius:16,background:"var(--grad-card)",padding:"8px 10px 4px"}}>
+      <div style={{position:"relative",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,background:"var(--grad-card)",padding:"8px 10px 4px",boxShadow:"0 14px 30px rgba(0,0,0,.28)"}}>
         <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible",cursor:"pointer",display:"block"}} onMouseMove={handleMouseMove} onMouseLeave={scheduleHideTooltip}>
           <defs>
             <linearGradient id="ccPlotBg" x1="0" y1="0" x2="0" y2="1">
@@ -1453,7 +1480,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                       <div>
                         <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Data sul titolo</div>
                         <div style={{color:"var(--text-2)",fontSize:12}}>
-                          {fmtIso(dataTitolo)} — <span style={{color:["Sab","Dom"].includes(dayName(dataTitolo))?"#fb923c":"#64748b"}}>
+                          {fmtIso(dataTitolo)} — <span style={{color:["Sab","Dom"].includes(dayName(dataTitolo))?"#fb923c":"#334155"}}>
                             {dayName(dataTitolo)}
                           </span>
                         </div>
@@ -1722,7 +1749,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                         <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11}}>
                           {dFmt(row.doc[COL.dataDocumento])}
                         </td>
-                        <td style={{padding:"9px 12px",color:ov?"#ef4444":wr?"#fb923c":"#64748b",fontSize:11}}>
+                        <td style={{padding:"9px 12px",color:ov?"#ef4444":wr?"#fb923c":"#334155",fontSize:11}}>
                           {row.doc[COL.dataPagamento]?dFmt(row.doc[COL.dataPagamento]):"—"}
                         </td>
                         <td style={{padding:"9px 12px",textAlign:"right",color:"var(--text-2)"}}>
@@ -2228,7 +2255,7 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
       <div style={{display:"flex",gap:10}}>
         {phase === "preview" && parsed?.nuovi?.length > 0 && (
           <button onClick={handleImport}
-            style={{background:"var(--grad-accent)",color:"#fff",
+            style={{background:"var(--grad-accent)",color:"#0f172a",
               border:"none",borderRadius:10,padding:"12px 28px",fontWeight:700,
               fontSize:13,cursor:"pointer",fontFamily:"var(--font)"}}>
             ⬆ Importa {parsed.nuovi.length} documenti
@@ -3720,7 +3747,7 @@ function App() {
           <div className="tab-content">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
               <span style={{color:"var(--text-2)",fontSize:12}}>{filteredIncs.length} incassi visualizzati</span>
-              <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"var(--grad-accent)",color:"#fff"}}>
+              <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"var(--grad-accent)",color:"#0f172a"}}>
                 + Nuovo Incasso
               </button>
             </div>
@@ -3760,10 +3787,10 @@ function App() {
                       style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
                       <td style={{padding:"10px 13px",color:"var(--accent)",fontFamily:"var(--font)",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#334155" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#5a5a5a" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#0f172a" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#334155" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                       {isAdmin && (
                         <td style={{padding:"10px 13px",textAlign:"center"}}>
                           <button
@@ -3851,9 +3878,9 @@ function App() {
                         onClick={e=>onDataRowClick(e, "assegno", a)}
                         title="Clicca per vedere percorsi collegati"
                         style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
-                        <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#0f172a" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#334155" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#5a5a5a" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
@@ -3888,7 +3915,7 @@ function App() {
                 <div style={{color:"var(--text-2)",fontSize:13,marginBottom:12}}>
                   🏦 Carica file Excel della banca
                 </div>
-                <label style={{background:"var(--grad-accent)",color:"#fff",
+                <label style={{background:"var(--grad-accent)",color:"#0f172a",
                   borderRadius:"var(--radius-s)",padding:"10px 24px",cursor:"pointer",fontSize:13,fontWeight:700,
                   fontFamily:"var(--font)"}}>
                   Scegli file .xlsx
@@ -4493,7 +4520,7 @@ function App() {
                         {/* Riepilogo abbinamento */}
                         <div style={{
                           background: isDone?"var(--success-s)":selIds.size>0?"var(--danger-s)":"var(--raised)",
-                          border:`1px solid ${isDone?"#22c55e":selIds.size>0?"#d97706":"#e2e8f0"}`,
+                          border:`1px solid ${isDone?"#22c55e":selIds.size>0?"#d97706":"rgba(0,0,0,.16)"}`,
                           borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:12,fontSize:11}}>
                           <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
                             <span style={{color:"var(--text-2)"}}>Accredito banca:</span>
@@ -4608,7 +4635,7 @@ function App() {
                                       })}
                                       style={{
                                         padding:"9px 11px",marginBottom:6,borderRadius:"var(--radius-s)",cursor:"pointer",
-                                        border:`1px solid ${checked?"#3b82f6":nearDate?"#d9770644":"#e2e8f0"}`,
+                                        border:`1px solid ${checked?"#3b82f6":nearDate?"#d9770644":"rgba(0,0,0,.16)"}`,
                                         background:checked?"var(--bg)":nearDate?"var(--danger-s)":"transparent",
                                         transition:"background .12s",
                                       }}>
@@ -4646,7 +4673,7 @@ function App() {
                                           </div>}
                                         </div>
                                         <div style={{flexShrink:0,marginLeft:10,textAlign:"right"}}>
-                                          <div style={{color:checked?"#4ade80":"#f1f5f9",fontSize:13,fontWeight:800,
+                                          <div style={{color:checked?"#4ade80":"#0f172a",fontSize:13,fontWeight:800,
                                             fontFamily:"var(--font)"}}>
                                             {eur(imp)}
                                           </div>
@@ -4975,24 +5002,26 @@ function App() {
               </button>
             );
           })}
-          <button
-            className="dock-btn"
-            data-tip="Sincronizza"
-            title="Sincronizza"
-            onClick={loadData}
-            aria-label="Sincronizza"
-          >
-            ↻
-          </button>
-          <button
-            className="dock-btn"
-            data-tip="Esci"
-            title="Esci"
-            onClick={handleLogout}
-            aria-label="Esci"
-          >
-            ↩
-          </button>
+          <div className="dock-actions">
+            <button
+              className="dock-btn"
+              data-tip="Sincronizza"
+              title="Sincronizza"
+              onClick={loadData}
+              aria-label="Sincronizza"
+            >
+              ↻
+            </button>
+            <button
+              className="dock-btn"
+              data-tip="Esci"
+              title="Esci"
+              onClick={handleLogout}
+              aria-label="Esci"
+            >
+              ↩
+            </button>
+          </div>
         </div>
       </div>
 
@@ -5114,7 +5143,7 @@ function App() {
                       const doc = docCollegati.find(d=>d._numRef===f);
                       return (
                         <div key={j} style={{background:doc?"var(--border-2)":"var(--bg)",
-                          border:`1px solid ${doc?"var(--bg)":"#e2e8f0"}`,
+                          border:`1px solid ${doc?"var(--bg)":"rgba(0,0,0,.16)"}`,
                           borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:6,
                           display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <div>
