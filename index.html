@@ -192,8 +192,8 @@
     .bottom-dock {
       height: 84px;
       flex-shrink: 0;
-      border: 1px solid var(--border);
-      background: rgba(10,10,10,0.92);
+      border: 1px solid rgba(255,255,255,.75);
+      background: rgba(255,255,255,.94);
       backdrop-filter: blur(24px);
       -webkit-backdrop-filter: blur(24px);
       border-radius: 18px;
@@ -203,28 +203,26 @@
       gap: 10px;
       padding: 12px 16px;
       position: fixed;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 0;
+      right: 0;
+      margin: 0 auto;
       width: calc(100% - 32px);
       max-width: 920px;
       bottom: 12px;
       z-index: 40;
       box-shadow: 0 10px 32px rgba(0,0,0,0.7);
       animation: dockSlide .4s cubic-bezier(.34,.1,.64,.1) both;
-      overflow-x: auto;
-      overflow-y: hidden;
-      scrollbar-width: none;
+      overflow: visible;
     }
-    .bottom-dock::-webkit-scrollbar { display: none; }
 
     .dock-btn {
       width: 56px;
       min-width: 56px;
       height: 48px;
       border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.04);
-      background: rgba(255,255,255,.04);
-      color: var(--text-2);
+      border: 1px solid #1a1a1a;
+      background: #000000;
+      color: #ffffff;
       cursor: pointer;
       display: grid;
       place-items: center;
@@ -237,16 +235,16 @@
     .dock-btn:hover {
       transform: translateY(-6px) scale(1.08);
       box-shadow: 0 12px 28px rgba(0,0,0,.6);
-      color: var(--text-1);
-      background: rgba(255,255,255,.08);
-      border-color: rgba(255,255,255,.1);
+      color: #ffffff;
+      background: #111111;
+      border-color: #000000;
     }
 
     .dock-btn.active {
-      background: rgba(255,255,255,.12);
-      border-color: rgba(255,255,255,.15);
-      color: var(--text-1);
-      box-shadow: 0 12px 32px rgba(0,0,0,.6), inset 0 1px 1px rgba(255,255,255,.2);
+      background: #000000;
+      border-color: #000000;
+      color: #ffffff;
+      box-shadow: 0 12px 28px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.08);
       animation: dockBounce .4s ease-out;
     }
 
@@ -257,9 +255,9 @@
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
-      background: var(--surface);
-      color: var(--text-1);
-      border: 1px solid var(--border);
+      background: #ffffff;
+      color: #111111;
+      border: 1px solid rgba(0,0,0,.12);
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 11px;
@@ -267,6 +265,7 @@
       letter-spacing: .03em;
       pointer-events: none;
       box-shadow: var(--shadow-m);
+      display: none;
     }
 
     .mono-topbar {
@@ -287,8 +286,8 @@
       .dock-btn { width: 48px; min-width: 48px; height: 42px; font-size: 18px; }
     }
     @media (max-width: 680px) {
-      .bottom-dock { width: calc(100% - 16px); height: 74px; gap: 5px; padding: 8px 10px; border-radius: 16px; }
-      .dock-btn { width: 38px; min-width: 38px; height: 38px; font-size: 15px; border-radius: 10px; }
+      .bottom-dock { width: calc(100% - 16px); height: 74px; gap: 4px; padding: 8px; border-radius: 16px; }
+      .dock-btn { width: 34px; min-width: 34px; height: 36px; font-size: 14px; border-radius: 10px; }
     }
 
     .card {
@@ -724,8 +723,8 @@ function Spinner({size=16}) {
 
 function Badge({label}) {
   const map = {
-    FVE:   {bg:"var(--bg)",c:"#5a5a5a"},
-    NAC:   {bg:"var(--accent-s)",c:"#707070"},
+    FVE:   {bg:"rgba(96,165,250,.14)",c:"#60a5fa"},
+    NAC:   {bg:"rgba(168,85,247,.14)",c:"#c084fc"},
     Aperto:{bg:"var(--success-s)",c:"#5a5a5a"},
     APERTO:{bg:"var(--success-s)",c:"#5a5a5a"},
     Chiuso:{bg:"#f3f3f3",c:"#7a7a7a"},
@@ -981,7 +980,7 @@ function CashChart({assegni,onNavigate}) {
 
           {areaTotal && <path d={areaTotal} fill="url(#ccArea)"/>}
           {lineArch && <polyline points={lineArch} fill="none" stroke="#4f4f4f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".92"/>}
-          {linePino && <polyline points={linePino} fill="none" stroke="#808080" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" opacity=".85" strokeDasharray="4,4"/>}
+          {linePino && <polyline points={linePino} fill="none" stroke="#808080" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" opacity=".85"/>}
           {lineTotal && <polyline points={lineTotal} fill="none" stroke="#151515" strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round"/>}
 
           {ptsTotal.map((p)=>{
@@ -993,8 +992,8 @@ function CashChart({assegni,onNavigate}) {
             return (
               <g key={k} style={{cursor:"pointer"}} onClick={()=>onNavigate&&onNavigate(k,v.items)}>
                 <rect x={p.x-gap/2} y={P.t} width={gap} height={iH} fill="transparent"/>
-                {isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="2,4" opacity={.75}/>}
-                {isToday&&!isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="var(--text-3)" strokeWidth={1} strokeDasharray="2,4" opacity={.5}/>}
+                {isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="var(--text-3)" strokeWidth={1} opacity={.45}/>} 
+                {isToday&&!isHov&&<line x1={p.x} x2={p.x} y1={P.t} y2={P.t+iH} stroke="var(--text-3)" strokeWidth={1} opacity={.3}/>} 
 
                 <circle cx={p.x} cy={p.y} r={isHov?4.8:3.2} fill={inTol?"var(--warn)":"var(--text-1)"} stroke="var(--bg)" strokeWidth="1.2"/>
 
@@ -1624,9 +1623,9 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   {/* Contatori live */}
                   <div style={{display:"grid",gridTemplateColumns:impAss>0?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:18}}>
                     {[
-                      {lbl:"FVE selezionate",val:eur(totFve),c:"#5a5a5a"},
-                      {lbl:"NAC scalate",     val:eur(totNac),c:"#707070"},
-                      {lbl:"Netto",           val:eur(netto), c:"#5a5a5a"},
+                      {lbl:"FVE selezionate",val:eur(totFve),c:"#60a5fa"},
+                      {lbl:"NAC scalate",     val:eur(totNac),c:"#c084fc"},
+                      {lbl:"Netto",           val:eur(netto), c:"var(--text-1)"},
                       ...(impAss>0?[{lbl:"Assegno",val:eur(impAss),c:scartoColor}]:[]),
                     ].map(({lbl,val,c:col})=>(
                       <div key={lbl} style={{background:"var(--bg)",border:"1px solid var(--border)",
@@ -1646,7 +1645,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 display:"flex",justifyContent:"space-between"}}>
                 <span style={{color:"var(--text-2)",fontSize:10,fontWeight:600,letterSpacing:"1px",textTransform:"uppercase"}}>◈ PARTITARIO APERTO</span>
                 <span style={{color:"var(--text-2)",fontSize:10,display:"flex",gap:10,alignItems:"center"}}>
-                  <span>FVE = verde • NAC = viola</span>
+                  <span>FVE = blu • NAC = viola</span>
                   {rows.some(r=>r.checked&&!r.doc[COL.nAssegno])&&(
                     <span style={{background:"var(--accent-s)",color:"var(--accent)",
                       borderRadius:20,padding:"1px 8px",fontSize:9,fontWeight:700}}>
@@ -1686,11 +1685,14 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                       >
                         <td style={{padding:"9px 12px",width:36,textAlign:"center"}}>
                           <input type="checkbox" checked={row.checked} onChange={()=>toggleRow(i)}
-                            style={{width:15,height:15,accentColor:isNac?"#707070":"#5a5a5a",cursor:"pointer"}}
+                            style={{width:15,height:15,accentColor:isNac?"#a855f7":"#3b82f6",cursor:"pointer"}}
                             onClick={e=>e.stopPropagation()}/>
                         </td>
                         <td style={{padding:"9px 12px"}}>
-                          <span style={{background:isNac?"var(--bg)":"var(--bg)",color:isNac?"#707070":"#707070",
+                          <span style={{
+                            background:isNac?"rgba(168,85,247,.14)":"rgba(96,165,250,.14)",
+                            color:isNac?"#c084fc":"#60a5fa",
+                            border:`1px solid ${isNac?"rgba(168,85,247,.35)":"rgba(96,165,250,.35)"}`,
                             borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>
                             {row.doc[COL.tipoDocumento]}
                           </span>
@@ -4969,7 +4971,6 @@ function App() {
             title="Esci"
             onClick={handleLogout}
             aria-label="Esci"
-            style={{color:"var(--danger)",border:"1px solid rgba(239,68,68,.25)",background:"rgba(239,68,68,.07)"}}
           >
             ↩
           </button>
