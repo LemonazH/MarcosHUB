@@ -77,12 +77,14 @@
     ::-webkit-scrollbar-thumb:hover { background: #3E3E4A; }
 
     @keyframes spin    { to { transform: rotate(360deg); } }
-    @keyframes tabIn   { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes tabIn   { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
     @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
-    @keyframes countUp { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes countUp { from { opacity:0; transform:translateY(8px); scale:.96; } to { opacity:1; transform:translateY(0); scale:1; } }
     @keyframes slideIn { from { transform:translateX(-16px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+    @keyframes dockSlide { from { transform:translateY(24px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+    @keyframes dockBounce { 0% { transform:translateY(0); } 50% { transform:translateY(-4px); } 100% { transform:translateY(0); } }
 
-    .tab-content { animation: tabIn .2s cubic-bezier(.4,0,.2,1) both; }
+    .tab-content { animation: tabIn .3s cubic-bezier(.34,.1,.64,.1) both; }
 
     .app-shell {
       height: 100vh;
@@ -96,7 +98,7 @@
       flex-shrink: 0;
       background: #1a1a1a;
       border-right: 1px solid #2a2a2a;
-      display: flex;
+      display: none;
       flex-direction: column;
       align-items: center;
       padding: 14px 10px;
@@ -177,55 +179,59 @@
       flex-direction: column;
       overflow: hidden;
       position: relative;
+      width: 100%;
     }
 
     .bottom-dock {
-      height: 74px;
+      height: 88px;
       flex-shrink: 0;
-      border-top: 1px solid var(--border);
-      background: rgba(255,255,255,.96);
-      backdrop-filter: blur(8px);
+      border-top: 1px solid rgba(0,0,0,.06);
+      background: linear-gradient(180deg,rgba(255,255,255,.98) 0%,rgba(255,255,255,.96) 100%);
+      backdrop-filter: blur(12px);
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      padding: 10px 14px;
+      gap: 12px;
+      padding: 14px 20px;
       position: fixed;
-      left: 90px;
+      left: 0;
       right: 0;
       bottom: 0;
       z-index: 40;
-      box-shadow: 0 -4px 12px rgba(0,0,0,.08);
+      box-shadow: 0 -8px 32px rgba(0,0,0,.11);
+      animation: dockSlide .4s cubic-bezier(.34,.1,.64,.1) both;
     }
 
     .dock-btn {
-      width: 54px;
-      height: 42px;
-      border-radius: 12px;
-      border: 1px solid var(--border);
-      background: #fff;
-      color: #707070;
+      width: 60px;
+      height: 50px;
+      border-radius: 14px;
+      border: 1.5px solid transparent;
+      background: rgba(0,0,0,.04);
+      color: #878787;
       cursor: pointer;
       display: grid;
       place-items: center;
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
       position: relative;
-      transition: transform .14s ease, box-shadow .14s ease, background .14s ease, color .14s ease;
+      transition: all .18s cubic-bezier(.34,.1,.64,.1);
     }
 
     .dock-btn:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 6px 16px rgba(0,0,0,.1);
+      transform: translateY(-6px) scale(1.08);
+      box-shadow: 0 12px 28px rgba(0,0,0,.14);
       color: #1a1a1a;
-      background: #fff;
+      background: rgba(0,0,0,.07);
+      border-color: rgba(0,0,0,.1);
     }
 
     .dock-btn.active {
-      background: #1a1a1a;
-      border-color: #1a1a1a;
+      background: linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%);
+      border-color: rgba(255,255,255,.2);
       color: #ffffff;
-      box-shadow: 0 6px 16px rgba(0,0,0,.15);
+      box-shadow: 0 12px 32px rgba(26,26,26,.25), inset 0 1px 1px rgba(255,255,255,.3);
+      animation: dockBounce .4s ease-out;
     }
 
     .dock-btn[data-tip]:hover::after {
@@ -246,44 +252,82 @@
     }
 
     .mono-topbar {
-      height: 56px;
-      background: #ffffff;
-      border-bottom: 1px solid var(--border);
+      height: 60px;
+      background: linear-gradient(180deg,#ffffff 0%,rgba(255,255,255,.97) 100%);
+      border-bottom: 1px solid rgba(0,0,0,.05);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 0 18px;
+      padding: 0 24px;
       flex-shrink: 0;
+      animation: slideIn .3s ease-out;
     }
 
-    @media (max-width: 980px) {
-      .mono-sidebar { width: 76px; }
-      .bottom-dock { left: 76px; }
-      .bottom-dock { justify-content: flex-start; overflow-x: auto; }
-      .dock-btn { flex: 0 0 auto; }
+    @media (max-width: 1024px) {
+      .mono-sidebar { display: none; }
+      .bottom-dock { left: 0; gap: 8px; padding: 12px 16px; height: 82px; }
+      .dock-btn { width: 54px; height: 46px; font-size: 18px; }
+    }
+    @media (max-width: 680px) {
+      .bottom-dock { height: 76px; gap: 6px; padding: 10px 12px; }
+      .dock-btn { width: 48px; height: 42px; font-size: 16px; border-radius: 10px; }
     }
 
     .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-m);
+      background: linear-gradient(135deg,#ffffff 0%,#fafafa 100%);
+      border: 1px solid rgba(0,0,0,.06);
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,.06);
+      transition: all .2s cubic-bezier(.34,.1,.64,.1);
+    }
+    .card:hover {
+      border-color: rgba(0,0,0,.1);
+      box-shadow: 0 8px 20px rgba(0,0,0,.1);
+      transform: translateY(-2px);
     }
 
-    .kpi-card { transition: border-color .15s, transform .15s; cursor: default; }
-    .kpi-card:hover { border-color: var(--border) !important; transform: translateY(-1px); }
+    .kpi-card {
+      transition: all .2s cubic-bezier(.34,.1,.64,.1);
+      cursor: default;
+      background: linear-gradient(135deg,#ffffff 0%,#fafafa 100%);
+    }
+    .kpi-card:hover {
+      border-color: rgba(0,0,0,.08) !important;
+      transform: translateY(-3px);
+      box-shadow: 0 12px 28px rgba(0,0,0,.1) !important;
+    }
 
-    .row-hover:hover { background: var(--raised) !important; }
+    .row-hover { transition: all .15s cubic-bezier(.34,.1,.64,.1); }
+    .row-hover:hover { background: rgba(26,26,26,.02) !important; transform: translateX(2px); }
 
     .glass-card {
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      box-shadow: var(--shadow-m);
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(0,0,0,.08);
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.08);
+      transition: all .2s cubic-bezier(.34,.1,.64,.1);
+    }
+    .glass-card:hover {
+      background: rgba(255,255,255,.92);
+      border-color: rgba(0,0,0,.12);
+      box-shadow: 0 12px 32px rgba(0,0,0,.12);
     }
 
-    .btn-primary { transition: opacity .12s, transform .12s; }
-    .btn-primary:hover { opacity: .85; transform: translateY(-1px); }
+    .btn-primary {
+      transition: all .15s cubic-bezier(.34,.1,.64,.1);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary:hover {
+      opacity: .9;
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(0,0,0,.15) !important;
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+      box-shadow: 0 4px 12px rgba(0,0,0,.2) !important;
+    }
 
     table { border-collapse: collapse; width: 100%; }
     th {
@@ -292,29 +336,45 @@
       letter-spacing: .06em;
       text-transform: uppercase;
       color: var(--text-2);
-      padding: 10px 14px;
-      background: var(--raised);
-      border-bottom: 1px solid var(--border);
+      padding: 12px 14px;
+      background: linear-gradient(180deg,rgba(250,250,250,.6) 0%,rgba(245,245,245,.4) 100%);
+      border-bottom: 1px solid rgba(0,0,0,.08);
       white-space: nowrap;
     }
-    td { padding: 11px 14px; border-bottom: 1px solid var(--border-2); vertical-align: middle; color: var(--text-1); font-size: 12.5px; }
+    td {
+      padding: 13px 14px;
+      border-bottom: 1px solid rgba(0,0,0,.04);
+      vertical-align: middle;
+      color: var(--text-1);
+      font-size: 12.5px;
+      transition: background .12s ease;
+    }
+    tbody tr {
+      transition: all .15s cubic-bezier(.34,.1,.64,.1);
+      animation: slideIn .3s ease-out backwards;
+    }
+    tbody tr:hover {
+      background: rgba(26,26,26,.02) !important;
+    }
 
     input, select, textarea {
       font-family: var(--font);
       font-size: 13px;
       color: var(--text-1);
-      background: var(--raised);
-      border: 1px solid var(--border);
+      background: rgba(255,255,255,.8);
+      border: 1.5px solid rgba(0,0,0,.08);
       border-radius: var(--radius-s);
       outline: none;
-      transition: border-color .12s, box-shadow .12s;
+      transition: all .15s cubic-bezier(.34,.1,.64,.1);
     }
     input::placeholder, textarea::placeholder { color: var(--text-3); }
     input:focus, select:focus, textarea:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-t);
+      border-color: rgba(26,26,26,.2);
+      box-shadow: 0 0 0 3px rgba(26,26,26,.06);
+      background: #ffffff;
+      transform: translateY(-1px);
     }
-    select option { background: var(--raised); color: var(--text-1); }
+    select option { background: #ffffff; color: var(--text-1); }
 
     .badge {
       display: inline-flex;
@@ -791,27 +851,27 @@ function CashChart({assegni,onNavigate}) {
   );
 
   const filtriUI = (
-    <div style={{display:"flex",gap:10,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
-      <div style={{display:"flex",gap:4,background:"#f3f3f3",border:"1px solid #d4d4d4",borderRadius:999,padding:4}}>
+    <div style={{display:"flex",gap:12,marginBottom:18,flexWrap:"wrap",alignItems:"center",animation:"slideIn .4s ease-out"}}>
+      <div style={{display:"flex",gap:5,background:"rgba(0,0,0,.03)",border:"1px solid rgba(0,0,0,.08)",borderRadius:999,padding:6,transition:"all .2s ease"}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
-            color={v==="IN ARCHIVIO"?"#8e6642":v==="CONSEGNATO A PINO"?"#536a85":"#111"}
+            color={v==="IN ARCHIVIO"?"#8e6642":v==="CONSEGNATO A PINO"?"#536a85":"#141414"}
             onClick={()=>setStatoFil(v)}/>
         ))}
       </div>
-      <div style={{width:1,height:22,background:"#d3d3d3",flexShrink:0}}/>
-      <div style={{display:"flex",gap:4,background:"#f3f3f3",border:"1px solid #d4d4d4",borderRadius:999,padding:4}}>
+      <div style={{width:1,height:24,background:"rgba(0,0,0,.08)",flexShrink:0,transition:"opacity .2s ease"}}/>
+      <div style={{display:"flex",gap:5,background:"rgba(0,0,0,.03)",border:"1px solid rgba(0,0,0,.08)",borderRadius:999,padding:6,transition:"all .2s ease"}}>
         {PRESETS.map((p,i)=>(
-          <FilBtn key={i} label={p.label} color="#111"
+          <FilBtn key={i} label={p.label} color="#141414"
             active={preset===i&&!fromDate&&!toDate}
             onClick={()=>{setPreset(i);setFromDate("");setToDate("");}}/>
         ))}
       </div>
-      <div style={{display:"flex",gap:4,alignItems:"center"}}>
-        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"#fff",border:"1px solid #d2d2d2",borderRadius:8,color:"#505050",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
-        <span style={{color:"#979797",fontSize:10}}>{"->"}</span>
-        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"#fff",border:"1px solid #d2d2d2",borderRadius:8,color:"#505050",fontSize:10.5,padding:"5px 9px",fontFamily:"var(--font)"}}/>
-        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"#fff",border:"1px solid #d2d2d2",color:"#7e7e7e",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:11}}>x</button>}
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        <input type="date" value={fromDate} onChange={e=>setFromDate(e.target.value)} style={{background:"#fff",border:"1.5px solid rgba(0,0,0,.08)",borderRadius:8,color:"#505050",fontSize:10.5,padding:"6px 10px",fontFamily:"var(--font)",transition:"all .15s ease",cursor:"pointer"}}/>
+        <span style={{color:"#979797",fontSize:10,fontWeight:600}}>{"→"}</span>
+        <input type="date" value={toDate} onChange={e=>setToDate(e.target.value)} style={{background:"#fff",border:"1.5px solid rgba(0,0,0,.08)",borderRadius:8,color:"#505050",fontSize:10.5,padding:"6px 10px",fontFamily:"var(--font)",transition:"all .15s ease",cursor:"pointer"}}/>
+        {(fromDate||toDate)&&<button onClick={()=>{setFromDate("");setToDate("");}} style={{background:"#fff",border:"1.5px solid rgba(0,0,0,.08)",color:"#7e7e7e",borderRadius:8,padding:"5px 9px",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s ease"}}>✕</button>}
       </div>
     </div>
   );
@@ -867,14 +927,14 @@ function CashChart({assegni,onNavigate}) {
 
       <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
         {[
-          {label:"Totale periodo", val:eur(totGlobale), color:"var(--success)"},
-          {label:"In Archivio", val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"var(--warn)"},
-          {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"var(--accent)"},
-          {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"var(--text-2)"},
+          {label:"Totale periodo", val:eur(totGlobale), color:"#ffffff"},
+          {label:"In Archivio", val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"#ffffff"},
+          {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"#ffffff"},
+          {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"#ffffff"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 140px",background:"linear-gradient(180deg,#ffffff 0%,#f3f3f3 100%)",border:"1px solid #d3d3d3",borderRadius:14,padding:"11px 16px"}}>
-            <div style={{color:"#808080",fontSize:9,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>{label}</div>
-            <div style={{color,fontSize:15,fontWeight:800,fontFamily:"var(--mono)",lineHeight:1}}>{val}</div>
+          <div key={i} style={{flex:"1 1 140px",background:"#1a1a1a",border:"1px solid #2a2a2a",borderRadius:14,padding:"14px 18px"}}>
+            <div style={{color:"#949494",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>●</div>
+            <div style={{color,fontSize:16,fontWeight:800,fontFamily:"'Century Gothic', CenturyGothic, sans-serif",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
@@ -895,12 +955,10 @@ function CashChart({assegni,onNavigate}) {
           <rect x={P.l} y={P.t} width={iW} height={iH} fill="#efefef" rx={9}/>
           <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={9} stroke="#cfcfcf"/>
 
-          {gridLines.map(({r,y,val})=>(
-            <g key={r}>
-              <line x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke={r===1?"#adadad":"#d5d5d5"} strokeWidth={1} strokeDasharray={r===1?"":"2,7"}/>
-              <text x={P.l-8} y={y+3.5} textAnchor="end" fill="#8b8b8b" fontSize={9} fontFamily="var(--mono)">{fmtY(val)}</text>
-            </g>
-          ))}
+          {gridLines.map(({r,y,val})=>{
+            if(r!==1) return null;
+            return <line key={r} x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke="#adadad" strokeWidth={1}/>;
+          })}
 
           {areaTotal && <path d={areaTotal} fill="url(#ccArea)"/>}
           {lineArch && <polyline points={lineArch} fill="none" stroke="#4f4f4f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".92"/>}
@@ -930,7 +988,7 @@ function CashChart({assegni,onNavigate}) {
                     <text x={p.x} y={p.y-9.5} textAnchor="middle" fill="#7f7f7f" fontSize={6.5} fontFamily="var(--mono)" fontWeight="bold">{nA}</text>
                   </g>
                 )}
-                {(p.i%labelStep===0||n<=15)&&<text x={p.x} y={H-P.b+14} textAnchor="middle" fill={isToday?"#494949":isHov?"#202020":"#8a8a8a"} fontSize={8.5} fontFamily="var(--mono)" fontWeight={isToday||isHov?"bold":"normal"}>{fmtDay(k)}</text>}
+                {(p.i%labelStep===0||n<=15)&&<text x={p.x} y={H-P.b+14} textAnchor="middle" fill="#141414" fontSize={10} fontFamily="'Century Gothic', CenturyGothic, sans-serif" fontWeight={isToday||isHov?"bold":"600"}>{fmtDay(k)}</text>}
               </g>
             );
           })}
@@ -963,19 +1021,19 @@ function CashChart({assegni,onNavigate}) {
               <div style={{background:accentBg,padding:"12px 16px",borderBottom:`1px solid ${accentColor}22`}}>
                 <div style={{color:accentColor,fontSize:11,fontWeight:800,letterSpacing:.35,marginBottom:6,lineHeight:1.35}}>{fmtFullLong(k)}</div>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"baseline"}}>
-                  <span style={{color:"var(--text-2)",fontSize:10}}>{v.items.length} assegn{v.items.length===1?"o":"i"} in scadenza</span>
+                  <span style={{color:"var(--text-1)",fontSize:10}}>{v.items.length} assegn{v.items.length===1?"o":"i"} in scadenza</span>
                   <span style={{color:accentColor,fontSize:17,fontWeight:900,fontFamily:"var(--mono)",lineHeight:1}}>{eur(v.total)}</span>
                 </div>
               </div>
 
               <div style={{padding:"6px 16px",background:"#f7f7f7",borderBottom:"1px solid #e5e5e5",display:"flex",justifyContent:"space-between",alignItems:"center",gap:8}}>
-                <span style={{color:"#7f7f7f",fontSize:8.5,fontFamily:"var(--mono)",lineHeight:1.3}}>Clicca un punto per aprire nello storico</span>
-                <button onClick={(e)=>{e.stopPropagation(); setPinnedIdx(pinnedIdx===activeIdx?null:activeIdx);}} style={{background:pinnedIdx===activeIdx?"#111":"#fff",border:"1px solid var(--border)",color:pinnedIdx===activeIdx?"#fff":"var(--text-2)",borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700}}>{pinnedIdx===activeIdx?"Sblocca":"Blocca"}</button>
+                <span style={{color:"var(--text-1)",fontSize:8.5,fontFamily:"var(--mono)",lineHeight:1.3}}>Clicca un punto per aprire nello storico</span>
+                <button onClick={(e)=>{e.stopPropagation(); setPinnedIdx(pinnedIdx===activeIdx?null:activeIdx);}} style={{background:pinnedIdx===activeIdx?"#111":"#fff",border:"1px solid var(--border)",color:pinnedIdx===activeIdx?"#fff":"var(--text-1)",borderRadius:6,padding:"2px 8px",cursor:"pointer",fontSize:9,fontWeight:700}}>{pinnedIdx===activeIdx?"Sblocca":"Blocca"}</button>
               </div>
 
               <div style={{maxHeight:360,overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"#c8c8c8 transparent"}}>
                 <div style={{position:"sticky",top:0,zIndex:2,display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 16px",background:"#f2f2f2",borderBottom:"1px solid #e0e0e0"}}>
-                  <span style={{color:"var(--text-2)",fontSize:9}}>Elenco assegni</span>
+                  <span style={{color:"var(--text-1)",fontSize:9}}>Elenco assegni</span>
                   <span style={{color:accentColor,fontSize:10,fontFamily:"var(--mono)",fontWeight:700}}>{eur(v.total)}</span>
                 </div>
 
@@ -990,7 +1048,7 @@ function CashChart({assegni,onNavigate}) {
                     <div key={j} style={{padding:"10px 16px",borderBottom:j<v.items.length-1?"1px solid #ececec":"none",background:j%2===0?"#ffffff":"#f8f8f8"}}>
                       <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}>
                         <div style={{color:"var(--text-1)",fontSize:11,fontWeight:700,flex:1,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",paddingRight:8}}>
-                          <span style={{display:"inline-block",width:6,height:6,borderRadius:99,marginRight:6,background:done?"var(--success)":"var(--warn)"}}/>{a["CLIENTE"]||"-"}
+                          <span style={{display:"inline-block",width:6,height:6,borderRadius:99,marginRight:6,background:done?"#3f8c5b":"#b07a49"}}/>{a["CLIENTE"]||"-"}
                         </div>
                         <div style={{color:accentColor,fontSize:12,fontWeight:900,fontFamily:"var(--mono)",whiteSpace:"nowrap",flexShrink:0}}>{eur(imp)}</div>
                       </div>
@@ -998,7 +1056,7 @@ function CashChart({assegni,onNavigate}) {
                       <div style={{display:"flex",gap:6,alignItems:"center",marginBottom:3}}>
                         <span style={{color:"#5f7895",fontSize:9,fontFamily:"var(--mono)",fontWeight:700}}>{a["N TITOLO"]||"-"}</span>
                         <span style={{color:"var(--text-2)",fontSize:8}}>-</span>
-                        <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,background:done?"var(--success-s)":"var(--warn-s)",color:done?"var(--success)":"var(--warn)",border:`1px solid ${done?"#c5dece":"#dac0a9"}`}}>{a["STATO TITOLO"]||""}</span>
+                        <span style={{fontSize:8,padding:"1px 5px",borderRadius:3,fontWeight:700,background:done?"#e5f0e9":"#f4e9de",color:done?"#3f8c5b":"#b07a49",border:`1px solid ${done?"#c5dece":"#dac0a9"}`}}>{a["STATO TITOLO"]||""}</span>
                       </div>
 
                       {(fatture||nc||docsColl)&&(
@@ -3250,31 +3308,28 @@ function App() {
               value={globalSearch}
               onChange={e=>setGlobalSearch(e.target.value)}
               placeholder="Ricerca manuale"
-              style={{...S.input,width:isNarrow?160:240,height:34,fontSize:12,background:"#fff"}}
+              style={{...S.input,width:isNarrow?160:240,height:36,fontSize:12,background:"#fff",border:"1.5px solid rgba(0,0,0,.08)"}}
             />
             {!!globalSearch && (
-              <button onClick={()=>setGlobalSearch("")} style={{background:"#fff",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 9px",cursor:"pointer",fontSize:11}}>
+              <button onClick={()=>setGlobalSearch("")} style={{background:"#fff",border:"1.5px solid rgba(0,0,0,.08)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 9px",cursor:"pointer",fontSize:11,fontWeight:600,transition:"all .15s ease"}}>
                 ✕
               </button>
             )}
-            <button onClick={exportCurrentTab} style={{background:"#fff",border:"1px solid var(--border)",color:"var(--text-1)",borderRadius:"999px",padding:"8px 12px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700}}>
+            <button onClick={exportCurrentTab} style={{background:"#fff",border:"1.5px solid rgba(0,0,0,.08)",color:"var(--text-1)",borderRadius:"999px",padding:"8px 14px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
               Export
             </button>
-            <button onClick={runBackupExport} style={{background:showBackupReminder?"var(--warn-s)":"#fff",border:`1px solid ${showBackupReminder?"#c9ab8f":"var(--border)"}`,color:showBackupReminder?"var(--warn)":"var(--text-2)",borderRadius:"999px",padding:"8px 12px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700}}>
+            <button onClick={runBackupExport} style={{background:showBackupReminder?"rgba(199,171,143,.08)":"#fff",border:`1.5px solid ${showBackupReminder?"rgba(199,171,143,.15)":"rgba(0,0,0,.08)"}`,color:showBackupReminder?"#b08366":"var(--text-2)",borderRadius:"999px",padding:"8px 14px",cursor:"pointer",fontSize:11,fontFamily:"var(--font)",fontWeight:700,transition:"all .15s cubic-bezier(.34,.1,.64,.1)"}}>
               Backup {showBackupReminder?"!":""}
             </button>
-            {demo&&<span style={{color:"var(--warn)",fontSize:9,background:"var(--warn-s)",border:"1px solid #dac0a9",padding:"4px 8px",borderRadius:20,fontWeight:700}}>DEMO</span>}
+            {demo&&<span style={{color:"#b08366",fontSize:9,background:"rgba(199,171,143,.08)",border:"1px solid rgba(199,171,143,.2)",padding:"5px 9px",borderRadius:20,fontWeight:700}}>DEMO</span>}
             {loading&&<Spinner/>}
-            <button className="btn-primary" onClick={()=>setShowPay(true)} style={{
-              background:"#0f0f0f",color:"#fff",border:"1px solid #0f0f0f",borderRadius:"999px",
-              padding:"8px 14px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"var(--font)",
-            }}>
+            <button className="btn-primary" onClick={()=>setShowPay(true)} style={{background:"linear-gradient(135deg,#1a1a1a 0%,#2d2d2d 100%)",color:"#fff",border:"1.5px solid rgba(255,255,255,.1)",borderRadius:"999px",padding:"9px 16px",cursor:"pointer",fontSize:12,fontWeight:700,fontFamily:"var(--font)",transition:"all .15s cubic-bezier(.34,.1,.64,.1)",boxShadow:"0 4px 12px rgba(0,0,0,.15)"}}>
               + Pagamento
             </button>
           </div>
         </div>
 
-        <main style={{flex:1,overflowY:"auto",padding:"18px 20px 104px"}}>
+        <main style={{flex:1,overflowY:"auto",padding:"20px 24px 128px"}}>
 
         {/* DASHBOARD */}
         {tab==="dashboard"&&(
@@ -3530,30 +3585,30 @@ function App() {
                           title="Clicca per vedere percorsi collegati"
                           style={{borderBottom:"1px solid var(--border-2)",background:base,cursor:"pointer"}}>
                           <td style={{padding:"9px 11px"}}><Badge label={doc[COL.tipoDocumento]}/></td>
-                          <td style={{padding:"9px 11px",color:"var(--accent)",fontWeight:600}}>
+                          <td style={{padding:"9px 11px",color:"var(--accent)",fontWeight:700}}>
                             <EditCell value={doc[COL.numeroDocumento]} onSave={v=>handleEdit(origIdx,COL.numeroDocumento,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:ov?"var(--danger)":wn?"var(--warn)":"var(--text-2)"}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-1)",fontWeight:600}}>
                             <EditCell value={doc[COL.dataDocumento]} onSave={v=>handleEdit(origIdx,COL.dataDocumento,v)}/>
                             {ov&&<span style={{color:"var(--danger)",fontSize:10}}> ⚠</span>}
                           </td>
                           <td style={{padding:"9px 11px",color:"var(--text-1)"}}>
                             <EditCell value={doc[COL.ragioneSociale]} onSave={v=>handleEdit(origIdx,COL.ragioneSociale,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:"var(--text-2)",textAlign:"right"}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-1)",textAlign:"right"}}>
                             <EditCell value={doc[COL.importoDocumento]} numeric onSave={v=>handleEdit(origIdx,COL.importoDocumento,v)}/>
                           </td>
                           <td style={{padding:"9px 11px",textAlign:"right",fontWeight:700,
                             color:parseNum(doc[COL.saldoResiduo])>0?"var(--text-1)":"var(--success)"}}>
                             <EditCell value={doc[COL.saldoResiduo]} numeric onSave={v=>handleEdit(origIdx,COL.saldoResiduo,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:"var(--text-2)",fontSize:11}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-1)",fontSize:11}}>
                             {toIT(doc[COL.dataPagamento])}
                           </td>
-                          <td style={{padding:"9px 11px",color:"#0284C7",fontSize:11}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-1)",fontSize:11}}>
                             <EditCell value={doc[COL.nAssegno]||""} onSave={v=>handleEdit(origIdx,COL.nAssegno,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:"var(--text-2)",fontSize:11,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-1)",fontSize:11,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                             <EditCell value={doc[COL.note]||""} onSave={v=>handleEdit(origIdx,COL.note,v)}/>
                           </td>
                           {/* Stato — cliccabile se PAGATO per riaprire */}
@@ -3667,10 +3722,10 @@ function App() {
                       style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
                       <td style={{padding:"10px 13px",color:"var(--accent)",fontFamily:"var(--font)",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#94a3b8" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#5a5a5a" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
                       <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#e2e8f0" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-2)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#64748b" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                       {isAdmin && (
                         <td style={{padding:"10px 13px",textAlign:"center"}}>
                           <button
@@ -3759,10 +3814,10 @@ function App() {
                         title="Clicca per vedere percorsi collegati"
                         style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#e2e8f0" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"#0284C7",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"var(--text-2)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#94a3b8" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#5a5a5a" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"var(--text-2)",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
                         <td style={{padding:"9px 13px"}}><EditCell value={a["STATO TITOLO"]||""} color={assStatoColor(a["STATO TITOLO"])} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
                       </tr>
@@ -3862,7 +3917,7 @@ function App() {
                           </div>
                           {/* Riga 2: Causale ABI + badge tipo */}
                           {row.desc&&<div style={{display:"flex",gap:5,alignItems:"center",marginBottom:2}}>
-                            <span style={{color:"#0284C7",fontSize:9,
+                            <span style={{color:"var(--text-1)",fontSize:9,
                               whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",
                               fontFamily:"var(--font)",flex:1}}>
                               {row.desc}
