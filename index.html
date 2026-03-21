@@ -311,6 +311,18 @@
       .dock-btn { width: 48px; min-width: 48px; height: 42px; font-size: 18px; }
       .reco-grid { grid-template-columns: 1fr !important; }
       .reco-side { position: static !important; top: auto !important; }
+      .mono-topbar {
+        height: auto;
+        min-height: 60px;
+        padding: 10px 14px;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .topbar-actions {
+        width: 100%;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+      }
     }
     @media (max-width: 680px) {
       .bottom-dock { width: calc(100% - 16px); height: 74px; gap: 4px; padding: 8px; border-radius: 16px; }
@@ -525,6 +537,55 @@
       border-color: rgba(255,255,255,.34);
       color: var(--text-1);
       background: rgba(255,255,255,.10);
+    }
+
+    .tab-toolbar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 14px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .tab-toolbar-meta {
+      color: var(--text-2);
+      font-size: 11px;
+      margin-left: auto;
+    }
+
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(180deg, rgba(30,30,30,.95) 0%, rgba(20,20,20,.92) 100%);
+      padding: 2px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,.12);
+    }
+
+    .table-shell {
+      background: linear-gradient(180deg, rgba(21,21,21,.98) 0%, rgba(14,14,14,.94) 100%);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: 0 14px 28px rgba(0,0,0,.24);
+    }
+
+    .reset-btn {
+      background: transparent;
+      border: 1px solid rgba(255,255,255,.14);
+      color: var(--text-2);
+      border-radius: var(--radius-s);
+      padding: 7px 10px;
+      cursor: pointer;
+      font-size: 11px;
+      transition: all .15s ease;
+    }
+
+    .reset-btn:hover {
+      color: var(--text-1);
+      border-color: rgba(255,255,255,.22);
+      background: rgba(255,255,255,.04);
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1459,7 +1520,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
           padding:"18px 24px",borderBottom:"1px solid var(--border)",position:"sticky",top:0,
           background:"linear-gradient(180deg, rgba(22,22,22,.97) 0%, rgba(14,14,14,.94) 100%)",zIndex:10}}>
           <div>
-            <div style={{color:"var(--text-1)",fontSize:15,fontWeight:800,letterSpacing:".01em"}}>⟁ Registra Incasso</div>
+            <div style={{color:"var(--text-1)",fontSize:15,fontWeight:800,letterSpacing:".01em"}}>Registra Incasso</div>
             <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
               {["Tipo & Cliente","Abbina Documenti","Conferma"].map((lbl,i)=>(
                 <span key={i} className={step===i+1?"step-pill active":"step-pill"}>
@@ -1484,12 +1545,10 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               </div>
               <div style={{display:"flex",gap:12}}>
                 <div style={card(tipo==="assegno","#6366f1")} onClick={()=>setTipo("assegno")}>
-                  <div style={{fontSize:28,marginBottom:6}}>🏷️</div>
                   <div style={{color:tipo==="assegno"?"#a5b4fc":"#94a3b8",fontWeight:700,fontSize:13}}>Assegno</div>
                   <div style={{color:"var(--text-2)",fontSize:10,marginTop:4}}>Titolo fisico</div>
                 </div>
                 <div style={card(tipo==="bonifico","#0ea5e9")} onClick={()=>setTipo("bonifico")}>
-                  <div style={{fontSize:28,marginBottom:6}}>🏦</div>
                   <div style={{color:tipo==="bonifico"?"#7dd3fc":"#94a3b8",fontWeight:700,fontSize:13}}>Bonifico</div>
                   <div style={{color:"var(--text-2)",fontSize:10,marginTop:4}}>Trasferimento bancario</div>
                 </div>
@@ -1655,7 +1714,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
               <div>
                 <div style={{color:"var(--text-2)",fontSize:10}}>Tipo</div>
                 <div style={{color:"var(--accent)",fontSize:13,fontWeight:700}}>
-                  {tipo==="assegno"?`🏷️ Assegno ${nAssegno}`:"🏦 Bonifico"}
+                  {tipo==="assegno"?`Assegno ${nAssegno}`:"Bonifico"}
                 </div>
               </div>
               {tipo==="assegno"&&parseFloat(importoAssegno)>0&&(
@@ -1926,7 +1985,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 <div>
                   <div style={{color:"var(--text-2)",fontSize:10,marginBottom:3}}>Tipo</div>
                   <div style={{color:"var(--accent)",fontSize:13,fontWeight:700}}>
-                    {tipo==="assegno"?`🏷️ Assegno`:"🏦 Bonifico"}
+                    {tipo==="assegno"?`Assegno`:"Bonifico"}
                   </div>
                 </div>
                 {tipo==="assegno"&&<>
@@ -1994,7 +2053,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     borderRadius:"var(--radius-s)",padding:"14px 16px",marginBottom:12}}>
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
                       <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,letterSpacing:".8px",textTransform:"uppercase"}}>
-                        📝 Nota sui documenti associati
+                        Nota sui documenti associati
                       </div>
                       {noteDocOverride!==null&&(
                         <button onClick={()=>setNoteDocOverride(null)}
@@ -2063,7 +2122,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                       borderRadius:"var(--radius-s)",padding:"14px 16px",marginBottom:12}}>
                       <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,letterSpacing:".8px",
                         textTransform:"uppercase",marginBottom:8}}>
-                        🗂️ Nota registro assegni
+                        Nota registro assegni
                       </div>
                       <input value={noteAssegno}
                         onChange={e=>setNoteAssegno(e.target.value)}
@@ -2073,7 +2132,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                           borderRadius:"var(--radius-s)",padding:"8px 12px",
                           color:"var(--text-1)",fontSize:12,fontFamily:"var(--font)",outline:"none"}}/>
                       <div style={{color:"var(--text-3)",fontSize:10,marginTop:5}}>
-                        🗂️ Verrà registrato nel <strong style={{color:"var(--accent)"}}>Registro Assegni</strong>{" "}
+                        Verrà registrato nel <strong style={{color:"var(--accent)"}}>Registro Assegni</strong>{" "}
                         con stato <strong style={{color:"var(--warn)"}}>IN ARCHIVIO</strong>. Le fatture andranno in{" "}
                         <strong style={{color:"var(--warn)"}}>DA INCASSARE</strong> fino alla riconciliazione bancaria.
                       </div>
@@ -2233,9 +2292,9 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
   const reset = () => { setParsed(null); setLog([]); setPhase("idle"); if(fileRef.current) fileRef.current.value=""; };
 
   return (
-    <div style={{maxWidth:700,margin:"0 auto"}}>
+    <div className="premium-panel-dark" style={{maxWidth:760,margin:"0 auto",padding:"18px 20px"}}>
       <h2 style={{fontFamily:"var(--font)",fontWeight:800,fontSize:20,marginBottom:4}}>
-        ⬆ Importa da Excel
+        Importa da Excel
       </h2>
       <p style={{color:"var(--text-2)",fontSize:12,marginBottom:24}}>
         Carica il file Excel esportato dal gestionale. Vengono letti solo i documenti FVE e NAC,
@@ -2243,10 +2302,9 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
       </p>
 
       {/* Drop area file */}
-      <div style={{border:"2px dashed #e2e8f0",borderRadius:12,padding:"32px",textAlign:"center",
-        marginBottom:20,background:"var(--surface)",cursor:"pointer"}}
+      <div style={{border:"1px dashed rgba(255,255,255,.26)",borderRadius:12,padding:"32px",textAlign:"center",
+        marginBottom:20,background:"linear-gradient(180deg, rgba(24,24,24,.96) 0%, rgba(17,17,17,.92) 100%)",cursor:"pointer"}}
         onClick={()=>fileRef.current?.click()}>
-        <div style={{fontSize:32,marginBottom:8}}>📊</div>
         <div style={{color:"var(--text-2)",fontSize:13}}>Clicca per selezionare il file <strong style={{color:"var(--text-1)"}}>.xlsx</strong></div>
         <div style={{color:"var(--text-2)",fontSize:11,marginTop:4}}>Colonne usate: A (data), D (tipo), F (num.doc), I (cod.cliente), J (cliente), N (importo)</div>
         <input ref={fileRef} type="file" accept=".xlsx,.xls" onChange={handleFile}
@@ -3428,7 +3486,7 @@ function App() {
               {new Date().toLocaleDateString("it-IT",{weekday:"long",day:"2-digit",month:"long",year:"numeric"})}
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <div className="topbar-actions" style={{display:"flex",alignItems:"center",gap:8}}>
             <input
               value={globalSearch}
               onChange={e=>setGlobalSearch(e.target.value)}
@@ -3629,17 +3687,17 @@ function App() {
         {/* DOCUMENTI */}
         {tab==="documenti"&&(
           <div className="tab-content">
-            <div style={{display:"flex",gap:10,marginBottom:18,alignItems:"center",flexWrap:"wrap"}}>
+            <div className="tab-toolbar">
               <input value={search} onChange={e=>setSearch(e.target.value)}
-                placeholder="🔍 Cerca..." style={{...S.input,width:180}}/>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+                placeholder="Cerca..." style={{...S.input,width:180}}/>
+              <div className="filter-group">
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA DOC:</span>
                 <input type="date" value={docDateDa} onChange={e=>setDocDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
                 <input type="date" value={docDateA} onChange={e=>setDocDateA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 {(docDateDa||docDateA) && <button onClick={()=>{setDocDateDa("");setDocDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:4}}>✕</button>}
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+              <div className="filter-group">
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>SCADENZA:</span>
                 <input type="date" value={docDatePagDa} onChange={e=>setDocDatePagDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
@@ -3668,13 +3726,13 @@ function App() {
                   {showAdvancedDocStates?"Avanzato ON":"Avanzato OFF"}
                 </button>
               )}
-              <span style={{color:"var(--text-2)",fontSize:11,marginLeft:"auto"}}>
+              <span className="tab-toolbar-meta">
                 {filtered.length} doc visualizzati
                 {docs.length >= 2000 && <span style={{color:"var(--warn)",marginLeft:6}}>⚠ Limite 2000 — usa i filtri per cercare</span>}
                 {" "} • <span style={{color:"var(--accent)"}}>doppio click = modifica</span>
               </span>
             </div>
-            <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+            <div className="table-shell">
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:900}}>
                   <thead>
@@ -3805,26 +3863,26 @@ function App() {
         {/* INCASSI */}
         {tab==="incassi"&&(
           <div className="tab-content">
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+            <div className="tab-toolbar" style={{justifyContent:"space-between"}}>
               <span style={{color:"var(--text-2)",fontSize:12}}>{filteredIncs.length} incassi visualizzati</span>
               <button onClick={()=>setShowPay(true)} style={{...S.btn,background:"var(--grad-accent)",color:"#0f172a"}}>
                 + Nuovo Incasso
               </button>
             </div>
-            <div style={{display:"flex",gap:10,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+            <div className="tab-toolbar">
               <input value={incTabSearch} onChange={e=>setIncTabSearch(e.target.value)} placeholder="Cerca incassi..." style={{...S.input,width:210}}/>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+              <div className="filter-group">
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA:</span>
                 <input type="date" value={incDateDa} onChange={e=>setIncDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
                 <input type="date" value={incDateA} onChange={e=>setIncDateA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 {(incDateDa||incDateA) && <button onClick={()=>{setIncDateDa("");setIncDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:4}}>✕</button>}
               </div>
-              <button onClick={()=>{setIncTabSearch("");setIncDateDa("");setIncDateA("");}} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11}}>
+              <button onClick={()=>{setIncTabSearch("");setIncDateDa("");setIncDateA("");}} className="reset-btn">
                 Reset filtri
               </button>
             </div>
-            <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+            <div className="table-shell">
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
                   <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
@@ -3880,7 +3938,7 @@ function App() {
         {/* ASSEGNI */}
         {tab==="assegni"&&(
           <div className="tab-content">
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+            <div className="tab-toolbar" style={{justifyContent:"space-between"}}>
               <span style={{color:"var(--text-2)",fontSize:12}}>{filteredAssegni.length} assegni visualizzati</span>
               <div style={{display:"flex",gap:10,alignItems:"center"}}>
                 <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
@@ -3889,25 +3947,25 @@ function App() {
                 </div>
               </div>
             </div>
-            <div style={{display:"flex",gap:10,marginBottom:12,alignItems:"center",flexWrap:"wrap"}}>
+            <div className="tab-toolbar">
               <input value={assTabSearch} onChange={e=>setAssTabSearch(e.target.value)} placeholder="Cerca assegni..." style={{...S.input,width:210}}/>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+              <div className="filter-group">
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA TITOLO:</span>
                 <input type="date" value={assDateDa} onChange={e=>setAssDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
                 <input type="date" value={assDateA} onChange={e=>setAssDateA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
               </div>
-              <div style={{display:"flex",alignItems:"center",gap:6,background:"var(--surface)",padding:"2px 10px",borderRadius:10,border:"1px solid var(--border)"}}>
+              <div className="filter-group">
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA INCASSO:</span>
                 <input type="date" value={assDateIncDa} onChange={e=>setAssDateIncDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>A:</span>
                 <input type="date" value={assDateIncA} onChange={e=>setAssDateIncA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
               </div>
-              <button onClick={()=>{setAssTabSearch("");setAssDateDa("");setAssDateA("");setAssDateIncDa("");setAssDateIncA("");}} style={{background:"transparent",border:"1px solid var(--border)",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"7px 10px",cursor:"pointer",fontSize:11}}>
+              <button onClick={()=>{setAssTabSearch("");setAssDateDa("");setAssDateA("");setAssDateIncDa("");setAssDateIncA("");}} className="reset-btn">
                 Reset filtri
               </button>
             </div>
-            <div style={{background:"var(--surface)",border:"1px solid var(--border-2)",borderRadius:"var(--radius)",overflow:"hidden"}}>
+            <div className="table-shell">
               <div style={{overflowX:"auto"}}>
                 <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                   <colgroup>
@@ -3973,7 +4031,7 @@ function App() {
               <div className="premium-panel-dark" style={{border:"1px dashed rgba(255,255,255,.24)",
                 padding:24,textAlign:"center",marginBottom:18}}>
                 <div style={{color:"var(--text-2)",fontSize:13,marginBottom:12}}>
-                  🏦 Carica file Excel della banca
+                  Carica estratto conto Excel
                 </div>
                 <label style={{background:"var(--grad-accent)",color:"#0f172a",
                   borderRadius:"var(--radius-s)",padding:"10px 24px",cursor:"pointer",fontSize:13,fontWeight:700,
@@ -4050,15 +4108,15 @@ function App() {
                             {(()=>{
                               const d = (row.desc+row.descAdd).toLowerCase();
                               if(d.includes("versamento")&&(d.includes("assegn")||d.includes("titol")))
-                                return <span style={{background:"var(--danger-s)",border:"1px solid #d97706",borderRadius:3,padding:"0px 5px",color:"#fbbf24",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>📋 ASSEGNI</span>;
+                                return <span style={{background:"var(--danger-s)",border:"1px solid #d97706",borderRadius:3,padding:"0px 5px",color:"#fbbf24",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>ASSEGNI</span>;
                               if(d.includes("accredito")&&(d.includes("beu")||d.includes("bonifico ist")))
-                                return <span style={{background:"var(--bg)",border:"1px solid #0284c7",borderRadius:3,padding:"0px 5px",color:"#0284C7",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>⚡ BEU</span>;
+                                return <span style={{background:"var(--bg)",border:"1px solid #0284c7",borderRadius:3,padding:"0px 5px",color:"#0284C7",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>BEU</span>;
                               if(d.includes("accredito")&&d.includes("bonifico"))
-                                return <span style={{background:"var(--success-s)",border:"1px solid #5a5a5a",borderRadius:3,padding:"0px 5px",color:"var(--success)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>↙ BONIF.</span>;
+                                return <span style={{background:"var(--success-s)",border:"1px solid #5a5a5a",borderRadius:3,padding:"0px 5px",color:"var(--success)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>BONIF.</span>;
                               if(d.includes("versamento")&&d.includes("contanti"))
-                                return <span style={{background:"var(--bg)",border:"1px solid #7c3aed",borderRadius:3,padding:"0px 5px",color:"#a78bfa",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>💵 CONTANTI</span>;
+                                return <span style={{background:"var(--bg)",border:"1px solid #7c3aed",borderRadius:3,padding:"0px 5px",color:"#a78bfa",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>CONTANTI</span>;
                               if(d.includes("rid")||d.includes("sdd")||d.includes("addebito diretto"))
-                                return <span style={{background:"var(--danger-s)",border:"1px solid #6b6b6b",borderRadius:3,padding:"0px 5px",color:"var(--danger)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>🔄 RID/SDD</span>;
+                                return <span style={{background:"var(--danger-s)",border:"1px solid #6b6b6b",borderRadius:3,padding:"0px 5px",color:"var(--danger)",fontSize:8,whiteSpace:"nowrap",flexShrink:0}}>RID/SDD</span>;
                               return null;
                             })()}
                           </div>}
@@ -4097,14 +4155,14 @@ function App() {
                       background: recoTab==="assegni"?"var(--raised)":"transparent",
                       color: recoTab==="assegni"?"var(--warn)":"var(--text-3)", transition:"all .15s"
                     }}>
-                      🏷️ Cerca Assegni
+                      Cerca Assegni
                     </button>
                     <button onClick={()=>setRecoTab("bonifici")} style={{
                       padding:"6px 14px", border:"none", borderRadius:6, cursor:"pointer", fontSize:11, fontWeight:700,
                       background: recoTab==="bonifici"?"var(--raised)":"transparent",
                       color: recoTab==="bonifici"?"#38bdf8":"var(--text-3)", transition:"all .15s"
                     }}>
-                      💸 Cerca Altri Incassi
+                      Cerca Altri Incassi
                     </button>
                   </div>
 
@@ -4240,7 +4298,7 @@ function App() {
                                       {a["N TITOLO"]}
                                     </span>
                                     <span style={{color:"var(--text-2)",fontSize:10}}>
-                                      📅 {toIT(a["DATA TITOLO"])}
+                                      {toIT(a["DATA TITOLO"])}
                                     </span>
                                     {docs&&(
                                       <span style={{color:"var(--text-2)",fontSize:9}}>
@@ -4263,7 +4321,7 @@ function App() {
                                   background:"var(--bg)",borderRadius:"var(--radius-s)",
                                   border:"1px solid var(--border)"}}>
                                   <div style={{color:"var(--accent)",fontSize:10,fontWeight:700,marginBottom:8}}>
-                                    📄 Dettaglio assegno
+                                    Dettaglio assegno
                                   </div>
                                   <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"6px 16px",fontSize:10}}>
                                     <div><span style={{color:"var(--text-2)"}}>Cliente: </span>
@@ -4324,8 +4382,8 @@ function App() {
                                       {String(a._id) in recoSel
                                         ? "✕ Rimuovi"
                                         : accrediti.length>0
-                                          ? "☑ Abbina"
-                                          : "↑ Usa come accredito"}
+                                          ? "Abbina"
+                                          : "Usa come accredito"}
                                     </button>
                                   </div>
                                 </div>
@@ -4456,8 +4514,8 @@ function App() {
                                     </div>
                                     <div style={{display:"flex",gap:10,alignItems:"center"}}>
                                       <span style={{color:"#38bdf8",fontSize:10,fontWeight:600}}>{inc["Metodo"]}</span>
-                                      <span style={{color:"var(--text-2)",fontSize:10}}>📅 {toIT(inc["Data Ricezione"])}</span>
-                                      {inc["Note"] && <span style={{color:"var(--text-3)",fontSize:9}}>📝 {inc["Note"]}</span>}
+                                      <span style={{color:"var(--text-2)",fontSize:10}}>{toIT(inc["Data Ricezione"])}</span>
+                                      {inc["Note"] && <span style={{color:"var(--text-3)",fontSize:9}}>{inc["Note"]}</span>}
                                     </div>
                                     {inc.fatture && (
                                       <div style={{color:"#c084fc",fontSize:9,fontFamily:"var(--font)",marginTop:4}}>
@@ -4508,8 +4566,8 @@ function App() {
                                         {isSel
                                           ? "✕ Rimuovi"
                                           : accrediti.length>0
-                                            ? "☑ Abbina"
-                                            : "↑ Usa come accredito"}
+                                            ? "Abbina"
+                                            : "Usa come accredito"}
                                       </button>
                                     </div>
                                   </div>
@@ -4536,7 +4594,7 @@ function App() {
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                       <div>
                         <div style={{color:"var(--accent)",fontSize:10,fontWeight:700,marginBottom:3}}>
-                          🏦 ACCREDITO BANCARIO
+                          ACCREDITO BANCARIO
                         </div>
                         <div style={{color:"var(--success)",fontSize:22,fontWeight:800,
                           fontFamily:"var(--font)"}}>
@@ -4810,7 +4868,7 @@ function App() {
               display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
               <div style={{display:"flex",gap:4,background:"var(--raised)",
                 border:"1px solid var(--border)",borderRadius:"var(--radius-s)",padding:3}}>
-                {[["incassi","◷ Incassi"],["assegni","🏷 Assegni"]].map(([s,lbl])=>(
+                {[["incassi","Incassi"],["assegni","Assegni"]].map(([s,lbl])=>(
                   <button key={s} onClick={()=>{ setStoricoSezione(s); if(s==="incassi") setStoricoFiltroAssegno(null); }}
                     style={{background:storicoSezione===s?"var(--accent)":"transparent",
                       border:"none",borderRadius:5,padding:"5px 14px",
@@ -4823,7 +4881,7 @@ function App() {
               </div>
               {storicoSezione==="incassi"&&(
                 <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,background:"var(--surface)",padding:"2px 8px",borderRadius:8,border:"1px solid var(--border)"}}>
+                  <div className="filter-group" style={{padding:"2px 8px"}}>
                     <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>DAL:</span>
                     <input type="date" value={ricDateDa} onChange={e=>setRicDateDa(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
                     <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>AL:</span>
@@ -4839,14 +4897,14 @@ function App() {
               )}
               {storicoSezione==="assegni"&&(
                 <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap"}}>
-                  <div style={{display:"flex",alignItems:"center",gap:5,background:"var(--surface)",padding:"2px 8px",borderRadius:8,border:"1px solid var(--border)"}}>
+                  <div className="filter-group" style={{padding:"2px 8px"}}>
                     <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>DATA TITOLO:</span>
                     <input type="date" value={assDateDa} onChange={e=>setAssDateDa(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
                     <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>A:</span>
                     <input type="date" value={assDateA} onChange={e=>setAssDateA(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
                     {(assDateDa||assDateA) && <button onClick={()=>{setAssDateDa("");setAssDateA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:2}}>✕</button>}
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:5,background:"var(--surface)",padding:"2px 8px",borderRadius:8,border:"1px solid var(--border)"}}>
+                  <div className="filter-group" style={{padding:"2px 8px"}}>
                     <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>DATA INCASSO:</span>
                     <input type="date" value={assDateIncDa} onChange={e=>setAssDateIncDa(e.target.value)} style={{...S.input,width:105,border:"none",padding:"4px 0",background:"transparent",fontSize:11}}/>
                     <span style={{fontSize:9,color:"var(--text-3)",fontWeight:700}}>A:</span>
@@ -4858,7 +4916,7 @@ function App() {
                       background:"var(--warn-s)",border:"1px solid var(--warn)",
                       borderRadius:20,padding:"3px 10px"}}>
                       <span style={{color:"var(--warn)",fontSize:10,fontWeight:600}}>
-                        📅 {storicoFiltroAssegno.slice(8,10)}/{storicoFiltroAssegno.slice(5,7)}/{storicoFiltroAssegno.slice(0,4)}
+                        {storicoFiltroAssegno.slice(8,10)}/{storicoFiltroAssegno.slice(5,7)}/{storicoFiltroAssegno.slice(0,4)}
                       </span>
                       <button onClick={()=>setStoricoFiltroAssegno(null)}
                         style={{background:"transparent",border:"none",color:"var(--warn)",
