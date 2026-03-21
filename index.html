@@ -436,6 +436,10 @@
     tbody tr:hover {
       background: rgba(242,238,232,.7) !important;
     }
+    tbody tr:hover td {
+      background: rgba(242,238,232,.95) !important;
+      border-bottom-color: rgba(0,0,0,0) !important;
+    }
 
     .dock-actions {
       display: flex;
@@ -587,6 +591,57 @@
       border-color: rgba(255,255,255,.22);
       background: rgba(255,255,255,.04);
     }
+
+    .micro-btn {
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: var(--radius-s);
+      padding: 6px 10px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      transition: all .15s ease;
+      background: rgba(255,255,255,.04);
+      color: var(--text-2);
+    }
+
+    .micro-btn:hover {
+      color: var(--text-1);
+      border-color: rgba(255,255,255,.26);
+      background: rgba(255,255,255,.08);
+    }
+
+    .micro-btn--accent {
+      background: var(--accent-s);
+      border-color: rgba(255,255,255,.24);
+      color: var(--accent);
+    }
+
+    .micro-btn--danger {
+      background: var(--danger-s);
+      border-color: #7f1d1d;
+      color: var(--danger);
+    }
+
+    .micro-btn.is-active {
+      background: rgba(255,255,255,.12);
+      color: var(--text-1);
+      border-color: rgba(255,255,255,.34);
+    }
+
+    .micro-link-action {
+      cursor: pointer;
+      display: block;
+      font-size: 9px;
+      color: var(--accent);
+      text-align: left;
+      margin-top: 5px;
+      text-decoration: underline;
+      opacity: .9;
+      transition: opacity .15s ease;
+    }
+
+    .micro-link-action:hover { opacity: 1; }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="./state-rules.js"></script>
@@ -3713,15 +3768,8 @@ function App() {
               {isAdmin&&(
                 <button
                   onClick={()=>setShowAdvancedDocStates(v=>!v)}
-                  style={{
-                    ...S.input,
-                    width:170,
-                    cursor:"pointer",
-                    background:showAdvancedDocStates?"var(--accent-s)":"var(--surface)",
-                    color:showAdvancedDocStates?"var(--accent)":"var(--text-2)",
-                    fontSize:11,
-                    fontWeight:700,
-                  }}
+                  className={`micro-btn ${showAdvancedDocStates?"is-active":""}`}
+                  style={{width:170}}
                 >
                   {showAdvancedDocStates?"Avanzato ON":"Avanzato OFF"}
                 </button>
@@ -3838,7 +3886,7 @@ function App() {
                                    await handleEdit(origIdx, COL.stato, "APERTO");
                                    notify("Documento riaperto ✓","success");
                                  }}
-                                 style={{cursor:"pointer",display:"block",fontSize:8,color:"var(--accent)",textAlign:"left",marginTop:4,textDecoration:"underline"}}>
+                                   className="micro-link-action">
                                  Ripristina saldo e riapri
                                </span>
                             )}
@@ -3851,7 +3899,7 @@ function App() {
               </div>
               {docSorted.length > docRowsLimit && (
                 <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
-                  <button onClick={()=>setDocRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                  <button onClick={()=>setDocRowsLimit(v=>v+VIRTUAL_STEP)} className="micro-btn micro-btn--accent" style={{padding:"7px 12px"}}>
                     Mostra altri {Math.min(VIRTUAL_STEP, docSorted.length - docRowsLimit)}
                   </button>
                 </div>
@@ -3914,7 +3962,8 @@ function App() {
                           <button
                             title="Elimina incasso e ripristina saldi"
                             onClick={()=>handleDeleteIncasso(origIdx)}
-                            style={{background:"transparent",border:"1px solid var(--danger)",color:"var(--danger)",borderRadius:"var(--radius-s)",padding:"3px 8px",cursor:"pointer",fontSize:13,lineHeight:1}}>
+                            className="micro-btn micro-btn--danger"
+                            style={{padding:"4px 8px",fontSize:12}}>
                             🗑
                           </button>
                         </td>
@@ -3926,7 +3975,7 @@ function App() {
               </table>
               {incSorted.length > incRowsLimit && (
                 <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
-                  <button onClick={()=>setIncRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                  <button onClick={()=>setIncRowsLimit(v=>v+VIRTUAL_STEP)} className="micro-btn micro-btn--accent" style={{padding:"7px 12px"}}>
                     Mostra altri {Math.min(VIRTUAL_STEP, incSorted.length - incRowsLimit)}
                   </button>
                 </div>
@@ -4011,7 +4060,7 @@ function App() {
               </div>
               {assSorted.length > assRowsLimit && (
                 <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
-                  <button onClick={()=>setAssRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                  <button onClick={()=>setAssRowsLimit(v=>v+VIRTUAL_STEP)} className="micro-btn micro-btn--accent" style={{padding:"7px 12px"}}>
                     Mostra altri {Math.min(VIRTUAL_STEP, assSorted.length - assRowsLimit)}
                   </button>
                 </div>
@@ -4987,7 +5036,7 @@ function App() {
                   </table>
                   {filteredRico.length > ricRowsLimit && (
                     <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
-                      <button onClick={()=>setRicRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                      <button onClick={()=>setRicRowsLimit(v=>v+VIRTUAL_STEP)} className="micro-btn micro-btn--accent" style={{padding:"7px 12px"}}>
                         Mostra altri {Math.min(VIRTUAL_STEP, filteredRico.length - ricRowsLimit)}
                       </button>
                     </div>
@@ -5086,7 +5135,7 @@ function App() {
                   </table>
                   {assegniVis.length > storicoAssRowsLimit && (
                     <div style={{padding:10,textAlign:"center",borderTop:"1px solid var(--border)",background:"var(--bg)"}}>
-                      <button onClick={()=>setStoricoAssRowsLimit(v=>v+VIRTUAL_STEP)} style={{...S.btn,background:"var(--accent-s)",color:"var(--accent)",padding:"7px 12px"}}>
+                      <button onClick={()=>setStoricoAssRowsLimit(v=>v+VIRTUAL_STEP)} className="micro-btn micro-btn--accent" style={{padding:"7px 12px"}}>
                         Mostra altri {Math.min(VIRTUAL_STEP, assegniVis.length - storicoAssRowsLimit)}
                       </button>
                     </div>
@@ -5238,7 +5287,8 @@ function App() {
                     }}
                     style={{background:"var(--danger-s)",border:"1px solid #7f1d1d",color:"var(--danger)",
                       borderRadius:"var(--radius-s)",padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:700,
-                      display:"flex",alignItems:"center",gap:5}}>
+                      display:"flex",alignItems:"center",gap:5}}
+                    className="micro-btn micro-btn--danger">
                       🗑 Elimina
                     </button>
                   )}
