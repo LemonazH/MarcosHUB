@@ -830,7 +830,23 @@ const d1API = {
     const opts = { method, headers };
     if (body) opts.body = JSON.stringify({ ...body, utente: this.user });
 
-    const r = await fetch(`${WORKER_URL}${path}`, opts);
+    // ── TIMEOUT PROTECTION (10s) ──
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    opts.signal = controller.signal;
+
+    let r;
+    try {
+      r = await fetch(`${WORKER_URL}${path}`, opts);
+    } catch(e) {
+      if (e.name === 'AbortError') {
+        throw new Error(`Timeout API (>10s) [${method} ${path}]`);
+      }
+      throw e;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+
     if (r.status === 401) {
       this.clear();
       sessionStorage.removeItem("cf_token");
@@ -1524,10 +1540,14 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     return ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"][new Date(iso).getDay()];
   };
 
-  // Clienti unici (documenti aperti)
+  // Clienti unici (documenti incassabili)
+  const isPayableDoc = d => {
+    const st = String(d?.[COL.stato] || "").toUpperCase();
+    return st === "APERTO" || st === "PARZIALE";
+  };
   const allClients = [];
   const seen = new Set();
-  docs.filter(d=>d[COL.stato]?.toUpperCase()==="APERTO").forEach(d=>{
+  docs.filter(isPayableDoc).forEach(d=>{
     const k = d[COL.codiceCliente];
     if(!seen.has(k)){ seen.add(k); allClients.push({id:k,name:d[COL.ragioneSociale]}); }
   });
@@ -1539,9 +1559,9 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     setCid(id); setClientName(name); setClientSearch(name); setShowDropdown(false);
     setNoteDocOverride(null); setNoteDocPerDoc({}); setNoteAssegno(""); setShowNoteDoc(false);
     // Carica partitario: FVE FIFO + NAC in fondo
-    const fves = docs.filter(d=>d[COL.codiceCliente]===id&&d[COL.stato]?.toUpperCase()==="APERTO"&&d[COL.tipoDocumento]==="FVE")
+    const fves = docs.filter(d=>d[COL.codiceCliente]===id&&isPayableDoc(d)&&d[COL.tipoDocumento]==="FVE")
       .sort((a,b)=>new Date(parseIso(a[COL.dataDocumento]))-new Date(parseIso(b[COL.dataDocumento])));
-    const nacs = docs.filter(d=>d[COL.codiceCliente]===id&&d[COL.stato]?.toUpperCase()==="APERTO"&&d[COL.tipoDocumento]==="NAC");
+    const nacs = docs.filter(d=>d[COL.codiceCliente]===id&&isPayableDoc(d)&&d[COL.tipoDocumento]==="NAC");
     setRows([...fves,...nacs].map(doc=>({doc,checked:false,importoAllocato:parseNum(doc[COL.saldoResiduo])})));
   };
 
@@ -3197,9 +3217,17 @@ function App() {
     }
     setAssegni(p=>{ const a=[...p]; a[idx]={...a[idx],[field]:val}; return a; });
     try {
-      await d1API.call(`/api/assegni/${ass._id}`, "PUT", { [d1field]: val, utente: authed });
+      await d1API.call(`/api/assegni/${ass._id}`, "PUT", { [d1field]: val, version: ass.version, utente: authed });
       notify("Assegno aggiornato ✓","success");
-    } catch(e) { notify("Errore: "+e.message,"error"); }
+    } catch(e) {
+      // Reload dati se version conflict (409)
+      if (e.message?.includes("409") || e.message?.includes("Conflitto")) {
+        notify("Assegno modificato da un altro utente. Ricaricamento...","warn");
+        await loadData();
+      } else {
+        notify("Errore: "+e.message,"error");
+      }
+    }
   };
 
   const handleEditRicStorico = async (assegno, value) => {
@@ -3245,12 +3273,15 @@ function App() {
     } catch(e) { notify("Errore eliminazione: "+e.message,"error"); }
   };
 
-  const handleSavePay=async({method,amount,cid,date,notes,noteAssegno,noteDocPerDoc,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
+  const handleSavePay=async({method,amount,importoAssegno,cid,date,notes,noteAssegno,noteDocPerDoc,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
     try {
       const cliente = docs.find(d=>d[COL.codiceCliente]===cid)?.[COL.ragioneSociale]||"";
+      const importoEffettivo = method === "ASSEGNO" && parseNum(importoAssegno) > 0
+        ? parseNum(importoAssegno)
+        : parseNum(amount);
       // Costruisci allocazioni per D1
       const allDocs = [...pred.full,...pred.partial,...pred.nacs];
-      const allocazioni = allDocs.map(f => ({
+      const allocazioni = allDocs.filter(f => f && f._id).map(f => ({
         documento_id: f._id,
         importo: f.allocato,
         descrizione: notes,
@@ -3258,14 +3289,14 @@ function App() {
       // Prepara assegno se presente
       const assegno = (method==="ASSEGNO" && nAssegno) ? {
         cliente, n_titolo: nAssegno, data_titolo: dataTitolo,
-        importo: amount, fatture_pagate: fveNums, nc_scalate: nacNums||"",
+        importo: importoEffettivo, fatture_pagate: fveNums, nc_scalate: nacNums||"",
         note: noteAssegno||"",
       } : null;
 
       const res = await d1API.postIncasso({
         metodo: method==="ASSEGNO"?"Assegno":"Bonifico",
         data_incasso: date,
-        importo_totale: amount,
+        importo_totale: importoEffettivo,
         codice_cliente: cid,
         ragione_sociale: cliente,
         n_assegno: nAssegno||null,
@@ -3287,11 +3318,12 @@ function App() {
           const nuovaNota = f[COL.tipoDocumento]==="NAC"
             ? (d[i][COL.note]||"")
             : (noteDocPerDoc&&noteDocPerDoc[numDoc] ? noteDocPerDoc[numDoc] : notes);
-          if(isFull) {
+          if(method === "ASSEGNO") {
+            d[i]={...d[i],[COL.saldoResiduo]:d[i][COL.saldoResiduo],[COL.stato]:"DA INCASSARE",[COL.note]:nuovaNota};
+          } else if(isFull) {
             // Assegno: stato DA INCASSARE (saldo invariato, attende riconciliazione bancaria)
             // Bonifico: stato DA RICONCILIARE (saldo azzerato, attende conferma estratto conto)
-            const nuovoStato = (method === "ASSEGNO") ? "DA INCASSARE" : "DA RICONCILIARE";
-            d[i]={...d[i],[COL.saldoResiduo]: method==="ASSEGNO" ? d[i][COL.saldoResiduo] : "0",[COL.stato]:nuovoStato,[COL.note]:nuovaNota};
+            d[i]={...d[i],[COL.saldoResiduo]:"0",[COL.stato]:"DA RICONCILIARE",[COL.note]:nuovaNota};
           } else {
             const ns=Math.max(0,parseNum(d[i][COL.saldoResiduo])-f.allocato).toFixed(2);
             d[i]={...d[i],[COL.saldoResiduo]:ns,[COL.stato]:"PARZIALE",[COL.note]:nuovaNota};
@@ -3300,12 +3332,12 @@ function App() {
         return d;
       });
       setRiconciliazioni(p=>[...p,{
-        id: String(res.incasso_id), data:date, accredito:amount,
+        id: String(res.incasso_id), data:date, accredito:importoEffettivo,
         descrizione:notes, fatture:allDocs.map(f=>f[COL.numeroDocumento]), tipo:"Pagamento",
       }]);
       if(assegno)
         setAssegni(p=>[...p,{"CLIENTE":cliente,"N TITOLO":nAssegno,"DATA TITOLO":dataTitolo,
-          "IMPORTO TITOLO":amount,"FATTURE PAGATE":fveNums,"NC SCALATE":nacNums||"","STATO TITOLO":"IN ARCHIVIO",
+          "IMPORTO TITOLO":importoEffettivo,"FATTURE PAGATE":fveNums,"NC SCALATE":nacNums||"","STATO TITOLO":"IN ARCHIVIO",
           _id:null, _incassoId:null}]);
       notify("Pagamento registrato ✓","success");
     } catch(e){ notify("Errore: "+e.message,"error"); }
