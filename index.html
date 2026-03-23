@@ -428,8 +428,8 @@
       background: rgba(255,255,255,.92);
     }
     tbody tr {
-      transition: background .12s ease;
-      animation: slideIn .3s ease-out backwards;
+      transition: background .09s linear;
+      animation: none;
       border-bottom: none !important;
     }
     tbody tr:hover {
@@ -678,6 +678,64 @@
     }
 
     .micro-link-action:hover { opacity: 1; }
+
+    .data-table-dark th {
+      background: linear-gradient(180deg, rgba(38,38,38,.98) 0%, rgba(22,22,22,.96) 100%);
+      color: #ececec;
+      border-bottom: none;
+    }
+
+    .data-table-dark td {
+      color: #ececec;
+      background: transparent !important;
+      border-bottom: none !important;
+    }
+
+    .data-table-dark tbody tr:nth-child(odd) td {
+      background: rgba(255,255,255,.02) !important;
+    }
+
+    .data-table-dark tbody tr:nth-child(even) td {
+      background: rgba(255,255,255,.035) !important;
+    }
+
+    .data-table-dark tbody tr:hover td {
+      background: rgba(255,255,255,.09) !important;
+    }
+
+    .data-table-dark select {
+      background: rgba(255,255,255,.08) !important;
+      border-color: rgba(255,255,255,.22) !important;
+      color: #f4f4f4 !important;
+    }
+
+    .data-table-dark select option {
+      background: #1c1c1c;
+      color: #f2f2f2;
+    }
+
+    .popup-subtitle {
+      color: #e2e2e2 !important;
+      font-size: 11px;
+    }
+
+    .popup-chip {
+      font-size: 10px;
+      color: #f1f1f1 !important;
+      background: rgba(255,255,255,.08) !important;
+      border: 1px solid rgba(255,255,255,.24) !important;
+      border-radius: 99px;
+      padding: 2px 8px;
+    }
+
+    .popup-section-title {
+      color: #f1f1f1 !important;
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <script src="./state-rules.js"></script>
@@ -3818,7 +3876,7 @@ function App() {
             </div>
             <div className="table-shell">
               <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:980}}>
+                <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:980}}>
                   <thead>
                     <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                       <DocSortTh label="Tipo"           colKey={COL.tipoDocumento}/>
@@ -3967,7 +4025,7 @@ function App() {
               </button>
             </div>
             <div className="table-shell">
-              <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
                   <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                     <IncSortTh label="ID Incasso" colKey="ID Incasso"/>
@@ -3989,10 +4047,10 @@ function App() {
                       style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
                       <td style={{padding:"10px 13px",color:"var(--accent)",fontFamily:"var(--font)",fontSize:11,whiteSpace:"nowrap"}}>{inc["ID Incasso"]||"—"}</td>
                       <td style={{padding:"10px 13px"}}><EditCell value={inc["Metodo"]||""} color={inc["Metodo"]==="Assegno"?"#fb923c":"#38bdf8"} onSave={v=>handleEditIncasso(origIdx,"Metodo",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#334155" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#5a5a5a" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#0f172a" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
-                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#334155" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={inc["Data Ricezione"]||""} display={toIT(inc["Data Ricezione"])} color="#e2e2e2" onSave={v=>handleEditIncasso(origIdx,"Data Ricezione",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={inc["Importo Totale"]||""} display={eur(inc["Importo Totale"])} color="#74d39d" numeric onSave={v=>handleEditIncasso(origIdx,"Importo Totale",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Cliente"]||""} color="#f2f2f2" onSave={v=>handleEditIncasso(origIdx,"Cliente",v)}/></td>
+                      <td style={{padding:"10px 13px",color:"var(--text-1)",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={inc["Note"]||""} color="#d9d9d9" onSave={v=>handleEditIncasso(origIdx,"Note",v)}/></td>
                       {isAdmin && (
                         <td style={{padding:"10px 13px",textAlign:"center"}}>
                           <button
@@ -4052,7 +4110,7 @@ function App() {
             </div>
             <div className="table-shell">
               <div style={{overflowX:"auto"}}>
-                <table style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:1040}}>
+                <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:1040}}>
                   <colgroup>
                     <col style={{width:"20%"}}/>{/* Cliente */}
                     <col style={{width:"13%"}}/>{/* N Titolo */}
@@ -4081,10 +4139,10 @@ function App() {
                         onClick={e=>onDataRowClick(e, "assegno", a)}
                         title="Clicca per vedere percorsi collegati"
                         style={{borderBottom:"1px solid var(--border-2)",background:i%2===0?"var(--raised)":"var(--surface)",cursor:"pointer"}}>
-                        <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#0f172a" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",fontWeight:600,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}><EditCell value={a["CLIENTE"]||""} color="#f2f2f2" onSave={v=>handleEditAssegno(origIdxA,"CLIENTE",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontFamily:"var(--font)",whiteSpace:"nowrap"}}><EditCell value={a["N TITOLO"]||""} color="#38bdf8" onSave={v=>handleEditAssegno(origIdxA,"N TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#334155" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
-                        <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#5a5a5a" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--text-1)",whiteSpace:"nowrap"}}><EditCell value={a["DATA TITOLO"]||""} display={toIT(a["DATA TITOLO"])} color="#e2e2e2" onSave={v=>handleEditAssegno(origIdxA,"DATA TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#74d39d" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
                         <td style={{padding:"9px 13px",whiteSpace:"nowrap",minWidth:160}}><EditCell value={a["STATO TITOLO"]||""} color={assStatoColor(a["STATO TITOLO"])} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
@@ -5026,7 +5084,7 @@ function App() {
                 <div style={{padding:60,textAlign:"center",color:"var(--text-2)",fontSize:12}}>Nessuna riconciliazione registrata</div>
               ):(
                 <div style={{overflowX:"auto"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"var(--raised)"}}>
                         <RicoSortTh label="ID" colKey="id"/>
@@ -5089,7 +5147,7 @@ function App() {
                 </div>
               ):(
                 <div style={{overflowX:"auto"}}>
-                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"var(--raised)"}}>
                         {["N° Assegno","Cliente","Data Titolo","Data Incasso","Importo","Fatture Pagate","NC Scalate","Stato","RIC"].map(h=>(
@@ -5305,8 +5363,8 @@ function App() {
                   </div>
                   <div style={{color:"var(--success)",fontSize:20,fontWeight:800,
                     fontFamily:"var(--font)"}}>{accredito?eur(accredito):"—"}</div>
-                  <div style={{color:"var(--text-2)",fontSize:11,marginTop:2}}>📅 {toIT(data)}</div>
-                  {desc&&desc!=="—"&&<div style={{color:"var(--text-2)",fontSize:10,marginTop:4,
+                  <div className="popup-subtitle" style={{fontSize:11,marginTop:2}}>📅 {toIT(data)}</div>
+                  {desc&&desc!=="—"&&<div className="popup-subtitle" style={{fontSize:10,marginTop:4,
                     maxWidth:400,lineHeight:1.4}}>{desc}</div>}
                 </div>
                 <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -5339,8 +5397,7 @@ function App() {
                 {/* Documenti/Fatture abbinate */}
                 {(docCollegati.length>0||fatture.length>0)&&(
                   <div style={{marginBottom:16}}>
-                    <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,
-                      textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>
+                    <div className="popup-section-title" style={{marginBottom:8}}>
                       📄 Documenti abbinati ({fatture.length})
                     </div>
                     {fatture.map((f,j)=>{
@@ -5375,8 +5432,7 @@ function App() {
                 {/* Assegni collegati */}
                 {assCollegati.length>0&&(
                   <div>
-                    <div style={{color:"var(--warn)",fontSize:10,fontWeight:700,
-                      textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>
+                    <div className="popup-section-title" style={{marginBottom:8,color:"var(--warn)"}}>
                       📋 Assegni correlati ({assCollegati.length})
                     </div>
                     {assCollegati.map((a,j)=>(
@@ -5432,12 +5488,12 @@ function App() {
             <div style={{padding:"16px 20px",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:10}}>
               <div>
                 <div style={{color:"var(--text-1)",fontSize:18,fontWeight:800}}>{pathPopup.title}</div>
-                <div style={{color:"var(--text-2)",fontSize:11,marginTop:3}}>{pathPopup.subtitle}</div>
+                <div className="popup-subtitle" style={{fontSize:11,marginTop:3}}>{pathPopup.subtitle}</div>
                 <div style={{display:"flex",gap:10,marginTop:8,flexWrap:"wrap"}}>
-                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Documenti: {pathPopup.docs.length}</span>
-                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Incassi: {pathPopup.incs.length}</span>
-                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Assegni: {pathPopup.ass.length}</span>
-                  <span style={{fontSize:10,color:"var(--text-2)",background:"var(--bg)",border:"1px solid var(--border)",borderRadius:99,padding:"2px 8px"}}>Riconciliazioni: {pathPopup.rico.length}</span>
+                  <span className="popup-chip">Documenti: {pathPopup.docs.length}</span>
+                  <span className="popup-chip">Incassi: {pathPopup.incs.length}</span>
+                  <span className="popup-chip">Assegni: {pathPopup.ass.length}</span>
+                  <span className="popup-chip">Riconciliazioni: {pathPopup.rico.length}</span>
                 </div>
               </div>
               <button onClick={()=>setPathPopup(null)} style={{background:"var(--accent-s)",border:"none",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
@@ -5445,7 +5501,7 @@ function App() {
 
             <div style={{overflowY:"auto",padding:"16px 20px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
               <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
-                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Documenti collegati</div>
+                <div className="popup-section-title" style={{marginBottom:8}}>Documenti collegati</div>
                 {pathPopup.docs.length ? pathPopup.docs.map((d,idx)=>(
                   <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
@@ -5459,7 +5515,7 @@ function App() {
               </div>
 
               <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
-                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Incassi collegati</div>
+                <div className="popup-section-title" style={{marginBottom:8}}>Incassi collegati</div>
                 {pathPopup.incs.length ? pathPopup.incs.map((inc,idx)=>(
                   <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
@@ -5473,7 +5529,7 @@ function App() {
               </div>
 
               <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
-                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Assegni collegati</div>
+                <div className="popup-section-title" style={{marginBottom:8}}>Assegni collegati</div>
                 {pathPopup.ass.length ? pathPopup.ass.map((a,idx)=>(
                   <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
@@ -5487,7 +5543,7 @@ function App() {
               </div>
 
               <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
-                <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:8}}>Riconciliazioni collegate</div>
+                <div className="popup-section-title" style={{marginBottom:8}}>Riconciliazioni collegate</div>
                 {pathPopup.rico.length ? pathPopup.rico.map((r,idx)=>(
                   <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
