@@ -111,6 +111,9 @@
     @keyframes slideIn { from { transform:translateX(-16px); opacity:0; } to { transform:translateX(0); opacity:1; } }
     @keyframes dockSlide { from { transform:translateY(24px); opacity:0; } to { transform:translateY(0); opacity:1; } }
     @keyframes dockBounce { 0% { transform:translateY(0); } 50% { transform:translateY(-4px); } 100% { transform:translateY(0); } }
+    @keyframes modalEnter { from { opacity:0; transform:scale(.92) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
+    @keyframes overlayEnter { from { opacity:0; } to { opacity:1; } }
+    @keyframes pulse { 0%, 100% { opacity:0.6; } 50% { opacity:1; } }
 
     .tab-content { animation: tabIn .3s cubic-bezier(.34,.1,.64,.1) both; }
 
@@ -365,6 +368,19 @@
     .row-hover { transition: background .12s ease; }
     .row-hover:hover { transform: none; }
 
+    .skeleton-row {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border-2);
+      padding: 10px 13px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    .skeleton-row td {
+      height: 20px;
+      background: var(--raised);
+      border-radius: 4px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
     .glass-card {
       background: linear-gradient(180deg, rgba(20,20,20,.92) 0%, rgba(14,14,14,.86) 100%);
       backdrop-filter: blur(12px);
@@ -462,6 +478,19 @@
     textarea:focus-visible {
       outline: 2px solid rgba(14,165,233,.55);
       outline-offset: 2px;
+    }
+
+    /* Screen reader only — per accessibilità (label nascoste per NVDA/JAWS) */
+    .sr-only {
+      position: absolute !important;
+      width: 1px !important;
+      height: 1px !important;
+      padding: 0 !important;
+      margin: -1px !important;
+      overflow: hidden !important;
+      clip: rect(0, 0, 0, 0) !important;
+      white-space: nowrap !important;
+      border-width: 0 !important;
     }
 
     input, select, textarea {
@@ -1050,6 +1079,9 @@ function makeSortTh(sortKey, sortDir, toggleSort) {
     const active = colKey === sortKey;
     return (
       <th onClick={()=>toggleSort(colKey)}
+        scope="col"
+        role="columnheader"
+        aria-label={`${label}, clicca per ordinare`}
         style={{padding:"11px 13px",textAlign:"left",fontWeight:600,fontSize:11,
           whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",
           color:active?"#f3f3f3":"#dedede",
@@ -1719,9 +1751,9 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 
   return (
     <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.88)",zIndex:1000,
-      display:"flex",alignItems:"center",justifyContent:"center",animation:"fadeIn .2s"}}>
-      <div className="premium-panel-dark" style={{
-        width:700,maxHeight:"94vh",overflowY:"auto",
+      display:"flex",alignItems:"center",justifyContent:"center",animation:"overlayEnter .3s ease-out",padding:"12px"}}>
+      <div className="premium-panel-dark" role="dialog" aria-label="Registra incasso - Seleziona tipo, cliente, abbina documenti e conferma" style={{
+        width:"clamp(320px, 100%, 700px)",maxHeight:"94vh",overflowY:"auto",animation:"modalEnter .35s cubic-bezier(0.34, 1.56, 0.64, 1)",
         boxShadow:"0 24px 80px rgba(0,0,0,.52)",fontFamily:"var(--font)"}}>
 
         {/* ── HEADER */}
@@ -1762,6 +1794,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   <div style={{color:"var(--text-2)",fontSize:10,marginTop:4}}>Trasferimento bancario</div>
                 </div>
               </div>
+              {!tipo && <div style={{color:"var(--danger)",fontSize:10,marginTop:8}}>⚠ Seleziona un tipo di pagamento</div>}
             </div>
 
             {/* Dati specifici per tipo */}
@@ -1834,6 +1867,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     </div>
                   </div>
                 )}
+                {!dataTitolo && tipo==="assegno" && <div style={{color:"var(--danger)",fontSize:10,marginTop:8}}>⚠ Inserisci data titolo</div>}
               </div>
             )}
 
@@ -1850,6 +1884,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                   <input type="date" value={dataBonifico}
                     onChange={e=>setDataBonifico(e.target.value)} style={inp}/>
                 </div>
+                {!dataBonifico && <div style={{color:"var(--danger)",fontSize:10,marginTop:8}}>⚠ Inserisci data bonifico</div>}
               </div>
             )}
 
@@ -1861,6 +1896,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 </div>
                 <div style={{position:"relative"}}>
                   <input value={clientSearch}
+                    aria-label="Cerca cliente per nome o codice"
                     onChange={e=>{setClientSearch(e.target.value);setShowDropdown(true);setCid("");}}
                     onFocus={()=>setShowDropdown(true)}
                     placeholder="🔍 Cerca per nome o codice..."
@@ -1887,6 +1923,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     {rows.filter(r=>r.doc[COL.tipoDocumento]==="NAC").length} NAC disponibili
                   </div>
                 )}
+                {tipo&&!cid && <div style={{color:"var(--danger)",fontSize:10,marginTop:8}}>⚠ Seleziona un cliente</div>}
               </div>
             )}
 
@@ -2837,6 +2874,48 @@ function App() {
 
   const notify=(msg,type="info")=>setToast({msg,type});
 
+  // ── Error handler per nuovi error codes dal backend ──
+  const handleApiError = (error) => {
+    const msg = String(error.message || error);
+    
+    // Riconosce error codes dal backend
+    if (msg.includes('VERSION_CONFLICT')) {
+      notify('Assegno modificato da un altro utente. Ricaricamento...', 'warn');
+      return 'reload';
+    }
+    if (msg.includes('VERSION_MISMATCH')) {
+      notify('Documento modificato da un altro utente. Ricarica', 'warn');
+      return 'reload';
+    }
+    if (msg.includes('INCASSO_DELETED')) {
+      notify('Incasso eliminato. Contatta admin per ripristinare', 'error');
+      return 'reload';
+    }
+    if (msg.includes('INVALID_STATO')) {
+      notify('Transizione stato non consentita', 'error');
+      return;
+    }
+    if (msg.includes('INVALID_INPUT')) {
+      notify('Dati non validi: ' + msg, 'error');
+      return;
+    }
+    if (msg.includes('AUTH_FAILED')) {
+      notify('Autenticazione fallita. Risali...', 'error');
+      window.location.reload();
+      return;
+    }
+    if (msg.includes('PERM_DENIED')) {
+      notify('Permesso negato', 'error');
+      return;
+    }
+    if (msg.includes('Timeout')) {
+      notify('Timeout: server non risponde. Ricontatta', 'error');
+      return;
+    }
+    // Fallback generico
+    notify('Errore: ' + msg, 'error');
+  };
+
   const sameRef = (a,b) => String(a||"").trim() === String(b||"").trim();
   const uniqBy = (arr, keyFn) => {
     const seen = new Set();
@@ -3193,7 +3272,10 @@ function App() {
     try {
       await d1API.updateDocumento(doc._id, { [d1field]: val, utente: authed });
       notify("Salvato ✓","success");
-    } catch(e){ notify("Errore: "+e.message,"error"); }
+    } catch(e) {
+      handleApiError(e);
+      setDocs(p=>{ const d=[...p]; d[origIdx]={...d[origIdx],[field]:doc[field]}; return d; });
+    }
   };
 
   // Edit inline assegni
@@ -3220,13 +3302,9 @@ function App() {
       await d1API.call(`/api/assegni/${ass._id}`, "PUT", { [d1field]: val, version: ass.version, utente: authed });
       notify("Assegno aggiornato ✓","success");
     } catch(e) {
-      // Reload dati se version conflict (409)
-      if (e.message?.includes("409") || e.message?.includes("Conflitto")) {
-        notify("Assegno modificato da un altro utente. Ricaricamento...","warn");
-        await loadData();
-      } else {
-        notify("Errore: "+e.message,"error");
-      }
+      const reload_maybe = handleApiError(e);
+      if (reload_maybe === 'reload') await loadData();
+      setAssegni(p=>{ const a=[...p]; a[idx]={...a[idx],[field]:ass[field]}; return a; });
     }
   };
 
@@ -3258,7 +3336,10 @@ function App() {
     try {
       await d1API.call(`/api/incassi/${inc._id}`, "PUT", { [d1field]: val, utente: authed });
       notify("Incasso aggiornato ✓","success");
-    } catch(e) { notify("Errore: "+e.message,"error"); }
+    } catch(e) {
+      handleApiError(e);
+      setIncs(p=>{ const a=[...p]; a[idx]={...a[idx],[field]:incs[idx][field]}; return a; });
+    }
   };
 
   const handleDeleteIncasso = async (idx) => {
@@ -3270,7 +3351,9 @@ function App() {
       setIncs(p => p.filter((_,i) => i !== idx));
       notify("Incasso eliminato e saldi ripristinati ✓","success");
       await loadData();
-    } catch(e) { notify("Errore eliminazione: "+e.message,"error"); }
+    } catch(e) {
+      handleApiError(e);
+    }
   };
 
   const handleSavePay=async({method,amount,importoAssegno,cid,date,notes,noteAssegno,noteDocPerDoc,nAssegno,dataTitolo,fveNums,nacNums,pred})=>{
@@ -3737,19 +3820,29 @@ function App() {
         {tab==="dashboard"&&(
           <div className="tab-content">
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:12,marginBottom:20}}>
-              {[
-                {lbl:"Crediti Aperti",    val:eur(totFVE),           color:"#8cc9ff",
-                 sub:`${open.filter(d=>d[COL.tipoDocumento]==="FVE").length} fatture aperte`},
-                {lbl:"Note di Credito",   val:eur(totNAC),           color:"#5f5f5f",
-                 sub:`${open.filter(d=>d[COL.tipoDocumento]==="NAC").length} documenti`},
-                {lbl:"Esposizione Netta", val:eur(totFVE+totNAC),    color:"var(--text-1)",
-                 sub:"saldo residuo netto"},
-                 {lbl:"In Accredito Oggi", val:eur(accreditoOggiTot), color:"var(--success)",
-                  sub:`${accreditoOggi.length} assegni · da riconciliare ${accreditoOggiDaRic}`},
-              ].map(({lbl,val,color,sub},i)=>(
+              {(() => {
+                // Conditional KPI colors and icons based on accredito value
+                const accreditoColor = accreditoOggiTot > 1000 ? "#4ade80" : (accreditoOggiTot > 0 ? "#fbbf24" : "#94a3b8");
+                const accreditoIcon = accreditoOggiTot > 1000 ? "⚡" : (accreditoOggiTot > 0 ? "→" : "·");
+                const kpis = [
+                  {lbl:"Crediti Aperti",    val:eur(totFVE),           color:"#8cc9ff",
+                   sub:`${open.filter(d=>d[COL.tipoDocumento]==="FVE").length} fatture aperte`},
+                  {lbl:"Note di Credito",   val:eur(totNAC),           color:"#5f5f5f",
+                   sub:`${open.filter(d=>d[COL.tipoDocumento]==="NAC").length} documenti`},
+                  {lbl:"Esposizione Netta", val:eur(totFVE+totNAC),    color:"var(--text-1)",
+                   sub:"saldo residuo netto"},
+                  {lbl:"In Accredito Oggi", val:eur(accreditoOggiTot), color:accreditoColor,
+                   sub:`${accreditoIcon} ${accreditoOggi.length} assegni · da riconciliare ${accreditoOggiDaRic}`},
+                ];
+                return kpis;
+              })().map(({lbl,val,color,sub},i)=>(
                 <div key={lbl} className="kpi-card card" style={{
                   padding:"18px 20px",
                   animation:`countUp .28s ease ${i*0.06}s both`,
+                  ...(lbl==="In Accredito Oggi"&&accreditoOggiTot>1000 ? {
+                    borderColor:"rgba(74,222,128,.4)",
+                    boxShadow:"0 0 20px rgba(74,222,128,.15)"
+                  } : {})
                 }}>
                   <div style={{color:"#dfdfdf",fontSize:9.5,fontWeight:700,
                     letterSpacing:".8px",marginBottom:12,textTransform:"uppercase"}}>{lbl}</div>
@@ -3908,6 +4001,7 @@ function App() {
           <div className="tab-content">
             <div className="tab-toolbar">
               <input value={search} onChange={e=>setSearch(e.target.value)}
+                aria-label="Cerca documenti"
                 placeholder="Cerca..." style={{...S.input,width:180}}/>
               <div className="filter-group">
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA DOC:</span>
@@ -3923,10 +4017,10 @@ function App() {
                 <input type="date" value={docDatePagA} onChange={e=>setDocDatePagA(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
                 {(docDatePagDa||docDatePagA) && <button onClick={()=>{setDocDatePagDa("");setDocDatePagA("");}} style={{background:"none",border:"none",color:"var(--danger)",cursor:"pointer",padding:4}}>✕</button>}
               </div>
-              <select value={fState} onChange={e=>setFState(e.target.value)} style={{...S.input,width:130}}>
+              <select value={fState} onChange={e=>setFState(e.target.value)} aria-label="Filtra per stato" style={{...S.input,width:130}}>
                 {["Tutti","APERTO","DA RICONCILIARE","DA INCASSARE","CHIUSO","PARZIALE"].map(o=><option key={o}>{o}</option>)}
               </select>
-              <select value={fType} onChange={e=>setFType(e.target.value)} style={{...S.input,width:90}}>
+              <select value={fType} onChange={e=>setFType(e.target.value)} aria-label="Filtra per tipo" style={{...S.input,width:90}}>
                 {["Tutti","FVE","NAC"].map(o=><option key={o}>{o}</option>)}
               </select>
               {isAdmin&&(
@@ -3946,7 +4040,7 @@ function App() {
             </div>
             <div className="table-shell">
               <div style={{overflowX:"auto"}}>
-                <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:980}}>
+                <table className="data-table-dark" role="table" aria-label="Lista documenti" style={{width:"100%",borderCollapse:"collapse",fontSize:12,tableLayout:"fixed",minWidth:980}}>
                   <thead>
                     <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                       <DocSortTh label="Tipo"           colKey={COL.tipoDocumento}/>
@@ -4079,7 +4173,7 @@ function App() {
               </button>
             </div>
             <div className="tab-toolbar">
-              <input value={incTabSearch} onChange={e=>setIncTabSearch(e.target.value)} placeholder="Cerca incassi..." style={{...S.input,width:210}}/>
+              <input value={incTabSearch} onChange={e=>setIncTabSearch(e.target.value)} placeholder="Cerca incassi..." aria-label="Cerca incassi" style={{...S.input,width:210}}/>
               <div className="filter-group">
                 <span style={{fontSize:10,color:"var(--text-3)",fontWeight:700}}>DATA:</span>
                 <input type="date" value={incDateDa} onChange={e=>setIncDateDa(e.target.value)} style={{...S.input,width:115,border:"none",padding:"6px 0",background:"transparent"}}/>
@@ -4092,7 +4186,7 @@ function App() {
               </button>
             </div>
             <div className="table-shell">
-              <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+              <table className="data-table-dark" role="table" aria-label="Lista incassi" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                 <thead>
                   <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
                     <IncSortTh label="ID Incasso" colKey="ID Incasso"/>
@@ -4177,7 +4271,7 @@ function App() {
             </div>
             <div className="table-shell">
               <div style={{overflowX:"auto"}}>
-                <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:1040}}>
+                <table className="data-table-dark" role="table" aria-label="Lista assegni" style={{width:"100%",borderCollapse:"collapse",fontSize:12,minWidth:1040}}>
                   <colgroup>
                     <col style={{width:"20%"}}/>{/* Cliente */}
                     <col style={{width:"13%"}}/>{/* N Titolo */}
@@ -5151,7 +5245,7 @@ function App() {
                 <div style={{padding:60,textAlign:"center",color:"var(--text-2)",fontSize:12}}>Nessuna riconciliazione registrata</div>
               ):(
                 <div style={{overflowX:"auto"}}>
-                  <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <table className="data-table-dark" role="table" aria-label="Lista riconciliazioni" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"var(--raised)"}}>
                         <RicoSortTh label="ID" colKey="id"/>
@@ -5214,7 +5308,7 @@ function App() {
                 </div>
               ):(
                 <div style={{overflowX:"auto"}}>
-                  <table className="data-table-dark" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
+                  <table className="data-table-dark" role="table" aria-label="Dettaglio assegni riconciliati" style={{width:"100%",borderCollapse:"collapse",fontSize:12}}>
                     <thead>
                       <tr style={{background:"var(--raised)"}}>
                         {["N° Assegno","Cliente","Data Titolo","Data Incasso","Importo","Fatture Pagate","NC Scalate","Stato","RIC"].map(h=>(
@@ -5410,10 +5504,10 @@ function App() {
         })();
         return (
           <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:500,
-            display:"flex",alignItems:"center",justifyContent:"center",padding:20}}
+            display:"flex",alignItems:"center",justifyContent:"center",animation:"overlayEnter .3s ease-out",padding:"12px"}}
             onClick={()=>setStoricoPopup(null)}>
-            <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,
-              width:"100%",maxWidth:680,maxHeight:"85vh",display:"flex",flexDirection:"column",
+            <div role="dialog" aria-label="Dettaglio riconciliazione e documenti collegati" style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:16,
+              width:"clamp(320px, 100%, 680px)",maxHeight:"85vh",display:"flex",flexDirection:"column",animation:"modalEnter .35s cubic-bezier(0.34, 1.56, 0.64, 1)",
               boxShadow:"0 24px 80px #00000099"}}
               onClick={e=>e.stopPropagation()}>
 
@@ -5444,7 +5538,9 @@ function App() {
                         setRiconciliazioni(p=>p.filter(r=>r.id!==id));
                         notify(`Riconciliazione eliminata — ${res.ripristinati||0} documenti ripristinati.`,"success");
                         loadData();
-                      } catch(e) { notify("Errore: "+e.message,"error"); }
+                      } catch(e) {
+                        handleApiError(e);
+                      }
                     }}
                     style={{background:"var(--danger-s)",border:"1px solid #7f1d1d",color:"var(--danger)",
                       borderRadius:"var(--radius-s)",padding:"6px 14px",cursor:"pointer",fontSize:12,fontWeight:700,
