@@ -1484,7 +1484,7 @@ function CashChart({assegni,onNavigate}) {
                       {(fatture||nc||docsColl)&&(
                         <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:3,maxWidth:"100%"}}>
                           {fatture&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>FATT.</span><span title={fmtDocList(fatture)} style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(fatture)}</span></div>}
-                          {nc&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"#7a7a7a",fontSize:8,fontWeight:700}}>NC</span><span title={fmtDocList(nc)} style={{color:"#8b8b8b",fontSize:9,fontFamily:"var(--mono)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(nc)}</span></div>}
+                          {nc&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>NC</span><span title={fmtDocList(nc)} style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)",maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(nc)}</span></div>}
                           {docsColl&&!fatture&&<div style={{display:"flex",gap:3,alignItems:"center"}}><span style={{color:"var(--text-2)",fontSize:8,fontWeight:700}}>DOC.</span><span title={fmtDocList(docsColl)} style={{color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{fmtDocList(docsColl)}</span></div>}
                         </div>
                       )}
@@ -1507,12 +1507,12 @@ function CashChart({assegni,onNavigate}) {
         })()}
       </div>
 
-      <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"#7f7f7f",flexWrap:"wrap",alignItems:"center"}}>
+      <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"var(--text-2)",flexWrap:"wrap",alignItems:"center"}}>
         <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"#2d2d2d",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>In Archivio</span></span>
         <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"#4a4a4a",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Cons. a Pino</span></span>
         <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:99,background:"#b8956b",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Da riconciliare</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"#6a6a6a",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Oggi</span></span>
-        <span style={{marginLeft:"auto",color:"#7f7f7f",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"var(--text-2)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Oggi</span></span>
+        <span style={{marginLeft:"auto",color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
       </div>
     </div>
   );
@@ -2087,40 +2087,41 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                         ? "var(--surface)"
                         : (row.checked?"#0a1f0f":"var(--raised)");
                     return (
-                      <tr key={i} style={{borderBottom:"1px solid var(--border-2)",cursor:"pointer",
-                        background:bgRow,
-                        opacity:isAbbinata?0.45:row.checked?1:0.7}}
+                      <tr key={i} style={{borderBottom:"1px solid var(--border-2)",cursor:isAbbinata?"not-allowed":"pointer",
+                        background:bgRow}}
                         onClick={()=>!isAbbinata&&toggleRow(i)}
-                        title={isAbbinata?`Già abbinata all'assegno ${row.doc[COL.nAssegno]}`:""}
+                        title={isAbbinata?`Già abbinata all'assegno ${row.doc[COL.nAssegno]}`:"Clicca per selezionare"}
                       >
                         <td style={{padding:"9px 12px",width:36,textAlign:"center"}}>
                           <input type="checkbox" checked={row.checked} onChange={()=>toggleRow(i)}
-                            style={{width:15,height:15,accentColor:isNac?"#a855f7":"#3b82f6",cursor:"pointer"}}
+                            disabled={isAbbinata}
+                            style={{width:15,height:15,accentColor:isNac?"#a855f7":"#3b82f6",cursor:isAbbinata?"not-allowed":"pointer",opacity:isAbbinata?0.5:1}}
                             onClick={e=>e.stopPropagation()}/>
                         </td>
                         <td style={{padding:"9px 12px"}}>
                           <span style={{
                             background:isNac?"rgba(168,85,247,.14)":"rgba(96,165,250,.14)",
-                            color:isNac?"#c084fc":"#60a5fa",
+                            color:isAbbinata?"#6a9aff":isNac?"#c084fc":"#60a5fa",
                             border:`1px solid ${isNac?"rgba(168,85,247,.35)":"rgba(96,165,250,.35)"}`,
-                            borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700}}>
+                            borderRadius:4,padding:"2px 7px",fontSize:10,fontWeight:700,
+                            opacity:isAbbinata?0.6:1}}>
                             {row.doc[COL.tipoDocumento]}
                           </span>
                         </td>
-                        <td style={{padding:"9px 12px",color:"var(--accent)",fontWeight:600}}>
+                        <td style={{padding:"9px 12px",color:isAbbinata?"var(--text-3)":"var(--accent)",fontWeight:600}}>
                           {row.doc[COL.numeroDocumento]}
                         </td>
-                        <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11}}>
+                        <td style={{padding:"9px 12px",color:isAbbinata?"var(--text-3)":"var(--text-2)",fontSize:11}}>
                           {dFmt(row.doc[COL.dataDocumento])}
                         </td>
-                        <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11}}>
+                        <td style={{padding:"9px 12px",color:isAbbinata?"var(--text-3)":"var(--text-2)",fontSize:11}}>
                           {row.doc[COL.dataPagamento]?dFmt(row.doc[COL.dataPagamento]):"—"}
                         </td>
-                        <td style={{padding:"9px 12px",textAlign:"right",color:"var(--text-2)"}}>
+                        <td style={{padding:"9px 12px",textAlign:"right",color:isAbbinata?"var(--text-3)":"var(--text-2)"}}>
                           {eur(saldo)}
                         </td>
                         <td style={{padding:"9px 12px",textAlign:"right"}}>
-                          {row.checked
+                          {row.checked&&!isAbbinata
                             ? <input type="number" value={row.importoAllocato}
                                 onChange={e=>setAlloc(i,e.target.value)}
                                 onClick={e=>e.stopPropagation()}
@@ -2130,7 +2131,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                                   borderRadius:6,padding:"4px 8px",
                                   color:isNac?"#d8c0f5":"#dfe7ef",
                                   fontSize:12,textAlign:"right",fontWeight:700}}/>
-                            : <span style={{color:"var(--text-2)",fontSize:11}}>—</span>
+                            : <span style={{color:isAbbinata?"var(--text-3)":"var(--text-2)",fontSize:11}}>—</span>
                           }
                         </td>
                       </tr>
