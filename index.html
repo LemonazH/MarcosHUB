@@ -1571,6 +1571,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
     if(!iso) return "";
     return ["Dom","Lun","Mar","Mer","Gio","Ven","Sab"][new Date(iso).getDay()];
   };
+  const dFmt = fmtIso; // Alias per formattazione data
 
   // Clienti unici (documenti incassabili)
   const isPayableDoc = d => {
