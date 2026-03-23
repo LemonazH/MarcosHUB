@@ -36,26 +36,41 @@
 
   <style>
     :root {
-      --bg:       #f5f3f0;
+      /* ════════════════════════════════════
+         COLORI PRINCIPALI - Dark Theme
+         ════════════════════════════════════ */
+      --bg:       #0a0a0a;
       --surface:  #121212;
-      --raised:   #1b1b1b;
-      --paper:    #fbf9f6;
-      --paper-2:  #f1ece7;
-      --border:   rgba(255, 255, 255, 0.10);
-      --border-2: rgba(255, 255, 255, 0.06);
-      --text-1:   #f2f2f2;
-      --text-2:   #d9d9d9;
-      --text-3:   #bdbdbd;
-      --accent:   #000000;
-      --accent-s: rgba(255,255,255,0.10);
-      --accent-t: rgba(255,255,255,0.04);
-      --navy:     #f5f5f5;
+      --raised:   #1a1a1a;
+      --paper:    #0f0f0f;
+      --paper-2:  #1b1b1b;
+      
+      /* BORDI - Azzuro Napoli subtile */
+      --border:   rgba(14, 165, 233, 0.15);
+      --border-2: rgba(14, 165, 233, 0.08);
+      
+      /* TESTO */
+      --text-1:   #f2f2f2;           /* Primary text (bianco) */
+      --text-2:   #e0e7ff;           /* Secondary text (azzuro chiaro) */
+      --text-3:   #cbd5e1;           /* Tertiary text (grigio chiaro) */
+      
+      /* ACCENT - Azzuro Napoli */
+      --accent:   #0EA5E9;
+      --accent-s: rgba(14, 165, 233, 0.12);
+      --accent-t: rgba(14, 165, 233, 0.04);
+      
+      /* SECONDARY - Bianco */
+      --secondary: #f2f2f2;
+      
+      /* SEMANTIC COLORS */
       --success:  #4ba86e;
       --warn:     #bfa973;
       --danger:   #c26f6f;
       --success-s: rgba(75, 168, 110, 0.12);
       --warn-s:    rgba(191, 169, 115, 0.12);
       --danger-s:  rgba(194, 111, 111, 0.12);
+      
+      /* SPACING & TYPOGRAPHY */
       --radius:   16px;
       --radius-s: 8px;
       --radius-l: 22px;
@@ -64,16 +79,15 @@
       --shadow-l: 0 24px 48px rgba(0,0,0,.32);
       --font:     'Sora', 'Century Gothic', CenturyGothic, 'Trebuchet MS', sans-serif;
       --mono:     'DM Mono', 'Fira Code', ui-monospace, monospace;
-      /* GRADIENT SYSTEM — Premium Minimal Light */
-      --grad-subtle: linear-gradient(180deg,rgba(0,0,0,.02) 0%,rgba(0,0,0,.0) 100%);
-      --grad-card: linear-gradient(135deg,#2a2a2a 0%,#1a1a1a 100%);
+      
+      /* GRADIENTS - Azzuro Napoli Theme */
+      --grad-subtle:  linear-gradient(180deg,rgba(14,165,233,.04) 0%,rgba(14,165,233,.0) 100%);
+      --grad-card:    linear-gradient(135deg,#1a1a1a 0%,#0f0f0f 100%);
       --grad-surface: linear-gradient(180deg,#1b1b1b 0%,#121212 100%);
-      --grad-header: linear-gradient(180deg,rgba(22,22,22,.96) 0%,rgba(16,16,16,.92) 100%);
-      --grad-dark: linear-gradient(135deg,#333333 0%,#1a1a1a 100%);
-      --grad-accent: linear-gradient(135deg,#f5f5f5 0%,#f0f0f0 100%);
-      --grad-body: radial-gradient(1200px 520px at 12% -18%, rgba(255,255,255,.7) 0%, rgba(255,255,255,0) 70%),
-                   radial-gradient(980px 440px at 100% 0%, rgba(28,28,28,.06) 0%, rgba(28,28,28,0) 72%),
-                   linear-gradient(140deg, #f5f3f0 0%, #eee8e1 50%, #f2ede7 100%);
+      --grad-header:  linear-gradient(180deg,rgba(18,18,18,.96) 0%,rgba(10,10,10,.94) 100%);
+      --grad-dark:    linear-gradient(135deg,#222 0%,#1a1a1a 100%);
+      --grad-accent:  linear-gradient(135deg,#0EA5E9 0%,#0697D6 100%);
+      --grad-body:    linear-gradient(140deg, #0a0a0a 0%, #0f0f0f 50%, #121212 100%);
     }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html, body, #root { height: 100%; }
@@ -94,33 +108,40 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(0,0,0,.01) 2px, rgba(0,0,0,.01) 4px),
-                  repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,.01) 2px, rgba(0,0,0,.01) 4px);
+      background: repeating-linear-gradient(90deg, transparent, transparent 2px, rgba(14,165,233,.01) 2px, rgba(14,165,233,.01) 4px),
+                  repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(14,165,233,.01) 2px, rgba(14,165,233,.01) 4px);
       pointer-events: none;
       z-index: -1;
     }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.15); border-radius: 4px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,.25); }
+    ::-webkit-scrollbar-thumb { background: rgba(14, 165, 233, 0.2); border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(14, 165, 233, 0.4); }
 
-    @keyframes spin    { to { transform: rotate(360deg); } }
-    @keyframes tabIn   { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-    @keyframes fadeIn  { from { opacity:0; } to { opacity:1; } }
+    /* ════════════════════════════════════
+       ANIMATIONS
+       ════════════════════════════════════ */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes tabIn { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+    @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+    @keyframes slideIn { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
     @keyframes countUp { from { opacity:0; transform:translateY(8px); scale:.96; } to { opacity:1; transform:translateY(0); scale:1; } }
-    @keyframes slideIn { from { transform:translateX(-16px); opacity:0; } to { transform:translateX(0); opacity:1; } }
+    @keyframes overlayEnter { from { opacity:0; } to { opacity:1; } }
+    @keyframes modalEnter { from { opacity:0; transform:scale(.96); } to { opacity:1; transform:scale(1); } }
+    @keyframes pulse { 0%, 100% { opacity:1; } 50% { opacity:0.5; } }
+
+    /* ════════════════════════════════════
+       ADDITIONAL ANIMATIONS
+       ════════════════════════════════════ */
     @keyframes dockSlide { from { transform:translateY(24px); opacity:0; } to { transform:translateY(0); opacity:1; } }
     @keyframes dockBounce { 0% { transform:translateY(0); } 50% { transform:translateY(-4px); } 100% { transform:translateY(0); } }
-    @keyframes modalEnter { from { opacity:0; transform:scale(.92) translateY(20px); } to { opacity:1; transform:scale(1) translateY(0); } }
-    @keyframes overlayEnter { from { opacity:0; } to { opacity:1; } }
-    @keyframes pulse { 0%, 100% { opacity:0.6; } 50% { opacity:1; } }
 
     .tab-content { animation: tabIn .3s cubic-bezier(.34,.1,.64,.1) both; }
 
     .app-shell {
       height: 100vh;
       display: flex;
-      background: linear-gradient(180deg, rgba(251,249,246,.7) 0%, rgba(241,236,231,.48) 100%);
+      background: var(--grad-body);
       backdrop-filter: blur(10px);
       overflow: hidden;
     }
@@ -128,7 +149,7 @@
     .mono-sidebar {
       width: 90px;
       flex-shrink: 0;
-      background: rgba(18,18,18,.92);
+      background: var(--surface);
       border-right: 1px solid var(--border);
       display: none;
       flex-direction: column;
@@ -146,8 +167,8 @@
       width: 52px;
       height: 52px;
       border-radius: 16px;
-      background: #1a1a1a;
-      color: #ffffff;
+      background: var(--raised);
+      color: var(--text-1);
       display: grid;
       place-items: center;
       font-size: 14px;
@@ -162,7 +183,7 @@
       border: 1px solid transparent;
       border-radius: 12px;
       background: transparent;
-      color: #999999;
+      color: var(--text-3);
       display: grid;
       place-items: center;
       cursor: pointer;
@@ -174,16 +195,16 @@
     }
 
     .nav-ico:hover {
-      background: rgba(0,0,0,.06);
-      color: #1a1a1a;
-      border-color: rgba(0,0,0,.1);
+      background: rgba(14,165,233,.06);
+      color: var(--accent);
+      border-color: rgba(14,165,233,.12);
     }
 
     .nav-ico.active {
-      background: #1a1a1a;
-      color: white;
-      border-color: #1a1a1a;
-      box-shadow: 0 4px 12px rgba(0,0,0,.1);
+      background: rgba(14,165,233,.12);
+      color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 4px 12px rgba(14,165,233,.15);
     }
 
     .nav-ico[data-tip]:hover::after {
@@ -218,8 +239,8 @@
     .bottom-dock {
       height: 84px;
       flex-shrink: 0;
-      border: 1px solid rgba(0,0,0,.12);
-      background: linear-gradient(180deg, rgba(255,255,255,.95) 0%, rgba(247,244,240,.93) 100%);
+      border: 1px solid var(--border);
+      background: var(--grad-card);
       backdrop-filter: blur(16px);
       -webkit-backdrop-filter: blur(16px);
       border-radius: var(--radius-l);
@@ -246,9 +267,9 @@
       min-width: 56px;
       height: 48px;
       border-radius: 14px;
-      border: 1px solid rgba(0,0,0,.08);
-      background: linear-gradient(180deg, rgba(255,255,255,.82) 0%, rgba(245,242,238,.8) 100%);
-      color: #333333;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-2);
       cursor: pointer;
       display: grid;
       place-items: center;
@@ -260,17 +281,17 @@
 
     .dock-btn:hover {
       transform: translateY(-6px) scale(1.08);
-      box-shadow: 0 12px 28px rgba(0,0,0,.15);
-      color: #000000;
-      background: #ffffff;
-      border-color: rgba(0,0,0,.15);
+      box-shadow: 0 12px 28px rgba(14,165,233,.2);
+      color: var(--accent);
+      background: var(--raised);
+      border-color: var(--accent);
     }
 
     .dock-btn.active {
-      background: linear-gradient(180deg, #ffffff 0%, #f4f2ee 100%);
-      border-color: #1a1a1a;
-      color: #000000;
-      box-shadow: 0 8px 20px rgba(0,0,0,.16), inset 0 1px 0 rgba(255,255,255,.9);
+      background: rgba(14,165,233,.08);
+      border-color: var(--accent);
+      color: var(--accent);
+      box-shadow: 0 8px 20px rgba(14,165,233,.2), inset 0 1px 0 rgba(14,165,233,.1);
       animation: dockBounce .4s ease-out;
     }
 
@@ -281,9 +302,9 @@
       left: 50%;
       transform: translateX(-50%);
       white-space: nowrap;
-      background: #1a1a1a;
-      color: #ffffff;
-      border: 1px solid rgba(255,255,255,.12);
+      background: var(--raised);
+      color: var(--accent);
+      border: 1px solid var(--border);
       border-radius: 999px;
       padding: 6px 10px;
       font-size: 11px;
@@ -296,8 +317,8 @@
 
     .mono-topbar {
       height: 60px;
-      background: linear-gradient(180deg, rgba(22,22,22,.95) 0%, rgba(15,15,15,.88) 100%);
-      border-bottom: 1px solid rgba(255,255,255,.12);
+      background: var(--grad-header);
+      border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -334,22 +355,22 @@
     }
 
     .card {
-      background: linear-gradient(165deg, #151515 0%, #0f0f0f 65%, #0b0b0b 100%);
-      border: 1px solid rgba(255,255,255,.12);
+      background: var(--grad-card);
+      border: 1px solid var(--border);
       border-radius: 16px;
       box-shadow: 0 12px 26px rgba(0,0,0,.26);
       transition: border-color .15s ease, box-shadow .15s ease;
     }
     .card:hover {
-      border-color: rgba(255,255,255,.12);
-      box-shadow: 0 12px 26px rgba(0,0,0,.26);
+      border-color: rgba(14,165,233,.2);
+      box-shadow: 0 12px 26px rgba(14,165,233,.1);
     }
 
     .kpi-card {
       transition: border-color .15s ease, box-shadow .15s ease;
       cursor: default;
-      background: linear-gradient(175deg, #1d1d1d 0%, #111111 100%);
-      color: white;
+      background: var(--grad-card);
+      color: var(--text-1);
       position: relative;
       overflow: hidden;
     }
@@ -357,12 +378,12 @@
       content: "";
       position: absolute;
       inset: 0;
-      background: linear-gradient(120deg, rgba(255,255,255,.04) 0%, rgba(255,255,255,0) 42%);
+      background: linear-gradient(120deg, rgba(14,165,233,.04) 0%, rgba(14,165,233,0) 42%);
       pointer-events: none;
     }
     .kpi-card:hover {
-      border-color: rgba(255,255,255,.12) !important;
-      box-shadow: 0 12px 26px rgba(0,0,0,.26) !important;
+      border-color: rgba(14,165,233,.2) !important;
+      box-shadow: 0 12px 26px rgba(14,165,233,.1) !important;
     }
 
     .row-hover { transition: background .12s ease; }
@@ -370,7 +391,7 @@
 
     .skeleton-row {
       background: var(--surface);
-      border-bottom: 1px solid var(--border-2);
+      border-bottom: 1px solid var(--border);
       padding: 10px 13px;
       animation: pulse 2s ease-in-out infinite;
     }
@@ -382,18 +403,18 @@
     }
 
     .glass-card {
-      background: linear-gradient(180deg, rgba(20,20,20,.92) 0%, rgba(14,14,14,.86) 100%);
+      background: var(--grad-card);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border: 1px solid rgba(255,255,255,.12);
+      border: 1px solid var(--border);
       border-radius: 16px;
       box-shadow: 0 12px 28px rgba(0,0,0,.28);
       transition: border-color .15s ease, box-shadow .15s ease;
     }
     .glass-card:hover {
-      background: linear-gradient(180deg, rgba(20,20,20,.92) 0%, rgba(14,14,14,.86) 100%);
-      border-color: rgba(255,255,255,.12);
-      box-shadow: 0 12px 28px rgba(0,0,0,.28);
+      background: var(--grad-card);
+      border-color: rgba(14,165,233,.15);
+      box-shadow: 0 12px 28px rgba(14,165,233,.1);
     }
 
     .btn-primary {
@@ -404,31 +425,26 @@
     .btn-primary:hover {
       opacity: .9;
       transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(0,0,0,.15) !important;
+      box-shadow: 0 8px 20px rgba(14,165,233,.15) !important;
     }
     .btn-primary:active {
       transform: translateY(0);
-      box-shadow: 0 4px 12px rgba(0,0,0,.2) !important;
+      box-shadow: 0 4px 12px rgba(14,165,233,.1) !important;
     }
 
     table {
       border-collapse: collapse;
       width: 100%;
-      --text-1: #0f0f0f;
-      --text-2: #3f3f3f;
-      --text-3: #6a6a6a;
-      --border: rgba(0,0,0,.12);
-      --border-2: rgba(0,0,0,.08);
     }
     th {
       font-weight: 600;
       font-size: 10px;
       letter-spacing: .06em;
       text-transform: uppercase;
-      color: #0f0f0f;
+      color: var(--text-2);
       padding: 12px 14px;
-      background: linear-gradient(180deg, #faf7f3 0%, #f2ede7 100%);
-      border-bottom: 1px solid rgba(0,0,0,.12);
+      background: var(--grad-header);
+      border-bottom: 1px solid var(--border);
       white-space: nowrap;
       position: sticky;
       top: 0;
@@ -438,10 +454,10 @@
       padding: 13px 14px;
       border-bottom: none;
       vertical-align: middle;
-      color: #111111;
+      color: var(--text-1);
       font-size: 12.5px;
       transition: background .12s ease;
-      background: rgba(255,255,255,.92);
+      background: var(--surface);
     }
     tbody tr {
       transition: background .09s linear;
@@ -496,22 +512,22 @@
     input, select, textarea {
       font-family: var(--font);
       font-size: 13px;
-      color: #1a1a1a;
-      background: linear-gradient(180deg, #ffffff 0%, #f7f5f2 100%);
-      border: 1px solid rgba(0,0,0,.12);
+      color: var(--text-1);
+      background: var(--surface);
+      border: 1px solid var(--border);
       border-radius: var(--radius-s);
       outline: none;
       transition: all .15s cubic-bezier(.34,.1,.64,.1);
-      box-shadow: 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.06);
+      box-shadow: 0 1px 0 rgba(14,165,233,.1), 0 1px 2px rgba(0,0,0,.06);
     }
     input::placeholder, textarea::placeholder { color: var(--text-2); opacity: 0.7; }
     input:focus, select:focus, textarea:focus {
-      border-color: rgba(0,0,0,.28);
-      box-shadow: 0 0 0 3px rgba(0,0,0,.05), 0 6px 18px rgba(0,0,0,.08);
-      background: #ffffff;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(14,165,233,.1), 0 6px 18px rgba(14,165,233,.15);
+      background: var(--raised);
       transform: translateY(-1px);
     }
-    select option { background: white; color: #1a1a1a; }
+    select option { background: var(--surface); color: var(--text-1); }
 
     .badge {
       display: inline-flex;
@@ -586,7 +602,7 @@
     }
 
     .tab-toolbar-meta {
-      color: #e2e2e2;
+      color: var(--text-3);
       font-size: 11px;
       margin-left: auto;
     }
@@ -595,21 +611,21 @@
       display: flex;
       align-items: center;
       gap: 6px;
-      background: linear-gradient(180deg, rgba(30,30,30,.95) 0%, rgba(20,20,20,.92) 100%);
+      background: var(--grad-card);
       padding: 2px 10px;
       border-radius: 10px;
-      border: 1px solid rgba(255,255,255,.12);
+      border: 1px solid var(--border);
     }
 
     .filter-group > span {
-      color: #ececec !important;
+      color: var(--text-2) !important;
       font-weight: 700 !important;
       letter-spacing: .04em;
     }
 
     .filter-group input,
     .filter-group select {
-      color: #f4f4f4 !important;
+      color: var(--text-1) !important;
       font-weight: 600;
       background: transparent !important;
       box-shadow: none !important;
@@ -617,18 +633,18 @@
 
     .filter-group input::placeholder,
     .filter-group select::placeholder {
-      color: #d0d0d0 !important;
+      color: var(--text-3) !important;
     }
 
     .filter-group input:focus,
     .filter-group select:focus {
-      background: rgba(255,255,255,.08) !important;
+      background: rgba(14,165,233,.1) !important;
       border-radius: 6px;
-      box-shadow: 0 0 0 1px rgba(255,255,255,.18) !important;
+      box-shadow: 0 0 0 1px rgba(14,165,233,.2) !important;
     }
 
     .filter-group input::-webkit-calendar-picker-indicator {
-      filter: invert(1) brightness(1.2);
+      filter: brightness(0.8) invert(0.9);
       opacity: .85;
     }
 
@@ -715,7 +731,7 @@
       cursor: pointer;
       display: block;
       font-size: 9px;
-      color: #f1f1f1;
+      color: var(--text-1);
       text-align: left;
       margin-top: 5px;
       text-decoration: underline;
@@ -726,68 +742,68 @@
     .micro-link-action:hover { opacity: 1; }
 
     .data-table-dark {
-      --text-1: #f2f2f2;
-      --text-2: #dddddd;
-      --text-3: #bdbdbd;
-      --accent: #83c8ff;
-      --success: #7ad6a1;
-      --warn: #f0c777;
-      --danger: #e88a8a;
-      --border: rgba(255,255,255,.18);
-      --border-2: rgba(255,255,255,.12);
+      --text-1: var(--text-1);
+      --text-2: var(--text-2);
+      --text-3: var(--text-3);
+      --accent: var(--accent);
+      --success: var(--success);
+      --warn: var(--warn);
+      --danger: var(--danger);
+      --border: var(--border);
+      --border-2: var(--border-2);
     }
 
     .data-table-dark th {
-      background: linear-gradient(180deg, rgba(38,38,38,.98) 0%, rgba(22,22,22,.96) 100%);
-      color: #ececec;
+      background: var(--grad-header);
+      color: var(--text-2);
       border-bottom: none;
     }
 
     .data-table-dark td {
-      color: #ececec;
+      color: var(--text-1);
       background: transparent !important;
       border-bottom: none !important;
     }
 
     .data-table-dark tbody tr:nth-child(odd) td {
-      background: rgba(255,255,255,.03) !important;
+      background: rgba(14,165,233,.03) !important;
     }
 
     .data-table-dark tbody tr:nth-child(even) td {
-      background: rgba(255,255,255,.03) !important;
+      background: rgba(14,165,233,.03) !important;
     }
 
     .data-table-dark tbody tr:hover td {
-      background: rgba(255,255,255,.09) !important;
+      background: rgba(14,165,233,.08) !important;
     }
 
     .data-table-dark select {
-      background: rgba(255,255,255,.08) !important;
-      border-color: rgba(255,255,255,.22) !important;
-      color: #f4f4f4 !important;
+      background: rgba(14,165,233,.1) !important;
+      border-color: var(--border) !important;
+      color: var(--text-1) !important;
     }
 
     .data-table-dark select option {
-      background: #1c1c1c;
-      color: #f2f2f2;
+      background: var(--surface);
+      color: var(--text-1);
     }
 
     .popup-subtitle {
-      color: #e2e2e2 !important;
+      color: var(--text-2) !important;
       font-size: 11px;
     }
 
     .popup-chip {
       font-size: 10px;
-      color: #f1f1f1 !important;
-      background: rgba(255,255,255,.08) !important;
-      border: 1px solid rgba(255,255,255,.24) !important;
+      color: var(--text-1) !important;
+      background: rgba(14,165,233,.1) !important;
+      border: 1px solid var(--border) !important;
       border-radius: 99px;
       padding: 2px 8px;
     }
 
     .popup-section-title {
-      color: #f1f1f1 !important;
+      color: var(--text-1) !important;
       font-size: 10px;
       font-weight: 800;
       text-transform: uppercase;
@@ -796,14 +812,14 @@
     }
 
     .popup-dark-card {
-      background: rgba(22,22,22,.95) !important;
-      border: 1px solid rgba(255,255,255,.14) !important;
+      background: var(--surface) !important;
+      border: 1px solid var(--border) !important;
     }
 
     .popup-dark-card .popup-section-title,
     .popup-dark-card div,
     .popup-dark-card span {
-      color: #e7e7e7;
+      color: var(--text-1);
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -946,7 +962,7 @@ const assStatoColor = s => {
   if (!s) return "var(--text-3)";
   const u = String(s).toUpperCase();
   if (u.includes("INCASSATO")) return "var(--success)";
-  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "#536a85";
+  if (u.includes("CONSEGNATO") || u.includes("PINO")) return "var(--text-2)";
   if (u.includes("ARCHIVIO")) return "var(--warn)";
   return "var(--text-2)";
 };
@@ -1084,12 +1100,12 @@ function makeSortTh(sortKey, sortDir, toggleSort) {
         aria-label={`${label}, clicca per ordinare`}
         style={{padding:"11px 13px",textAlign:"left",fontWeight:600,fontSize:11,
           whiteSpace:"nowrap",cursor:"pointer",userSelect:"none",
-          color:active?"#f3f3f3":"#dedede",
-          background:active?"rgba(255,255,255,.10)":"transparent",
+          color:active?"var(--text-1)":"var(--text-3)",
+          background:active?"rgba(14,165,233,.08)":"transparent",
           transition:"color .15s,background .15s",...style}}>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           {label}
-          <span style={{fontSize:10,color:active?"#ffffff":"var(--text-2)"}}>
+          <span style={{fontSize:10,color:active?"var(--accent)":"var(--text-2)"}}>
             {active?(sortDir==="asc"?"▲":"▼"):"⇅"}
           </span>
         </span>
@@ -1108,7 +1124,7 @@ const S = {
 
 function Toast({msg,type,onClose}) {
   useEffect(()=>{ const t=setTimeout(onClose,3800); return ()=>clearTimeout(t); },[onClose]);
-  const accent={success:"#22c55e",error:"#ef4444",info:"#6366f1",warn:"#fb923c"}[type]||"#6366f1";
+  const accent={success:"var(--success)",error:"var(--danger)",info:"var(--accent)",warn:"var(--warn)"}[type]||"var(--accent)";
   return (
     <div style={{position:"fixed",bottom:28,right:28,zIndex:9999,background:"var(--accent-s)",
       color:"var(--text-1)",padding:"13px 20px",borderRadius:10,borderLeft:`4px solid ${accent}`,
@@ -1121,27 +1137,27 @@ function Toast({msg,type,onClose}) {
 
 function Spinner({size=16}) {
   return <span style={{display:"inline-block",width:size,height:size,
-    border:"2px solid rgba(99,102,241,.3)",borderTop:"2px solid #6366f1",
+    border:"2px solid rgba(14,165,233,.3)",borderTop:"2px solid var(--accent)",
     borderRadius:"50%",animation:"spin .7s linear infinite",verticalAlign:"middle"}} />;
 }
 
 function Badge({label}) {
   const map = {
-    FVE:   {bg:"rgba(96,165,250,.14)",c:"#60a5fa"},
+    FVE:   {bg:"rgba(14,165,233,.14)",c:"var(--accent)"},
     NAC:   {bg:"rgba(168,85,247,.14)",c:"#c084fc"},
-    Aperto:{bg:"var(--success-s)",c:"#8ad9a8"},
-    APERTO:{bg:"var(--success-s)",c:"#8ad9a8"},
-    Chiuso:{bg:"rgba(255,255,255,.12)",c:"#e2e2e2"},
-    CHIUSO:{bg:"rgba(255,255,255,.12)",c:"#e2e2e2"},
-    "DA INCASSARE":{bg:"var(--warn-s)",c:"#f2cf88"},
+    Aperto:{bg:"var(--success-s)",c:"var(--success)"},
+    APERTO:{bg:"var(--success-s)",c:"var(--success)"},
+    Chiuso:{bg:"rgba(14,165,233,.1)",c:"var(--text-2)"},
+    CHIUSO:{bg:"rgba(14,165,233,.1)",c:"var(--text-2)"},
+    "DA INCASSARE":{bg:"var(--warn-s)",c:"var(--warn)"},
     "DA RICONCILIARE":{bg:"rgba(96,165,250,.14)",c:"#93c5fd"},
-    PARZIALE:{bg:"var(--warn-s)",c:"#f2cf88"},
-    Bonifico:{bg:"rgba(255,255,255,.12)",c:"#e6e6e6"},
-    "Assegno Postdatato":{bg:"var(--danger-s)",c:"#f2a3a3"},
+    PARZIALE:{bg:"var(--warn-s)",c:"var(--warn)"},
+    Bonifico:{bg:"rgba(14,165,233,.1)",c:"var(--text-2)"},
+    "Assegno Postdatato":{bg:"var(--danger-s)",c:"var(--danger)"},
   };
-  const s = map[label] || {bg:"rgba(255,255,255,.1)",c:"#e6e6e6"};
+  const s = map[label] || {bg:"rgba(14,165,233,.1)",c:"var(--text-2)"};
   return <span style={{background:s.bg,color:s.c,padding:"2px 8px",borderRadius:5,
-    fontSize:11,fontWeight:600,letterSpacing:.4,border:"1px solid rgba(255,255,255,.22)"}}>{label}</span>;
+    fontSize:11,fontWeight:600,letterSpacing:.4,border:"1px solid var(--border)"}}>{label}</span>;
 }
 
 function EditCell({value, onSave, numeric, display, color}) {
@@ -1351,41 +1367,41 @@ function CashChart({assegni,onNavigate}) {
         {[
           {label:"Totale periodo", val:eur(totGlobale), color:"var(--text-2)"},
           {label:"In Archivio", val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"var(--text-2)"},
-          {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"var(--text-2)"},
+          {label:"Cons. a Pino", val:eur(entries.reduce((s,[v])=>s+v.pino,0)), color:"var(--text-2)"},
           {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"var(--text-2)"},
         ].map(({label,val,color},i)=>(
-          <div key={i} style={{flex:"1 1 140px",background:"#101010",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"14px 18px",boxShadow:"0 10px 22px rgba(0,0,0,.22)"}}>
+          <div key={i} style={{flex:"1 1 140px",background:"var(--surface)",border:"1px solid var(--border)",borderRadius:14,padding:"14px 18px",boxShadow:"0 10px 22px rgba(0,0,0,.22)"}}>
             <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>{label}</div>
             <div style={{color,fontSize:16,fontWeight:800,fontFamily:"'Century Gothic', CenturyGothic, sans-serif",lineHeight:1}}>{val}</div>
           </div>
         ))}
       </div>
 
-      <div style={{position:"relative",border:"1px solid rgba(255,255,255,.12)",borderRadius:16,background:"var(--grad-card)",padding:"8px 10px 4px",boxShadow:"0 14px 30px rgba(0,0,0,.28)"}}>
+      <div style={{position:"relative",border:"1px solid var(--border)",borderRadius:16,background:"var(--grad-card)",padding:"8px 10px 4px",boxShadow:"0 14px 30px rgba(0,0,0,.28)"}}>
         <svg ref={svgRef} width="100%" viewBox={`0 0 ${W} ${H}`} style={{overflow:"visible",cursor:"pointer",display:"block"}} onMouseMove={handleMouseMove} onMouseLeave={scheduleHideTooltip}>
           <defs>
             <linearGradient id="ccPlotBg" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#fbfbfb"/>
-              <stop offset="100%" stopColor="#f2f2f2"/>
+              <stop offset="0%" stopColor="var(--text-1)"/>
+              <stop offset="100%" stopColor="var(--text-2)"/>
             </linearGradient>
             <linearGradient id="ccArea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#151515" stopOpacity=".18"/>
-              <stop offset="100%" stopColor="#151515" stopOpacity=".03"/>
+              <stop offset="0%" stopColor="var(--accent)" stopOpacity=".18"/>
+              <stop offset="100%" stopColor="var(--accent)" stopOpacity=".03"/>
             </linearGradient>
           </defs>
 
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="#efefef" rx={9}/>
-          <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={9} stroke="#cfcfcf"/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="var(--surface)" rx={9}/>
+          <rect x={P.l} y={P.t} width={iW} height={iH} fill="url(#ccPlotBg)" rx={9} stroke="var(--border)"/>
 
           {gridLines.map(({r,y,val})=>{
             if(r!==1) return null;
-            return <line key={r} x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke="#adadad" strokeWidth={1}/>;
+            return <line key={r} x1={P.l} x2={P.l+iW} y1={y} y2={y} stroke="var(--border-2)" strokeWidth={1}/>;
           })}
 
           {areaTotal && <path d={areaTotal} fill="url(#ccArea)"/>}
-          {lineArch && <polyline points={lineArch} fill="none" stroke="#4f4f4f" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".92"/>}
-          {linePino && <polyline points={linePino} fill="none" stroke="#808080" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" opacity=".85"/>}
-          {lineTotal && <polyline points={lineTotal} fill="none" stroke="#151515" strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round"/>}
+          {lineArch && <polyline points={lineArch} fill="none" stroke="var(--text-3)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity=".92"/>}
+          {linePino && <polyline points={linePino} fill="none" stroke="var(--text-2)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" opacity=".85"/>}
+          {lineTotal && <polyline points={lineTotal} fill="none" stroke="var(--accent)" strokeWidth="2.35" strokeLinecap="round" strokeLinejoin="round"/>}
 
           {ptsTotal.map((p)=>{
             const [k,v] = entries[p.i];
@@ -1508,9 +1524,9 @@ function CashChart({assegni,onNavigate}) {
       </div>
 
       <div style={{display:"flex",gap:14,marginTop:12,fontSize:10,color:"var(--text-2)",flexWrap:"wrap",alignItems:"center"}}>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"#2d2d2d",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>In Archivio</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"#4a4a4a",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Cons. a Pino</span></span>
-        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:99,background:"#b8956b",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Da riconciliare</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"var(--text-3)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>In Archivio</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:14,height:2,borderRadius:2,background:"var(--text-2)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Cons. a Pino</span></span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:8,height:8,borderRadius:99,background:"var(--warn)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Da riconciliare</span></span>
         <span style={{display:"flex",alignItems:"center",gap:6}}><span style={{width:2,height:10,background:"var(--text-2)",display:"inline-block"}}/><span style={{color:"var(--text-2)"}}>Oggi</span></span>
         <span style={{marginLeft:"auto",color:"var(--text-2)",fontSize:9,fontFamily:"var(--mono)"}}>{winFrom.slice(8,10)}/{winFrom.slice(5,7)}/{winFrom.slice(0,4)} {"->"} {winTo.slice(8,10)}/{winTo.slice(5,7)}/{winTo.slice(0,4)}</span>
       </div>
@@ -1740,13 +1756,13 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
   };
 
   // ── STYLES locali
-  const inp = {background:"linear-gradient(180deg,#1f1f1f 0%,#171717 100%)",border:"1px solid rgba(255,255,255,.14)",borderRadius:"var(--radius-s)",
+  const inp = {background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
     padding:"9px 12px",color:"var(--text-1)",fontSize:13,fontFamily:"var(--font)",
     width:"100%",outline:"none"};
-  const card = (active,accent="#6366f1") => ({
-    border:`1px solid ${active?accent:"rgba(255,255,255,.14)"}`,borderRadius:12,padding:"18px 20px",
-    cursor:"pointer",background:active?`linear-gradient(180deg, ${accent}33 0%, ${accent}18 100%)`:"linear-gradient(180deg,#202020 0%,#171717 100%)",
-    boxShadow: active ? `0 10px 24px ${accent}33` : "0 8px 18px rgba(0,0,0,.2)",
+  const card = (active,accent="var(--accent)") => ({
+    border:`1px solid ${active?accent:"var(--border)"}`,borderRadius:12,padding:"18px 20px",
+    cursor:"pointer",background:active?`rgba(14,165,233,.1)`:"var(--surface)",
+    boxShadow: active ? `0 10px 24px rgba(14,165,233,.2)` : "0 8px 18px rgba(0,0,0,.2)",
     transition:"all .15s",textAlign:"center",flex:1,
   });
 
@@ -1760,7 +1776,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
         {/* ── HEADER */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",
           padding:"18px 24px",borderBottom:"1px solid var(--border)",position:"sticky",top:0,
-          background:"linear-gradient(180deg, rgba(22,22,22,.97) 0%, rgba(14,14,14,.94) 100%)",zIndex:10}}>
+          background:"var(--grad-header)",zIndex:10}}>
           <div>
             <div style={{color:"var(--text-1)",fontSize:15,fontWeight:800,letterSpacing:".01em"}}>Registra Incasso</div>
             <div style={{display:"flex",gap:8,marginTop:8,flexWrap:"wrap"}}>
@@ -1786,12 +1802,12 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                 TIPO PAGAMENTO
               </div>
               <div style={{display:"flex",gap:12}}>
-                <div style={card(tipo==="assegno","#6366f1")} onClick={()=>setTipo("assegno")}>
-                  <div style={{color:tipo==="assegno"?"#a5b4fc":"#94a3b8",fontWeight:700,fontSize:13}}>Assegno</div>
+                <div style={card(tipo==="assegno","var(--accent)")} onClick={()=>setTipo("assegno")}>
+                  <div style={{color:tipo==="assegno"?"var(--accent)":"var(--text-3)",fontWeight:700,fontSize:13}}>Assegno</div>
                   <div style={{color:"var(--text-2)",fontSize:10,marginTop:4}}>Titolo fisico</div>
                 </div>
-                <div style={card(tipo==="bonifico","#0ea5e9")} onClick={()=>setTipo("bonifico")}>
-                  <div style={{color:tipo==="bonifico"?"#7dd3fc":"#94a3b8",fontWeight:700,fontSize:13}}>Bonifico</div>
+                <div style={card(tipo==="bonifico","var(--accent)")} onClick={()=>setTipo("bonifico")}>
+                  <div style={{color:tipo==="bonifico"?"var(--accent)":"var(--text-3)",fontWeight:700,fontSize:13}}>Bonifico</div>
                   <div style={{color:"var(--text-2)",fontSize:10,marginTop:4}}>Trasferimento bancario</div>
                 </div>
               </div>
@@ -1800,7 +1816,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
 
             {/* Dati specifici per tipo */}
             {tipo==="assegno"&&(
-              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,
+              <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:12,
                 padding:18,marginBottom:20}}>
                 <div style={{color:"var(--text-2)",fontSize:11,marginBottom:12,fontWeight:700,letterSpacing:1}}>
                   DATI ASSEGNO
@@ -3224,8 +3240,8 @@ function App() {
             borderRadius:"var(--radius-s)",padding:"8px 12px"}}>{loginErr}</div>
         )}
         <button className="btn-primary" onClick={handleLogin}
-          style={{width:"100%",background:"#f4f4f4",color:"#111111",
-            border:"1px solid #d9d9d9",borderRadius:"var(--radius-s)",padding:"10px",
+          style={{width:"100%",background:"var(--accent)",color:"var(--text-1)",
+            border:"1px solid var(--accent)",borderRadius:"var(--radius-s)",padding:"10px",
             fontSize:13,fontWeight:600,cursor:"pointer",fontFamily:"var(--font)"}}>
           Accedi
         </button>
