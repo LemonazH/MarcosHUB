@@ -603,6 +603,23 @@
       opacity: .85;
     }
 
+    input[type="date"] {
+      box-shadow: none !important;
+      transform: none !important;
+      transition: border-color .12s ease, background .12s ease !important;
+    }
+
+    input[type="date"]:focus {
+      box-shadow: 0 0 0 1px rgba(255,255,255,.2) !important;
+      transform: none !important;
+    }
+
+    .filter-group input[type="date"],
+    .filter-group input[type="date"]:focus {
+      box-shadow: none !important;
+      transform: none !important;
+    }
+
     .table-shell {
       background: linear-gradient(180deg, rgba(21,21,21,.98) 0%, rgba(14,14,14,.94) 100%);
       border: 1px solid rgba(255,255,255,.12);
@@ -679,6 +696,18 @@
 
     .micro-link-action:hover { opacity: 1; }
 
+    .data-table-dark {
+      --text-1: #f2f2f2;
+      --text-2: #dddddd;
+      --text-3: #bdbdbd;
+      --accent: #83c8ff;
+      --success: #7ad6a1;
+      --warn: #f0c777;
+      --danger: #e88a8a;
+      --border: rgba(255,255,255,.18);
+      --border-2: rgba(255,255,255,.12);
+    }
+
     .data-table-dark th {
       background: linear-gradient(180deg, rgba(38,38,38,.98) 0%, rgba(22,22,22,.96) 100%);
       color: #ececec;
@@ -692,11 +721,11 @@
     }
 
     .data-table-dark tbody tr:nth-child(odd) td {
-      background: rgba(255,255,255,.02) !important;
+      background: rgba(255,255,255,.03) !important;
     }
 
     .data-table-dark tbody tr:nth-child(even) td {
-      background: rgba(255,255,255,.035) !important;
+      background: rgba(255,255,255,.03) !important;
     }
 
     .data-table-dark tbody tr:hover td {
@@ -735,6 +764,17 @@
       text-transform: uppercase;
       letter-spacing: 1px;
       margin-bottom: 8px;
+    }
+
+    .popup-dark-card {
+      background: rgba(22,22,22,.95) !important;
+      border: 1px solid rgba(255,255,255,.14) !important;
+    }
+
+    .popup-dark-card .popup-section-title,
+    .popup-dark-card div,
+    .popup-dark-card span {
+      color: #e7e7e7;
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1041,19 +1081,19 @@ function Badge({label}) {
   const map = {
     FVE:   {bg:"rgba(96,165,250,.14)",c:"#60a5fa"},
     NAC:   {bg:"rgba(168,85,247,.14)",c:"#c084fc"},
-    Aperto:{bg:"var(--success-s)",c:"#5a5a5a"},
-    APERTO:{bg:"var(--success-s)",c:"#5a5a5a"},
-    Chiuso:{bg:"#f3f3f3",c:"#7a7a7a"},
-    CHIUSO:{bg:"#f3f3f3",c:"#7a7a7a"},
-    "DA INCASSARE":{bg:"var(--warn-s)",c:"#707070"},
-    "DA RICONCILIARE":{bg:"#ececec",c:"#707070"},
-    PARZIALE:{bg:"var(--warn-s)",c:"#6b6b6b"},
-    Bonifico:{bg:"var(--bg)",c:"#5a5a5a"},
-    "Assegno Postdatato":{bg:"var(--danger-s)",c:"#707070"},
+    Aperto:{bg:"var(--success-s)",c:"#8ad9a8"},
+    APERTO:{bg:"var(--success-s)",c:"#8ad9a8"},
+    Chiuso:{bg:"rgba(255,255,255,.12)",c:"#e2e2e2"},
+    CHIUSO:{bg:"rgba(255,255,255,.12)",c:"#e2e2e2"},
+    "DA INCASSARE":{bg:"var(--warn-s)",c:"#f2cf88"},
+    "DA RICONCILIARE":{bg:"rgba(96,165,250,.14)",c:"#93c5fd"},
+    PARZIALE:{bg:"var(--warn-s)",c:"#f2cf88"},
+    Bonifico:{bg:"rgba(255,255,255,.12)",c:"#e6e6e6"},
+    "Assegno Postdatato":{bg:"var(--danger-s)",c:"#f2a3a3"},
   };
-  const s = map[label] || {bg:"#ececec",c:"#7a7a7a"};
+  const s = map[label] || {bg:"rgba(255,255,255,.1)",c:"#e6e6e6"};
   return <span style={{background:s.bg,color:s.c,padding:"2px 8px",borderRadius:5,
-    fontSize:11,fontWeight:600,letterSpacing:.4,border:"1px solid #e0e0e0"}}>{label}</span>;
+    fontSize:11,fontWeight:600,letterSpacing:.4,border:"1px solid rgba(255,255,255,.22)"}}>{label}</span>;
 }
 
 function EditCell({value, onSave, numeric, display, color}) {
@@ -1982,8 +2022,6 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                     const isNac = row.doc[COL.tipoDocumento]==="NAC";
                     const saldo = parseNum(row.doc[COL.saldoResiduo]);
                     const statoDoc = row.doc[COL.stato]?.toUpperCase();
-                    const ov = statoDoc==="APERTO" && isOver(row.doc[COL.dataDocumento]);
-                    const wr = statoDoc==="APERTO" && isWarn(row.doc[COL.dataDocumento]);
                     const isAbbinata = !isNac && row.doc[COL.nAssegno];
                     const bgRow = isNac
                       ? (row.checked?"#1a0f2a":"var(--surface)")
@@ -2017,7 +2055,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                         <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11}}>
                           {dFmt(row.doc[COL.dataDocumento])}
                         </td>
-                        <td style={{padding:"9px 12px",color:ov?"#ef4444":wr?"#fb923c":"#334155",fontSize:11}}>
+                        <td style={{padding:"9px 12px",color:"var(--text-2)",fontSize:11}}>
                           {row.doc[COL.dataPagamento]?dFmt(row.doc[COL.dataPagamento]):"—"}
                         </td>
                         <td style={{padding:"9px 12px",textAlign:"right",color:"var(--text-2)"}}>
@@ -2032,7 +2070,7 @@ function PayModal({docs,onSave,onClose,user,onLogout}) {
                                 style={{width:100,background:"var(--surface)",
                                   border:`1px solid ${isNac?"#a855f744":"var(--bg)"}`,
                                   borderRadius:6,padding:"4px 8px",
-                                  color:isNac?"#707070":"#5a5a5a",
+                                  color:isNac?"#d8c0f5":"#dfe7ef",
                                   fontSize:12,textAlign:"right",fontWeight:700}}/>
                             : <span style={{color:"var(--text-2)",fontSize:11}}>—</span>
                           }
@@ -3668,7 +3706,7 @@ function App() {
           <div className="tab-content">
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(230px,1fr))",gap:12,marginBottom:20}}>
               {[
-                {lbl:"Crediti Aperti",    val:eur(totFVE),           color:"var(--accent)",
+                {lbl:"Crediti Aperti",    val:eur(totFVE),           color:"#8cc9ff",
                  sub:`${open.filter(d=>d[COL.tipoDocumento]==="FVE").length} fatture aperte`},
                 {lbl:"Note di Credito",   val:eur(totNAC),           color:"#5f5f5f",
                  sub:`${open.filter(d=>d[COL.tipoDocumento]==="NAC").length} documenti`},
@@ -3899,11 +3937,9 @@ function App() {
                       const advancedStatusOptions = ["PAGATO", "STORNATO"];
                       const showAdvanced = isAdmin && showAdvancedDocStates;
                       const statusOptions = showAdvanced ? [...baseStatusOptions, ...advancedStatusOptions] : baseStatusOptions;
-                      const ov=st==="APERTO"&&isOver(doc[COL.dataDocumento]);
-                      const wn=st==="APERTO"&&isWarn(doc[COL.dataDocumento]);
                       const di=st==="DA INCASSARE" || st==="DA RICONCILIARE";
                       const origIdx=docs.indexOf(doc);
-                      const base=ov?"var(--danger-s)":wn?"var(--warn-s)":i%2===0?"var(--raised)":"var(--surface)";
+                      const base=i%2===0?"var(--raised)":"var(--surface)";
                       return (
                         <tr key={doc[COL.numeroDocumento]+i} className="row-hover"
                           onClick={e=>onDataRowClick(e, "documento", doc)}
@@ -3915,7 +3951,6 @@ function App() {
                           </td>
                           <td style={{padding:"9px 11px",color:"var(--text-1)",fontWeight:600}}>
                             <EditCell value={doc[COL.dataDocumento]} onSave={v=>handleEdit(origIdx,COL.dataDocumento,v)}/>
-                            {ov&&<span style={{color:"var(--danger)",fontSize:10}}> ⚠</span>}
                           </td>
                           <td style={{padding:"9px 11px",color:"var(--text-1)"}}>
                             <EditCell value={doc[COL.ragioneSociale]} onSave={v=>handleEdit(origIdx,COL.ragioneSociale,v)}/>
@@ -4118,7 +4153,7 @@ function App() {
                     <col style={{width:"12%"}}/>{/* Importo */}
                     <col style={{width:"18%"}}/>{/* Fatture */}
                     <col style={{width:"10%"}}/>{/* NC */}
-                    <col style={{width:"17%"}}/>{/* Stato */}
+                    <col style={{width:"22%"}}/>{/* Stato */}
                   </colgroup>
                   <thead>
                     <tr style={{background:"var(--raised)",borderBottom:"1px solid var(--border)"}}>
@@ -4145,7 +4180,7 @@ function App() {
                         <td style={{padding:"9px 13px",color:"var(--success)",fontWeight:700,textAlign:"right",whiteSpace:"nowrap"}}><EditCell value={a["IMPORTO TITOLO"]||""} display={eur(a["IMPORTO TITOLO"])} color="#74d39d" numeric onSave={v=>handleEditAssegno(origIdxA,"IMPORTO TITOLO",v)}/></td>
                         <td style={{padding:"9px 13px",color:"var(--text-1)",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["FATTURE PAGATE"])}</td>
                         <td style={{padding:"9px 13px",color:"#c084fc",fontSize:11,whiteSpace:"nowrap"}}>{fmtDocList(a["NC SCALATE"])}</td>
-                        <td style={{padding:"9px 13px",whiteSpace:"nowrap",minWidth:160}}><EditCell value={a["STATO TITOLO"]||""} color={assStatoColor(a["STATO TITOLO"])} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
+                        <td style={{padding:"9px 13px",whiteSpace:"normal",minWidth:220,lineHeight:1.3}}><EditCell value={a["STATO TITOLO"]||""} color={assStatoColor(a["STATO TITOLO"])} onSave={v=>handleEditAssegno(origIdxA,"STATO TITOLO",v)}/></td>
                       </tr>
                     );
                   })}
@@ -5166,7 +5201,7 @@ function App() {
                         return (
                           <tr key={i}
                             style={{borderBottom:"1px solid var(--border-2)",
-                              background:isHL?"#1A1A0A":i%2===0?"var(--raised)":"var(--surface)",
+                              background:isHL?"#1A1A0A":"var(--surface)",
                               borderLeft:isHL?"3px solid var(--warn)":"3px solid transparent"}}
                             className="row-hover">
                             <td style={{padding:"9px 12px",color:"#0284C7",fontWeight:700,
@@ -5387,7 +5422,7 @@ function App() {
                     </button>
                   )}
                   <button onClick={()=>setStoricoPopup(null)}
-                    style={{background:"var(--accent-s)",border:"none",color:"var(--text-2)",
+                    style={{background:"var(--accent-s)",border:"none",color:"var(--text-1)",
                       borderRadius:"var(--radius-s)",padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
                 </div>
               </div>
@@ -5403,8 +5438,8 @@ function App() {
                     {fatture.map((f,j)=>{
                       const doc = docCollegati.find(d=>d._numRef===f);
                       return (
-                        <div key={j} style={{background:doc?"var(--border-2)":"var(--bg)",
-                          border:`1px solid ${doc?"var(--bg)":"rgba(0,0,0,.16)"}`,
+                        <div key={j} className="popup-dark-card" style={{background:doc?"rgba(255,255,255,.07)":"rgba(255,255,255,.04)",
+                          border:`1px solid ${doc?"rgba(255,255,255,.14)":"rgba(255,255,255,.1)"}`,
                           borderRadius:"var(--radius-s)",padding:"8px 12px",marginBottom:6,
                           display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                           <div>
@@ -5436,7 +5471,7 @@ function App() {
                       📋 Assegni correlati ({assCollegati.length})
                     </div>
                     {assCollegati.map((a,j)=>(
-                      <div key={j} style={{background:"var(--bg)",border:"1px solid var(--border)",
+                      <div key={j} className="popup-dark-card" style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.12)",
                         borderRadius:"var(--radius-s)",padding:"10px 12px",marginBottom:6}}>
                         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
                           <div>
@@ -5496,14 +5531,14 @@ function App() {
                   <span className="popup-chip">Riconciliazioni: {pathPopup.rico.length}</span>
                 </div>
               </div>
-              <button onClick={()=>setPathPopup(null)} style={{background:"var(--accent-s)",border:"none",color:"var(--text-2)",borderRadius:"var(--radius-s)",padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
+              <button onClick={()=>setPathPopup(null)} style={{background:"var(--accent-s)",border:"none",color:"var(--text-1)",borderRadius:"var(--radius-s)",padding:"6px 12px",cursor:"pointer",fontSize:12}}>✕</button>
             </div>
 
             <div style={{overflowY:"auto",padding:"16px 20px",display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+              <div className="popup-dark-card" style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:10}}>
                 <div className="popup-section-title" style={{marginBottom:8}}>Documenti collegati</div>
                 {pathPopup.docs.length ? pathPopup.docs.map((d,idx)=>(
-                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,marginBottom:7,background:"rgba(255,255,255,.04)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
                       <span style={{color:"var(--accent)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{d[COL.numeroDocumento]||"—"}</span>
                       <span style={{color:"var(--text-2)",fontSize:10}}>{d[COL.tipoDocumento]||"—"}</span>
@@ -5514,10 +5549,10 @@ function App() {
                 )) : <div style={{color:"var(--text-3)",fontSize:11}}>Nessun documento collegato</div>}
               </div>
 
-              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+              <div className="popup-dark-card" style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:10}}>
                 <div className="popup-section-title" style={{marginBottom:8}}>Incassi collegati</div>
                 {pathPopup.incs.length ? pathPopup.incs.map((inc,idx)=>(
-                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,marginBottom:7,background:"rgba(255,255,255,.04)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
                       <span style={{color:"var(--text-1)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{inc["ID Incasso"]||inc._id||"—"}</span>
                       <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(inc["Importo Totale"]||0)}</span>
@@ -5528,10 +5563,10 @@ function App() {
                 )) : <div style={{color:"var(--text-3)",fontSize:11}}>Nessun incasso collegato</div>}
               </div>
 
-              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+              <div className="popup-dark-card" style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:10}}>
                 <div className="popup-section-title" style={{marginBottom:8}}>Assegni collegati</div>
                 {pathPopup.ass.length ? pathPopup.ass.map((a,idx)=>(
-                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,marginBottom:7,background:"rgba(255,255,255,.04)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
                       <span style={{color:"var(--text-1)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{a["N TITOLO"]||"—"}</span>
                       <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(a["IMPORTO TITOLO"]||0)}</span>
@@ -5542,10 +5577,10 @@ function App() {
                 )) : <div style={{color:"var(--text-3)",fontSize:11}}>Nessun assegno collegato</div>}
               </div>
 
-              <div style={{background:"var(--bg)",border:"1px solid var(--border)",borderRadius:12,padding:10}}>
+              <div className="popup-dark-card" style={{background:"rgba(255,255,255,.04)",border:"1px solid rgba(255,255,255,.12)",borderRadius:12,padding:10}}>
                 <div className="popup-section-title" style={{marginBottom:8}}>Riconciliazioni collegate</div>
                 {pathPopup.rico.length ? pathPopup.rico.map((r,idx)=>(
-                  <div key={idx} style={{padding:"8px 9px",border:"1px solid var(--border-2)",borderRadius:8,marginBottom:7,background:"var(--surface)"}}>
+                  <div key={idx} style={{padding:"8px 9px",border:"1px solid rgba(255,255,255,.12)",borderRadius:8,marginBottom:7,background:"rgba(255,255,255,.04)"}}>
                     <div style={{display:"flex",justifyContent:"space-between",gap:8}}>
                       <span style={{color:"var(--accent)",fontFamily:"var(--mono)",fontWeight:700,fontSize:11}}>{r.id||"—"}</span>
                       <span style={{color:"var(--success)",fontWeight:700,fontSize:11}}>{eur(r.accredito||0)}</span>
