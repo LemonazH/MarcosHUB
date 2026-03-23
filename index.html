@@ -504,7 +504,7 @@
       transition: all .15s cubic-bezier(.34,.1,.64,.1);
       box-shadow: 0 1px 0 rgba(255,255,255,.8), 0 1px 2px rgba(0,0,0,.06);
     }
-    input::placeholder, textarea::placeholder { color: #999999; }
+    input::placeholder, textarea::placeholder { color: var(--text-2); opacity: 0.7; }
     input:focus, select:focus, textarea:focus {
       border-color: rgba(0,0,0,.28);
       box-shadow: 0 0 0 3px rgba(0,0,0,.05), 0 6px 18px rgba(0,0,0,.08);
@@ -1089,7 +1089,7 @@ function makeSortTh(sortKey, sortDir, toggleSort) {
           transition:"color .15s,background .15s",...style}}>
         <span style={{display:"flex",alignItems:"center",gap:5}}>
           {label}
-          <span style={{fontSize:10,color:active?"#ffffff":"#bfbfbf"}}>
+          <span style={{fontSize:10,color:active?"#ffffff":"var(--text-2)"}}>
             {active?(sortDir==="asc"?"▲":"▼"):"⇅"}
           </span>
         </span>
@@ -1277,7 +1277,7 @@ function CashChart({assegni,onNavigate}) {
       <div style={{display:"flex",gap:5,background:"var(--surface)",border:"1px solid var(--border)",borderRadius:999,padding:6,transition:"all .2s ease"}}>
         {[["TUTTI","Tutti"],["IN ARCHIVIO","In Archivio"],["CONSEGNATO A PINO","Cons. Pino"]].map(([v,l])=>(
           <FilBtn key={v} label={l} active={statoFil===v}
-            color={v==="IN ARCHIVIO"?"#bfa973":v==="CONSEGNATO A PINO"?"#6485a3":"var(--text-1)"}
+            color={v==="IN ARCHIVIO"?"#bfa973":v==="CONSEGNATO A PINO"?"var(--text-2)":"var(--text-1)"}
             onClick={()=>setStatoFil(v)}/>
         ))}
       </div>
@@ -1349,13 +1349,13 @@ function CashChart({assegni,onNavigate}) {
 
       <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>
         {[
-          {label:"Totale periodo", val:eur(totGlobale), color:"#ffffff"},
-          {label:"In Archivio", val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"#ffffff"},
-          {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"#ffffff"},
-          {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"#ffffff"},
+          {label:"Totale periodo", val:eur(totGlobale), color:"var(--text-2)"},
+          {label:"In Archivio", val:eur(entries.reduce((s,[,v])=>s+v.archivio,0)), color:"var(--text-2)"},
+          {label:"Cons. a Pino", val:eur(entries.reduce((s,[,v])=>s+v.pino,0)), color:"var(--text-2)"},
+          {label:"Assegni - Date", val:`${nGlobale} - ${entries.length}`, color:"var(--text-2)"},
         ].map(({label,val,color},i)=>(
           <div key={i} style={{flex:"1 1 140px",background:"#101010",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"14px 18px",boxShadow:"0 10px 22px rgba(0,0,0,.22)"}}>
-            <div style={{color:"#cfcfcf",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>{label}</div>
+            <div style={{color:"var(--text-2)",fontSize:10,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,marginBottom:8}}>{label}</div>
             <div style={{color,fontSize:16,fontWeight:800,fontFamily:"'Century Gothic', CenturyGothic, sans-serif",lineHeight:1}}>{val}</div>
           </div>
         ))}
@@ -3200,10 +3200,10 @@ function App() {
         </div>
 
         <div style={{color:"var(--text-1)",fontSize:16,fontWeight:600,marginBottom:6}}>Accedi</div>
-        <div style={{color:"#d6d6d6",fontSize:12,marginBottom:24}}>Inserisci le tue credenziali per continuare</div>
+        <div style={{color:"var(--text-2)",fontSize:12,marginBottom:24}}>Inserisci le tue credenziali per continuare</div>
 
         <div style={{marginBottom:14}}>
-          <label style={{color:"#e1e1e1",fontSize:11,fontWeight:600,
+          <label style={{color:"var(--text-2)",fontSize:11,fontWeight:600,
             display:"block",marginBottom:5}}>Utente</label>
           <input value={loginUser} onChange={e=>setLoginUser(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&handleLogin()} placeholder="Nome utente"
@@ -3211,7 +3211,7 @@ function App() {
               borderRadius:"var(--radius-s)",boxSizing:"border-box"}}/>
         </div>
         <div style={{marginBottom:20}}>
-          <label style={{color:"#e1e1e1",fontSize:11,fontWeight:600,
+          <label style={{color:"var(--text-2)",fontSize:11,fontWeight:600,
             display:"block",marginBottom:5}}>Password</label>
           <input type="password" value={loginPass} onChange={e=>setLoginPass(e.target.value)}
             onKeyDown={e=>e.key==="Enter"&&handleLogin()} placeholder="••••••••"
@@ -3846,11 +3846,11 @@ function App() {
                     boxShadow:"0 0 20px rgba(74,222,128,.15)"
                   } : {})
                 }}>
-                  <div style={{color:"#dfdfdf",fontSize:9.5,fontWeight:700,
+                  <div style={{color:"var(--text-2)",fontSize:9.5,fontWeight:700,
                     letterSpacing:".8px",marginBottom:12,textTransform:"uppercase"}}>{lbl}</div>
                   <div style={{color,fontSize:23,fontFamily:"var(--mono)",
                     fontWeight:500,letterSpacing:"-.5px",lineHeight:1,marginBottom:6}}>{val}</div>
-                  <div style={{color:"#cecece",fontSize:10}}>{sub}</div>
+                  <div style={{color:"var(--text-2)",fontSize:10}}>{sub}</div>
                 </div>
               ))}
             </div>
