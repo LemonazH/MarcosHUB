@@ -1194,7 +1194,7 @@ function EditCell({value, onSave, numeric, display, color}) {
   );
 }
 
-function CashChart({assegni,onNavigate}) {
+function CashChart({assegni,onNavigate,onOpenDoc}) {
   const [hoverIdx,setHoverIdx] = useState(null);
   const [pinnedPopups,setPinnedPopups] = useState([]); // array di {dayIdx, k, v, x, y, dragging, dragStart}
   const [mousePos,setMousePos] = useState({x:0,y:0});
@@ -1349,9 +1349,8 @@ function CashChart({assegni,onNavigate}) {
     if (exists) {
       setPinnedPopups(pinnedPopups.filter(p => p.dayIdx !== dayIdx));
     } else {
-      const svgRect = svgRef.current?.getBoundingClientRect();
-      const baseX = (svgRect?.width || 820) * 0.5;
-      const baseY = (svgRect?.height || 220) * 0.3 + pinnedPopups.length * 30;
+      const baseX = mousePos.x - 20;
+      const baseY = mousePos.y + 12;
       setPinnedPopups([...pinnedPopups, {dayIdx, k, v, x: baseX, y: baseY, dragging: false, dragStart: null}]);
     }
   };
@@ -1456,7 +1455,7 @@ function CashChart({assegni,onNavigate}) {
           const hasRec=isReallyReconciled(v.items);
           const col=hasRec?"var(--success)":"var(--accent)";
           return (
-            <div style={{position:"fixed",left:mousePos.x+12,top:mousePos.y+4,background:"var(--surface)",border:`1px solid ${col}44`,borderRadius:10,padding:"10px 14px",fontSize:9,color:"var(--text-1)",fontFamily:"var(--font)",zIndex:100,whiteSpace:"nowrap",pointerEvents:"none",boxShadow:"0 4px 12px rgba(0,0,0,.25)"}}>
+            <div style={{position:"fixed",left:mousePos.x+4,top:mousePos.y+8,background:"var(--surface)",border:`1px solid ${col}44`,borderRadius:10,padding:"10px 14px",fontSize:9,color:"var(--text-1)",fontFamily:"var(--font)",zIndex:100,whiteSpace:"nowrap",pointerEvents:"none",boxShadow:"0 4px 12px rgba(0,0,0,.25)"}}>
               <div style={{fontSize:8,color:"var(--text-2)",marginBottom:3,fontWeight:600}}>{fmtFullLong(k)}</div>
               <div style={{display:"flex",gap:12,fontSize:11,fontFamily:"'Century Gothic', CenturyGothic, sans-serif",fontWeight:800,color:col}}>
                 <span>{v.items.length} assegni</span>
@@ -1481,15 +1480,15 @@ function CashChart({assegni,onNavigate}) {
               
               <div style={{background:`linear-gradient(135deg, ${col}15, ${col}08)`,padding:"12px 14px",borderBottom:`1px solid ${col}22`,display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"grab"}}>
                 <div>
-                  <div style={{color:col,fontSize:9,fontWeight:700,fontFamily:"var(--font)",letterSpacing:.2,textTransform:"uppercase",opacity:.8}}>{fmtFullLong(k)}</div>
-                  <div style={{color:"var(--text-1)",fontSize:10,fontWeight:700,fontFamily:"var(--font)",marginTop:2}}>{v.items.length} assegni</div>
+                  <div style={{color:col,fontSize:10.5,fontWeight:700,fontFamily:"var(--font)",letterSpacing:.2,textTransform:"uppercase",opacity:.8}}>{fmtFullLong(k)}</div>
+                  <div style={{color:"var(--text-1)",fontSize:11.5,fontWeight:700,fontFamily:"var(--font)",marginTop:2}}>{v.items.length} assegni</div>
                 </div>
                 <button onClick={(e)=>{e.stopPropagation(); setPinnedPopups(pinnedPopups.filter((_, i) => i !== popupIdx));}} style={{background:"transparent",border:"none",color:col,cursor:"pointer",fontSize:14,padding:"4px 8px",transition:"all .15s ease"}} onMouseDown={(e)=>e.stopPropagation()}>✕</button>
               </div>
 
-              <div style={{padding:"10px 12px",background:"var(--raised)",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",fontSize:8,color:"var(--text-2)",fontFamily:"var(--font)"}}>
-                <span style={{fontFamily:"'Century Gothic', CenturyGothic, sans-serif",fontWeight:800,color:col,fontSize:12}}>{eur(v.total)}</span>
-                <button onClick={(e)=>{e.stopPropagation(); onNavigate&&onNavigate(k,v.items);}} style={{background:col,border:"none",color:"var(--surface)",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:7.5,fontWeight:700,fontFamily:"var(--font)"}} onMouseDown={(e)=>e.stopPropagation()}>📋 Storico</button>
+              <div style={{padding:"10px 12px",background:"var(--raised)",borderBottom:"1px solid var(--border)",display:"flex",justifyContent:"space-between",fontSize:10,color:"var(--text-2)",fontFamily:"var(--font)"}}>
+                <span style={{fontFamily:"'Century Gothic', CenturyGothic, sans-serif",fontWeight:800,color:col,fontSize:15}}>{eur(v.total)}</span>
+                <button onClick={(e)=>{e.stopPropagation(); onNavigate&&onNavigate(k,v.items);}} style={{background:col,border:"none",color:"var(--surface)",borderRadius:6,padding:"4px 8px",cursor:"pointer",fontSize:10,fontWeight:700,fontFamily:"var(--font)"}} onMouseDown={(e)=>e.stopPropagation()}>📋 Storico</button>
               </div>
 
               <div style={{maxHeight:"calc(80vh - 120px)",overflowY:"auto",scrollbarWidth:"thin",scrollbarColor:"rgba(255,255,255,.12) transparent",flex:1}}>
@@ -1497,18 +1496,29 @@ function CashChart({assegni,onNavigate}) {
                   const imp=parseNum(a["IMPORTO TITOLO"]);
                   const done=isIncassato(a);
                   const riconciliato = String(a?.["STATO TITOLO"]||"").toUpperCase()==="INCASSATO";
+                  const docRefs = parseDocRefs(a["N DOCUMENTO"] || a["NUMERO DOCUMENTO"] || a["DOCUMENTI COLLEGATI"] || "");
                   return (
-                    <div key={j} style={{padding:"9px 12px",borderBottom:j<v.items.length-1?"1px solid rgba(0,0,0,.08)":"none",background:"var(--surface)",fontSize:8,color:"var(--text-2)",fontFamily:"var(--font)"}}>
-                      <div style={{color:"var(--text-1)",fontWeight:700,marginBottom:2,display:"flex",gap:4,alignItems:"center"}}>
+                    <div key={j} style={{padding:"9px 12px",borderBottom:j<v.items.length-1?"1px solid rgba(0,0,0,.08)":"none",background:"var(--surface)",fontSize:11,color:"var(--text-2)",fontFamily:"var(--font)"}}>
+                      <div style={{color:"var(--text-1)",fontWeight:700,marginBottom:2,display:"flex",gap:4,alignItems:"center",fontSize:11}}>
                         <span style={{width:4,height:4,borderRadius:99,background:riconciliato?"var(--success)":"var(--accent)",flexShrink:0}}/>
                         <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{a["CLIENTE"]||"−"}</span>
                       </div>
-                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                        <div><span style={{fontFamily:"var(--mono)",fontWeight:600}}>{a["N TITOLO"]||"−"}</span>
-                          <span style={{fontSize:7,padding:"1px 4px",borderRadius:3,fontWeight:700,background:done?"var(--success-s)":"var(--warn-s)",color:done?"var(--success)":"var(--warn)",border:`0.5px solid ${done?"var(--success)":"var(--warn)"}`,marginLeft:4}}>{a["STATO TITOLO"]||""}</span>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <div><span style={{fontFamily:"var(--mono)",fontWeight:600,fontSize:13}}>{a["N TITOLO"]||"−"}</span>
+                          <span style={{fontSize:9.5,padding:"1px 4px",borderRadius:3,fontWeight:700,background:done?"var(--success-s)":"var(--warn-s)",color:done?"var(--success)":"var(--warn)",border:`0.5px solid ${done?"var(--success)":"var(--warn)"}`,marginLeft:4}}>{a["STATO TITOLO"]||""}</span>
                         </div>
-                        <div style={{color:col,fontWeight:700,fontFamily:"var(--mono)"}}>{eur(imp)}</div>
+                        <div style={{color:col,fontWeight:700,fontFamily:"var(--mono)",fontSize:12}}>{eur(imp)}</div>
                       </div>
+                      {docRefs.length > 0 && (
+                        <div style={{fontSize:10,color:"var(--text-3)",padding:"4px 6px",background:"rgba(0,0,0,.1)",borderRadius:4,marginTop:4}}>
+                          <div style={{fontWeight:600,marginBottom:2,color:"var(--accent)"}}>📄 Fatture collegate:</div>
+                          <div style={{display:"flex",gap:3,flexWrap:"wrap"}}>
+                            {docRefs.map((ref,i)=>(
+                              <span key={i} onClick={(e)=>{e.stopPropagation();onOpenDoc&&onOpenDoc(ref);}} style={{background:"var(--accent-s)",color:"var(--accent)",padding:"2px 5px",borderRadius:3,fontFamily:"var(--mono)",fontWeight:600,cursor:"pointer",transition:"all .15s",border:"1px solid var(--accent)",fontSize:11}} onMouseEnter={e=>e.target.style.background="var(--accent)"} onMouseLeave={e=>e.target.style.background="var(--accent-s)"} title={`Clicca per aprire ${ref}`}>{ref}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -2592,6 +2602,13 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
             <div style={{background:"var(--surface)",border:"1px solid var(--border)",borderRadius:"var(--radius-s)",
               overflow:"auto",marginBottom:16,maxHeight:180}}>
               <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                <colgroup>
+                  <col style={{width:"30px"}}/>
+                  <col style={{width:"50px"}}/>
+                  <col style={{width:"70px"}}/>
+                  <col />
+                  <col style={{width:"80px"}}/>
+                </colgroup>
                 <thead>
                   <tr style={{background:"var(--bg)"}}>
                     {["Tipo","N.Doc","Data","Cliente","Importo"].map(h=>(
@@ -2605,12 +2622,12 @@ function MigrazioneTab({docs, authed, notify, onComplete}) {
                       <td style={{padding:"5px 10px"}}>
                         <span style={{background:d.tipo_documento==="FVE"?"var(--bg)":"var(--warn-s)",
                           color:d.tipo_documento==="FVE"?"#60a5fa":"#f59e0b",
-                          padding:"1px 6px",borderRadius:4,fontSize:10}}>{d.tipo_documento}</span>
+                          padding:"1px 4px",borderRadius:4,fontSize:9,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis",display:"inline-block",maxWidth:"100%"}}>{d.tipo_documento}</span>
                       </td>
-                      <td style={{padding:"5px 10px",color:"var(--text-1)"}}>{d.numero_documento}</td>
+                      <td style={{padding:"5px 10px",color:"var(--text-1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.numero_documento}</td>
                       <td style={{padding:"5px 10px",color:"var(--text-2)"}}>{toIT(d.data_documento)}</td>
-                      <td style={{padding:"5px 10px",color:"var(--text-1)",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{d.ragione_sociale}</td>
-                      <td style={{padding:"5px 10px",color:d.importo_totale<0?"#f87171":"#4ade80",fontFamily:"var(--font)"}}>
+                      <td style={{padding:"5px 10px",color:"var(--text-1)",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",minWidth:0}}>{d.ragione_sociale}</td>
+                      <td style={{padding:"5px 10px",color:d.importo_totale<0?"#f87171":"#4ade80",fontFamily:"var(--font)",textAlign:"right"}}>
                         {new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR"}).format(d.importo_totale)}
                       </td>
                     </tr>
@@ -3874,7 +3891,7 @@ function App() {
                   Cash Flow — Scadenze assegni
                 </span>
               </div>
-              <CashChart assegni={assegni} onNavigate={(k,items)=>{ setTab("storico"); setStoricoSezione("assegni"); setStoricoFiltroAssegno(k); }}/>
+              <CashChart assegni={assegni} onNavigate={(k,items)=>{ setTab("storico"); setStoricoSezione("assegni"); setStoricoFiltroAssegno(k); }} onOpenDoc={(docNum)=>{const doc=docs.find(d=>String(d[COL.numeroDocumento]).trim()===String(docNum).trim());if(doc)openPathPopup("documento",doc);}} />
             </div>
 
             {/* Assegni per ragione sociale */}
@@ -3961,13 +3978,13 @@ function App() {
                         </div>
                         {/* Importi */}
                         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
-                          {g.pino.length>0&&<span style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--text-1)"}}>{eur(totPino)}</span>}
-                          {g.arch.length>0&&<span style={{fontFamily:"var(--mono)",fontSize:11,color:"var(--text-2)"}}>{eur(totArch)}</span>}
+                          {g.pino.length>0&&<span style={{fontFamily:"'Century Gothic', CenturyGothic, sans-serif",fontSize:11,fontWeight:800,color:"var(--text-1)"}}>{eur(totPino)}</span>}
+                          {g.arch.length>0&&<span style={{fontFamily:"'Century Gothic', CenturyGothic, sans-serif",fontSize:11,fontWeight:800,color:"var(--text-2)"}}>{eur(totArch)}</span>}
                         </div>
                         {/* Conteggi */}
                         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:2}}>
-                          {g.pino.length>0&&<span style={{fontSize:10,color:"var(--text-2)"}}>{g.pino.length}</span>}
-                          {g.arch.length>0&&<span style={{fontSize:10,color:"var(--text-2)"}}>{g.arch.length}</span>}
+                          {g.pino.length>0&&<span style={{fontFamily:"'Century Gothic', CenturyGothic, sans-serif",fontSize:10,fontWeight:700,color:"var(--text-2)"}}>{g.pino.length}</span>}
+                          {g.arch.length>0&&<span style={{fontFamily:"'Century Gothic', CenturyGothic, sans-serif",fontSize:10,fontWeight:700,color:"var(--text-2)"}}>{g.arch.length}</span>}
                         </div>
                         {/* Tooltip hover */}
                         <div className="ass-tooltip">
@@ -4108,7 +4125,7 @@ function App() {
                           <td style={{padding:"9px 11px",color:"var(--text-1)",fontSize:11}}>
                             <EditCell value={doc[COL.nAssegno]||""} onSave={v=>handleEdit(origIdx,COL.nAssegno,v)}/>
                           </td>
-                          <td style={{padding:"9px 11px",color:"var(--text-1)",fontSize:11,maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                          <td style={{padding:"9px 11px",color:"var(--text-1)",fontSize:11,maxWidth:"100%",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                             <EditCell value={doc[COL.note]||""} onSave={v=>handleEdit(origIdx,COL.note,v)}/>
                           </td>
                           {/* Stato — cliccabile se PAGATO per riaprire */}
